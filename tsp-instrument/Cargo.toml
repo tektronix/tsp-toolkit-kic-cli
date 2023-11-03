@@ -1,0 +1,25 @@
+[package]
+name = "tsp-instrument"
+description = "A library specifically enabling communication to the Keithley product-line of instruments"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+bytes = { workspace = true }
+phf = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
+rusb = "0.9.1"
+chrono = "0.4.30"
+#oklib-rs = { git = "https://git.keithley.com/trebuchet/teaspoon/oklib-rs.git", branch = "main", optional = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+bytes = "1"
+colored = { workspace = true }
+mockall = { workspace = true }

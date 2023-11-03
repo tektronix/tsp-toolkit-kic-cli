@@ -1,0 +1,227 @@
+#!/usr/bin/env node
+
+const { spawnSync } = require('node:child_process')
+const { exit } = require('node:process')
+
+/** 
+ * The list of protect branches
+ * @type {Set<string>} 
+ */
+const PROTECTED_BRANCHES = new Set([
+    "dev",
+    "main",
+])
+
+/** 
+ * ANSI color codes
+ * @type {string} 
+ */
+const Color = {
+    RED: "\x1b[31m",
+    GREEN: "\x1b[32m",
+    YELLOW: "\x1b[33m",
+    BLUE: "\x1b[34m",
+    GRAY: "\x1b[90m",
+    RESET: "\x1b[0m",
+}
+
+/** 
+ * ANSI control character for moving around the terminal
+ * @type {string} 
+ */
+const Ansi = {
+    SAVE_POS: "\x1b[s",
+    PREV_LINE: "\x1b[F",
+    NEXT_LINE: "\x1b[E",
+    RESTORE_POS: "\x1b[u",
+}
+
+/** @enum {number} */
+const CheckStatus = {
+    PASS: 0,
+    FAIL: 1,
+    WARNING: 3,
+    NONE: 4,
+}
+
+/**
+ * Holds the result information from a `Check`
+ */
+class CheckResult {
+    /**
+     * @brief Construct a CheckResult
+     * @param {CheckStatus | undefined} status - The status of the check
+     * @param {string | undefined} message - The message text to print to the user
+     */
+    constructor(status, message) {
+        /** @type {CheckStatus | undefined} */
+        this.status = status
+        /** @type {string | undefined} */
+        this.message = message
+    }
+
+    /**
+     *  Looks at the status an returns a string that represents it with proper ANSI coloring.
+     * @returns {string} A string containing the ASNI color codes for the status
+     */
+    statusToString() {
+        switch (this.status) {
+            case CheckStatus.NONE:
+                return "NONE"
+            case CheckStatus.PASS:
+                return `${Color.GREEN}PASS${Color.RESET}`
+            case CheckStatus.WARNING:
+                return `${Color.YELLOW}WARN${Color.RESET}`
+            case CheckStatus.FAIL:
+                return `${Color.RED}FAIL${Color.RESET}`
+            default:
+                return "UNKN"
+        }
+    }
+
+    /**
+     * @returns {string} A string containing the message with proper coloring, or an empty string if message is undefined.
+     */
+    messageToString() {
+        if (this.message === undefined || this.message.length == 0) {
+            return ""
+        }
+        switch (this.status) {
+            case CheckStatus.NONE:
+                return ""
+            case CheckStatus.PASS:
+                return `${Color.GREEN}${this.message}${Color.RESET}`
+            case CheckStatus.WARNING:
+                return `${Color.YELLOW}${this.message}${Color.RESET}`
+            case CheckStatus.FAIL:
+                return `${Color.RED}${this.message}${Color.RESET}`
+            default:
+                return ""
+        }
+
+    }
+}
+
+
+/**
+ * @brief A type to store all the checks that might be performed
+ */
+class Check {
+    /**
+     * @brief Constructs a Check
+     * @param {string} name - The name of the check
+     * @param {string} description - A description of what the check does
+     * @param {function(): CheckResult} fn - a function that will be run to perform the check
+     */
+    constructor(name, description, fn) {
+        /** @type {string} */
+        this.name = name
+        /** @type {string} */
+        this.description = description
+        /** @type {function(): CheckResult} */
+        this.fn = fn
+        /** @type {CheckResult} */
+        this.result = new CheckResult()
+    }
+
+    /**
+     * @brief Execute the provided function to perform the check.
+     * @returns {CheckResult}
+     */
+    exec() {
+        this.result = this.fn()
+        return this.result
+    }
+}
+
+/**
+ * A class to run an array of checks and print the results
+ */
+class CheckRunner {
+    /**
+     * Construct a CheckRunner
+     */
+    constructor() {
+        /** @type {Array<Check>} */
+        this.checks = new Array()
+    }
+
+    /**
+     * @param {Check} check - A `Check` to add to those to run 
+     * @returns {CheckRunner} Builder
+     */
+    add(check) {
+        this.checks.push(check)
+        return this
+    }
+
+    /**
+     * Run all the added checks, printing the results.
+     * If there is a CheckStatus.FAIL, the process.exitCode is set to a value != 0
+     */
+    run() {
+        for (let check of this.checks) {
+            console.log(`\n[${Color.BLUE}RUN ${Color.RESET}] ${check.name}\n\t${Color.GRAY}-> ${check.description}${Color.RESET}`)
+            check.exec()
+            console.log(`${Ansi.PREV_LINE}${Ansi.PREV_LINE}[${check.result.statusToString()}]${Ansi.NEXT_LINE}${Ansi.NEXT_LINE}\t${check.result.messageToString()}`)
+            switch (check.result.status) {
+                case CheckStatus.PASS:
+                    break
+                case CheckStatus.NONE:
+                    break
+                case CheckStatus.WARNING:
+                    break
+                case CheckStatus.FAIL:
+                    process.exitCode = 1
+                    break
+                default:
+                    break
+            }
+        }
+        return this
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+/// ADD NEW CHECKS BELOW HERE //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+
+new CheckRunner()
+    .add(new Check("git branch", "ensure the current branch is neither 'dev' nor 'main'", () => {
+
+        let git = spawnSync('git', ['branch', '--show-current'])
+        const branch = git.output.toString().replace(/\,/g, "").trim()
+        if (PROTECTED_BRANCHES.has(branch)) {
+            //TODO add a prompt?
+            return new CheckResult(CheckStatus.FAIL, `Current branch is ${branch}, which is protected.`)
+        }
+
+        return new CheckResult(CheckStatus.PASS)
+    }))
+    .add(new Check("cargo fmt", "format all rust files in the project", () => {
+        spawnSync('cargo', ['fmt'])
+
+        return new CheckResult(CheckStatus.PASS)
+    }))
+    .add(new Check("cargo check", "ensure cargo check runs to completion", () => {
+        let check = spawnSync('cargo', ['check'])
+
+        if (check.status !== 0) {
+            return new CheckResult(CheckStatus.FAIL, `Build failed:\n${check.output}\n`)
+        }
+
+        return new CheckResult(CheckStatus.PASS)
+    }))
+    .add(new Check("cargo clippy", "ensure there are no linting warnings or errors", () => {
+
+        let clippy = spawnSync('cargo', ['clippy', '--', '--deny', 'clippy::all'])
+
+        if (clippy.status !== 0) {
+            return new CheckResult(CheckStatus.FAIL, `Linting failed: \n${clippy.output}\n`)
+        }
+
+        return new CheckResult(CheckStatus.PASS)
+    }))
+    .run()
