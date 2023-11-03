@@ -1,0 +1,76 @@
+// A launch configuration that compiles the extension and then opens it inside a new window
+// Use IntelliSense to learn about possible attributes.
+// Hover to view descriptions of existing attributes.
+// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(Windows) kic Launch",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/kic",
+            "args": ["connect","lan", "134.63.78.86"],
+            "cwd": "${workspaceRoot}",
+
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug kic discover",
+            "cwd": "${workspaceFolder}",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=kic",
+                    "--package=ki-comms"
+                ],
+                "filter": {
+                    "name": "kic",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "discover",
+                "lan",
+            ]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug kic help",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=kic"
+                ]
+            },
+            "program": "${workspaceFolder}/target/debug/kic",
+            "args": [
+                "help"
+            ]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug kic connect",
+            "cwd": "${workspaceFolder}/kic",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=kic",
+                    "--package=ki-comms"
+                ],
+                "filter": {
+                    "name": "kic",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "connect",
+                "lan",
+                "134.64.245.68",
+            ]
+        }
+    ]
+}

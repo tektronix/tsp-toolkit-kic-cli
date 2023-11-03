@@ -1,0 +1,6 @@
+# tell git that all text files should always be LF, not CRLF
+* text=auto eol=lf
+
+
+# Tell GitLab that tsp files should be highlighted as Lua
+*.tsp gitlab-language=lua

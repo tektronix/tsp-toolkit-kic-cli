@@ -1,0 +1,50 @@
+{
+    "name": "@trebuchet/ki-comms",
+    "version": "0.10.2",
+    "main": "index.js",
+    "bin": {
+        "windows-kic": "./bin/kic.exe",
+        "linux-kic": "./bin/kic",
+        "windows-kic-discover": "./bin/kic-discover.exe",
+        "linux-kic-discover": "./bin/kic-discover"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://git.keithley.com/trebuchet/teaspoon/ki-comms.git"
+    },
+    "typings": "index.d.ts",
+    "files": [
+        "index.d.ts",
+        "index.js",
+        "bin/*"
+    ],
+    "scripts": {
+        "pretest": "cargo build --release",
+        "lint": "eslint src --ext ts",
+        "test": "mocha --config .mocharc.yml"
+    },
+    "devDependencies": {
+        "@istanbuljs/nyc-config-typescript": "^1.0.2",
+        "@types/chai": "^4.3.1",
+        "@types/mocha": "^9.1.1",
+        "@types/node": "14.x",
+        "@types/node-fetch": "^2.6.2",
+        "@types/vscode": "^1.66.0",
+        "@typescript-eslint/eslint-plugin": "^5.22.0",
+        "@typescript-eslint/parser": "^5.22.0",
+        "chai": "^4.3.6",
+        "eslint": "^8.14.0",
+        "eslint-config-prettier": "^8.5.0",
+        "eslint-import-resolver-typescript": "^2.7.1",
+        "eslint-plugin-import": "^2.26.0",
+        "eslint-plugin-jsdoc": "^39.2.9",
+        "eslint-plugin-prettier": "^4.0.0",
+        "mocha": "^9.2.2",
+        "nyc": "^15.1.0",
+        "prettier": "^2.6.2",
+        "source-map-support": "^0.5.21",
+        "ts-node": "^10.7.0",
+        "typescript": "^4.6.4",
+        "dotenv": "16.0.3"
+    }
+}

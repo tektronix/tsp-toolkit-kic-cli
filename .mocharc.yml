@@ -1,0 +1,7 @@
+recursive: true
+require:
+  - ts-node/register
+  - source-map-support/register
+spec: tests/typescript/*.test.ts
+ui: bdd
+inline-diffs: true
