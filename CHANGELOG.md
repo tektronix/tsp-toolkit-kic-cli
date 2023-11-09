@@ -19,6 +19,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 <!--
 ## [Unreleased]
 -->
+
+## [v0.11.0]
+[v0.11.0 Release Page]
+
+
 ## [v0.9.2]
 [v0.9.2 Release Page]
 
@@ -203,6 +208,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 --------------------------------------------------------------------------------
 
 [Unreleased]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/tree/dev
+[v0.11.0]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/compare/v(0.9.2)...v0.11.0?from_project_id=33
+[v0.11.0 Release Page]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/releases/v0.11.0
 [v0.9.2]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/compare/v(0.9.1)...v0.9.2?from_project_id=33
 [v0.9.2 Release Page]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/releases/v0.9.2
 [v0.9.1]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/compare/v(0.8.2)...v0.9.1?from_project_id=33

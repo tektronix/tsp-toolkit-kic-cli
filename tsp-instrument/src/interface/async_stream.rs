@@ -41,21 +41,50 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
 
             'rw_loop: loop {
                 // see if the application has anything to send to the instrument.
-                std::thread::sleep(Duration::from_micros(1));
+                std::thread::sleep(Duration::from_millis(1));
                 match read_into.try_recv() {
                     // It does, so send it
-                    Ok(msg) => match Arc::get_mut(&mut socket)
-                        .unwrap()
-                        // Do NOT add a newline here. It is added elsewhere.
-                        .write_all(format!("{}", String::from_utf8_lossy(&msg)).as_bytes())
-                    {
-                        Ok(()) => {}
-                        Err(e) => {
-                            // There was an Error sending to the instrument.
-                            // clean up and get out.
-                            return Err(e.into());
+                    Ok(msg) => {
+                        let chunk_size = 1024;
+                        let mut start = 0;
+                        while start < msg.len() {
+                            let end = std::cmp::min(
+                                start.checked_add(chunk_size).unwrap_or(usize::MAX),
+                                msg.len(),
+                            );
+                            let chunk = &msg[start..end];
+                            let mut bytes_sent = 0;
+                            loop {
+                                match Arc::get_mut(&mut socket)
+                                    .unwrap()
+                                    // Do NOT add a newline here. It is added elsewhere.
+                                    .write(&chunk[bytes_sent..])
+                                {
+                                    Ok(0) => {
+                                        // All data has been sent
+                                        break;
+                                    }
+                                    Ok(n) => {
+                                        // Successfully sent some data
+                                        bytes_sent =
+                                            bytes_sent.checked_add(n).unwrap_or(usize::MAX);
+                                    }
+                                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                                        // Non-blocking write would block
+                                        // You can do other work here, like processing other tasks or sleeping
+                                        std::thread::sleep(Duration::from_millis(1));
+                                    }
+                                    Err(e) => {
+                                        // There was an Error sending to the instrument.
+                                        // clean up and get out.
+                                        return Err(e.into());
+                                    }
+                                }
+                            }
+                            start = start.checked_add(chunk_size).unwrap_or(msg.len());
                         }
-                    },
+                    }
+
                     Err(e) => match e {
                         // The sender has disconnected, therefore we need to clean up
                         mpsc::TryRecvError::Disconnected => break 'rw_loop,

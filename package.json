@@ -1,6 +1,6 @@
 {
     "name": "@trebuchet/ki-comms",
-    "version": "0.10.2",
+    "version": "0.11.0",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",

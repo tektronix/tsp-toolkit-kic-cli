@@ -131,13 +131,10 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        let image = image.reader();
+        let mut image = image.reader();
+        self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"flash\n")?;
-
-        for line in image.lines() {
-            self.write_all(format!("{}\n", line?).as_bytes())?;
-        }
-
+        self.write_all(image.fill_buf().unwrap())?;
         self.write_all(b"endflash\n")?;
         Ok(())
     }
@@ -919,24 +916,27 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"flash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        for line in test_util::SIMPLE_FAKE_TEXTUAL_FW.reader().lines() {
-            interface
-                .expect_write()
-                .times(1)
-                .in_sequence(&mut seq)
-                .withf(move |buf: &[u8]| {
-                    buf == format!(
-                        "{}\n",
-                        line.as_ref()
-                            .expect("textual test firmware should return all Ok for lines()")
-                    )
-                    .as_bytes()
-                })
-                .returning(|buf: &[u8]| Ok(buf.len()));
-        }
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(move |buf: &[u8]| {
+                buf == test_util::SIMPLE_FAKE_TEXTUAL_FW
+                    .reader()
+                    .fill_buf()
+                    .unwrap()
+            })
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()

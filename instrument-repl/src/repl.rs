@@ -214,10 +214,10 @@ impl Repl {
                             Self::println_flush(&self.inst.info()?.to_string().normal())?;
                             prompt = true;
                         }
-                        Request::Update { file, .. } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
-                            self.inst.flash_firmware(contents.as_ref(), None)?;
+                            self.inst.flash_firmware(contents.as_ref(), slot)?;
                             // Flashing FW disables prompts before flashing but might
                             // lose runtime state, so we can't save the previous
                             // setting, so we just hardcode it to enabled here.
@@ -348,7 +348,7 @@ impl Repl {
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
                 )
                 .arg(
-                    arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(usize))
+                    arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(u16))
                 )
                 .arg(
                     Arg::new("path").required_unless_present("help")
@@ -499,7 +499,7 @@ impl Repl {
                         ));
                     }
 
-                    let slot = flags.get_one::<usize>("slot").copied();
+                    let slot = flags.get_one::<u16>("slot").copied();
                     Request::Update { file, slot }
                 }
             },
