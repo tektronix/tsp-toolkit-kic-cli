@@ -50,22 +50,21 @@ release underneath (see all previous versions for examples).
 ```diff
 -## [Unreleased]
 +<!--## [Unreleased] -->
-+## [vX.Y.Z]
-+[vX.Y.Z Release Page]
++## [X.Y.Z]
 ```
 
 Be sure to add the associated links at the bottom of the file underneath the "Unreleased" reference:
 
 ```diff
-[Unreleased]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/tree/dev
-+[vX.Y.Z]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/compare/v(X.Y.Z - 1)...vX.Y.Z?from_project_id=33
-+[vX.Y.Z Release Page]: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/releases/vX.Y.Z
+[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/vX.Y.Z...HEAD
++[X.Y.Z]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v(X.Y.Z-1)...vX.Y.Z
 ```
 (Where `v(X.Y.Z - 1)` is the previous released version)
 
 Be sure to check the merge requests for this past version to make sure everything was added to the changelog. Add anything that was missed (with JIRA issue number).
 
-You can do that with a query like the one at this link: https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/merge_requests?scope=all&state=merged&deployed_after=03%2F29%2F2023&deployed_before=04%2F14%2F2023
+You can do that with a query like the one at this link:
+https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/pulls?q=is%3Apr+milestone%3Av0.10.0+
 
 ### 5. Update the Version Information
 
@@ -137,19 +136,19 @@ Complete the merge into the `main` branch.
 
 ### 7. Tag `main` with `vX.Y.Z`
 
-Create a [tag](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/tags) for the new version.
+Create a [tag]() for the new version.
 > * **Tag Name:** `vX.Y.Z`
 > * **Create from:** `main` (This is NOT default, make sure to change it)
 > * **Message:** Internal vX.Y.Z Release
 
-Wait for the automatically started [pipeline](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/pipelines) to complete.
+Wait for the automatically started [pipeline]() to complete.
 
 ### 8. Verify Release
 
 Check the following to ensure that the release completed successfully:
 
-* [Releases page](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/releases) should show `vX.Y.Z`
-* [Package registry](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/packages) should show the new version
+* [Releases page]() should show `vX.Y.Z`
+* [Package registry]() should show the new version
 
 ### 9. Update Release Notes
 

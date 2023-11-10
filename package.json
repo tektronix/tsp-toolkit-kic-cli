@@ -1,6 +1,6 @@
 {
-    "name": "@trebuchet/ki-comms",
-    "version": "0.11.0",
+    "name": "@tektronix/kic-cli",
+    "version": "0.11.2",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
@@ -10,7 +10,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://git.keithley.com/trebuchet/teaspoon/ki-comms.git"
+        "url": "git+https://github.com/TEK-Engineering/tsp-toolkit-kic-cli.git"
     },
     "typings": "index.d.ts",
     "files": [
@@ -24,6 +24,7 @@
         "test": "mocha --config .mocharc.yml"
     },
     "devDependencies": {
+        "@cyclonedx/cyclonedx-npm": "^1.14.2",
         "@istanbuljs/nyc-config-typescript": "^1.0.2",
         "@types/chai": "^4.3.1",
         "@types/mocha": "^9.1.1",
@@ -33,6 +34,7 @@
         "@typescript-eslint/eslint-plugin": "^5.22.0",
         "@typescript-eslint/parser": "^5.22.0",
         "chai": "^4.3.6",
+        "dotenv": "16.0.3",
         "eslint": "^8.14.0",
         "eslint-config-prettier": "^8.5.0",
         "eslint-import-resolver-typescript": "^2.7.1",
@@ -44,7 +46,6 @@
         "prettier": "^2.6.2",
         "source-map-support": "^0.5.21",
         "ts-node": "^10.7.0",
-        "typescript": "^4.6.4",
-        "dotenv": "16.0.3"
+        "typescript": "^4.6.4"
     }
 }

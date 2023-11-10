@@ -579,17 +579,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dap"
-version = "0.3.1-alpha1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99e0a43536a4f3f09c1d8ff2da64fa94575a07fa6024e9ccc627b0e84254ab08"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1268,7 +1257,6 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "dap",
  "instrument-repl",
  "rpassword",
  "serde",
