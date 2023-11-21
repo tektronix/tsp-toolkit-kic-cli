@@ -12,6 +12,9 @@ pub enum Request {
     Script {
         file: PathBuf,
     },
+    TspLinkNodes {
+        json_file: PathBuf,
+    },
     Info {
         slot: Option<usize>,
     },

@@ -684,9 +684,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
         ];
         let mut interface = MockInterface::new();
@@ -729,9 +727,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.run()\n").into(),
         ];
@@ -775,9 +771,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.save()\n").into(),
         ];
@@ -822,9 +816,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.save()\n").into(),
             (*b"test_script.run()\n").into(),
