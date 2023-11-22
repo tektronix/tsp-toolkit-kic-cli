@@ -278,8 +278,7 @@ jobs:
           body: |
             ## Features Requests / Bugs
 
-            If you find issues or have a feature request, please enter a
-            [new issue on GitHub](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/issues/new).
+            If you find issues or have a feature request, please enter a [new issue on GitHub](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/issues/new).
 
             ## Installation
 
