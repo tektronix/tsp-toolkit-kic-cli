@@ -237,7 +237,11 @@ jobs:
         uses: actions/checkout@v3
       - name: Get Tagged Version
         id: lasttag
-        run: echo ::set-output name=version::${GITHUB_REF#refs/tags/v}
+        run: |
+          V="${GITHUB_REF#refs/tags/v}"
+          CL="${V%-*}"
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -247,7 +251,7 @@ jobs:
         id: changelog
         uses: coditory/changelog-parser@v1
         with:
-          version: ${{steps.lasttag.outputs.version}}
+          version: ${{steps.lasttag.outputs.cl_version}}
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
