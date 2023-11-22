@@ -220,6 +220,8 @@ jobs:
           scope: '@tek-engineering'
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          set-safe-directory: '*'
       - name: Get Tagged Version
         id: lasttag
         run: |
