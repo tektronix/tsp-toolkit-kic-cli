@@ -220,7 +220,7 @@ jobs:
           path: ./*.tgz
       - name:
         run: |
-          npm config set @TEK-Engineering:registry "https://npm.pkg.github.com"
+          npm config set @tek-engineering:registry "https://npm.pkg.github.com"
           npm config set -- "https://npm.pkg.github.com/:_authToken" "${{secrets.GITHUB_TOKEN}}"
           npm publish
 
