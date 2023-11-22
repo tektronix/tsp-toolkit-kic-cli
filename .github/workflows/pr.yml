@@ -230,7 +230,7 @@ jobs:
           echo "version=${V}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           # set version to RC version if this is a tagged build
-          npm version "$V"
+          npm version --no-git-tag-version --allow-same-version "$V"
         if: startsWith(github.ref, 'refs/tags/')
       - name: Get Artifacts
         uses: actions/download-artifact@v3
