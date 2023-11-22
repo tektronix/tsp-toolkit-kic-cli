@@ -211,6 +211,11 @@ jobs:
     steps:
       - name: Tool Versions
         run: npm --version
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@tek-engineering'
       - name: Checkout
         uses: actions/checkout@v3
       - name: Get Artifacts
@@ -219,11 +224,9 @@ jobs:
           name: package
           path: ./*.tgz
       - name:
-        run: |
-          npm config set @tek-engineering:registry "https://npm.pkg.github.com"
-          npm config set -- "https://npm.pkg.github.com/tek-engineering/:_authToken" "${{secrets.GITHUB_TOKEN}}"
-          npm login --registry 'https://npm.pkg.github.com' --scope '@tek-engineering'
-          npm publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
   release:
     name: Release
