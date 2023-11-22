@@ -208,6 +208,8 @@ jobs:
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
+      #https://github.com/actions/runner/issues/2033#issuecomment-1598547465
+      options: --user 1001
     steps:
       - name: Tool Versions
         run: npm --version
