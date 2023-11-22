@@ -259,7 +259,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           name: ${{steps.changelog.outputs.version}}
-          artifacts: target/**/release/kic*
+          artifacts: target/*
           body: |
             ## Features Requests / Bugs
 
