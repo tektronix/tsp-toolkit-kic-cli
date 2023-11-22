@@ -222,6 +222,7 @@ jobs:
         run: |
           npm config set @tek-engineering:registry "https://npm.pkg.github.com"
           npm config set -- "https://npm.pkg.github.com/tek-engineering/:_authToken" "${{secrets.GITHUB_TOKEN}}"
+          npm login --registry 'https://npm.pkg.github.com' --scope '@tek-engineering'
           npm publish
 
   release:
