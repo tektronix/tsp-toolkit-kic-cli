@@ -236,10 +236,9 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: package
-          path: ./*.tgz
-      - name:
+      - name: publish package
         run: |
-          npm publish
+          npm publish *.tgz
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
