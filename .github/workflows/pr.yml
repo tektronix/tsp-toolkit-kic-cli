@@ -1,0 +1,299 @@
+name: Pull Request
+
+on:
+  pull_request:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  style:
+    name: Style
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    steps:
+      - name: Tool Versions
+        run: cargo fmt --version
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check Style
+        run: cargo fmt --check --verbose
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    steps:
+      - name: Tool Versions
+        run: cargo clippy --version
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Lint
+        run: cargo clippy
+
+  sbom:
+    name: Generate CycloneDX
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Tools
+        run: |
+          npm ci --devDependencies
+      - name: Generate Rust BOM
+        run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
+      - name: Generate NPM BOM
+        run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: software-bom
+          path: |
+            **/*.cdx.json
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    env:
+      CARGO_HOME: ".cargo"
+      RUSTFLAGS: "-Cinstrument-coverage"
+      TEST_DIR: "test-results"
+      LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
+    steps:
+      - name: Tool Versions
+        run: |
+          cargo --version
+          grcov --version
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prebuild
+        run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
+      - name: Run Tests
+        run: |
+          mkdir -p "${{env.TEST_DIR}}"
+          cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
+      - name: Process Test Results
+        run: |
+          cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
+          grcov ${{env.TEST_DIR}} --binary-path target/debug -s . -o "${{env.TEST_DIR}}" --ignore-not-existing --ignore '.cargo/*' --output-types cobertura
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        if: ${{always()}}
+        with:
+          name: unit-test-report
+          path: |
+            ${{env.TEST_DIR}}
+
+  code_coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Download Test Results
+        uses: actions/download-artifact@v3
+        with:
+          name: unit-test-report
+          path: test-results
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        continue-on-error: true
+        with:
+          filename: test-results/cobertura.xml
+          badge: true
+          format: markdown
+          hide_branch_rate: true
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: "30 50"
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        with:
+          header: Test Coverage
+          path: code-coverage-results.md
+
+  build:
+    name: Build
+    strategy:
+      matrix:
+        target_triple:
+          - x86_64-pc-windows-gnu
+          - x86_64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    steps:
+      - name: Tool Versions
+        run: rustc --version
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --target "${{matrix.target_triple}}" --release
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: executable
+          path: |
+            target/${{matrix.target_triple}}/release/kic*
+            !target/${{matrix.target_triple}}/**/*.d
+            !target/${{matrix.target_triple}}/**/*.rlib
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    needs: build
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+    steps:
+      - name: Tool Versions
+        run: npm --version
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Get Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: executable
+          path: target/
+      - name: npm Package
+        run: |
+          mkdir -p bin
+          for f in target/*; do cp "$f" bin; done;
+          npm pack
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: package
+          path: ./*.tgz
+
+  publish:
+    name: Publish
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - package
+      - test
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+      #https://github.com/actions/runner/issues/2033#issuecomment-1598547465
+      options: --user 1001
+    steps:
+      - name: Tool Versions
+        run: npm --version
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@tek-engineering'
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          set-safe-directory: '*'
+      - name: Get Tagged Version
+        id: lasttag
+        run: |
+          V="${GITHUB_REF#refs/tags/v}"
+          CL="${V%-*}"
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+          # set version to RC version if this is a tagged build
+          npm version --no-git-tag-version --allow-same-version "$V"
+        if: startsWith(github.ref, 'refs/tags/')
+      - name: Get Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: package
+      - name: publish package
+        run: |
+          npm publish *.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build
+      - test
+      - sbom
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Get Tagged Version
+        id: lasttag
+        run: |
+          V="${GITHUB_REF#refs/tags/v}"
+          CL="${V%-*}"
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+      - name: Get Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: executable
+          path: target
+      - name: Get SBOM
+        uses: actions/download-artifact@v3
+        with:
+          name: software-bom
+          path: sbom
+      - name: Get Changelog for this Tag
+        id: changelog
+        uses: coditory/changelog-parser@v1
+        with:
+          version: ${{steps.lasttag.outputs.cl_version}}
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: ${{steps.lasttag.outputs.version}}
+          artifacts: target/*,sbom/**/*
+          body: |
+            ## Features Requests / Bugs
+
+            If you find issues or have a feature request, please enter a [new issue on GitHub](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/issues/new).
+
+            ## Installation
+
+            View the installation instructions in the [README](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/blob/main/README.md)
+
+            ## Changelog
+
+            ${{steps.changelog.outputs.description}}
+
+          prerelease: true
+          makeLatest: true
+
+

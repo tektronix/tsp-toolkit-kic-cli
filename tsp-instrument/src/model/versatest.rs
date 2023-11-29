@@ -34,7 +34,7 @@ impl Instrument {
 }
 
 fn is_versatest(model: impl AsRef<str>) -> bool {
-    ["VERSATEST-600", "TSPop"].contains(&model.as_ref())
+    ["VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
 }
 
 pub struct Instrument {
@@ -133,18 +133,16 @@ impl Flash for Instrument {
         //.update {"FileName": "C:/Users/esarver1/Downloads/kingarthur-module-225665.x", "IsModule": true, "Slot": 1}
 
         self.write_all(b"localnode.prompts=0\n")?;
-        let image = image.reader();
+        let mut image = image.reader();
         self.write_all(b"flash\n")?;
 
-        for line in image.lines() {
-            self.write_all(format!("{}\n", line?).as_bytes())?;
-        }
+        let _ = self.write_all(image.fill_buf().unwrap());
         self.write_all(b"endflash\n")?;
 
         if is_module {
             //TODO This is temporary: Only use while not defined in FW
             self.write_all(b"FlashUtil()\n")?;
-            self.write_all(format!("flashupdate(slot[{slot_number}])\n").as_bytes())?;
+            self.write_all(format!("updateSlot({slot_number})\n").as_bytes())?;
 
             let flash_util_global_functions = [b"flashupdate", b"flashverify", b"flashencode"];
 
@@ -620,21 +618,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -695,21 +679,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -777,21 +747,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -859,21 +815,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -929,21 +871,17 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"flash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        for line in test_util::SIMPLE_FAKE_TEXTUAL_FW.reader().lines() {
-            interface
-                .expect_write()
-                .times(1)
-                .in_sequence(&mut seq)
-                .withf(move |buf: &[u8]| {
-                    buf == format!(
-                        "{}\n",
-                        line.as_ref()
-                            .expect("textual test firmware should return all Ok for lines()")
-                    )
-                    .as_bytes()
-                })
-                .returning(|buf: &[u8]| Ok(buf.len()));
-        }
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(move |buf: &[u8]| {
+                buf == test_util::SIMPLE_FAKE_TEXTUAL_FW
+                    .reader()
+                    .fill_buf()
+                    .unwrap()
+            })
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()

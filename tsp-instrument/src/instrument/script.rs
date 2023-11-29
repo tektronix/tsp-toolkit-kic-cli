@@ -35,17 +35,14 @@ where
         run_script: bool,
     ) -> Result<()> {
         let name = String::from_utf8_lossy(name).to_string();
-        let script = script.reader(); //String::from_utf8_lossy(script.as_ref()).to_string();
+        let mut script = script.reader(); //String::from_utf8_lossy(script.as_ref()).to_string();
         self.write_all(b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")?;
         self.flush()?;
         self.write_all(format!("{name}=nil\n").as_bytes())?;
         self.flush()?;
         self.write_all(format!("loadscript {name}\n").as_bytes())?;
 
-        for line in script.lines() {
-            self.write_all(format!("{}\n", line?).as_bytes())?;
-        }
-
+        self.write_all(script.fill_buf().unwrap())?;
         self.write_all(b"\nendscript\n")?;
         self.flush()?;
 

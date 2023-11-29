@@ -7,6 +7,10 @@ pub const KIC_COMMON_TSP: Resource = Resource {
     source: include_str!("./kic_common.tsp"),
 };
 
+pub const TSP_LINK_NODES_TSP: Resource = Resource {
+    source: include_str!("./TspLinkNodeDetails.tsp"),
+};
+
 /// A resource that can be used as-is
 #[derive(Debug)]
 pub struct Resource {

@@ -14,12 +14,14 @@ const PATH = path.join(__dirname, "bin")
 const NAME = `kic${EXTENSION}`
 const EXECUTABLE = path.join(PATH, NAME)
 
-const DISC_NAME = `kic-discover${EXTENSION}`
-const DISC_EXECUTABLE = path.join(PATH, DISC_NAME)
+const DISCOVER_NAME = `kic-discover${EXTENSION}`
+const DISCOVER_EXECUTABLE = path.join(PATH, DISCOVER_NAME)
+
+
 
 module.exports = {
     NAME,
     PATH,
     EXECUTABLE,
-    DISC_EXECUTABLE
+    DISCOVER_EXECUTABLE
 }

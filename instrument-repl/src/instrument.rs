@@ -10,6 +10,8 @@ pub enum ParsedResponse {
     Data(Vec<u8>),
     BinaryData(Vec<u8>),
     ProgressIndicator,
+    NodeStart,
+    NodeEnd,
 }
 
 impl Display for ParsedResponse {
@@ -23,6 +25,8 @@ impl Display for ParsedResponse {
             Self::Data(d) => format!("textual data: \"{d:?}\""),
             Self::BinaryData(b) => format!("binary data: \"{b:?}\"",),
             Self::ProgressIndicator => "progress indicator".to_string(),
+            Self::NodeStart => "node data start".to_string(),
+            Self::NodeEnd => "node data end".to_string(),
         };
         write!(f, "{s}")
     }
@@ -59,16 +63,36 @@ impl ParsedResponse {
                 b"ERM>".to_vec(),
                 b">>>>".to_vec(),
                 b"#0".to_vec(),
+                b"NODE>START".to_vec(),
+                b"NODE>END".to_vec(),
             ],
         )
     }
 
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn parse_next(input: &Vec<u8>) -> Option<(Self, Vec<u8>)> {
         if input.is_empty() || input[0] == 0u8 {
             return None;
         };
         let s = String::from_utf8_lossy(input).trim_start().to_string();
+
+        if s.starts_with("NODE>START") {
+            let v = if input.len() > 10 {
+                input[10..].to_vec()
+            } else {
+                Vec::new()
+            };
+            return Some((Self::NodeStart, v));
+        }
+        if s.starts_with("NODE>END") {
+            let v = if input.len() > 8 {
+                input[8..].to_vec()
+            } else {
+                Vec::new()
+            };
+            return Some((Self::NodeEnd, v));
+        }
         if s.starts_with("TSP>") {
             let v = if input.len() > 4 {
                 input[4..].to_vec()

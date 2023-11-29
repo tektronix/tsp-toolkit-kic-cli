@@ -8,7 +8,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.10.2"
+version = "0.11.2"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://git.keithley.com/trebuchet/teaspoon/ki-comms"
@@ -21,7 +21,6 @@ anyhow = "1.0.69"
 bytes = "1.4.0"
 clap = { version = "4.2.7", features = ["derive", "cargo", "string"] }
 colored = "2.0.0"
-dap = "0.3.1-alpha1"
 exitcode = "1.1.2"
 instrument-repl = { path = "instrument-repl" }
 jsonrpc-http-server = "18.0"

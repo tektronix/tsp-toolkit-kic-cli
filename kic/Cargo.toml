@@ -10,9 +10,7 @@ repository = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
-dap = { workspace = true }
 instrument-repl = { workspace = true }
-#oklib-rs = { git = "https://git.keithley.com/trebuchet/teaspoon/oklib-rs.git", branch = "main" }
 rpassword = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

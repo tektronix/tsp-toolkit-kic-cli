@@ -1,6 +1,5 @@
 use std::{
-    io::{Read, Write},
-    thread::sleep,
+    io::{BufRead, Read, Write},
     time::Duration,
 };
 
@@ -105,26 +104,13 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        const CHUNK_SIZE: usize = 1024;
-        //let len = image.len();
-        //let mut written = 0usize;
         let mut image = image.reader();
 
         self.write_all(b"localnode.prompts=localnode.DISABLE\n")?;
         self.write_all(b"if ki.upgrade ~= nil and ki.upgrade.noacklater ~= nil then ki.upgrade.noacklater() end\n")?;
         self.write_all(b"prevflash\n")?;
 
-        loop {
-            let mut buf = vec![0; CHUNK_SIZE];
-            let b = image.read(&mut buf)?;
-            //written += b;
-            if b == 0 {
-                break;
-            }
-            let buf = &buf[..b];
-            sleep(Duration::from_millis(1));
-            self.write_all(buf)?;
-        }
+        self.write_all(image.fill_buf().unwrap())?;
 
         self.write_all(b"endflash\n")?;
         Ok(())
@@ -163,7 +149,7 @@ impl Drop for Instrument {
 mod unit {
     use std::{
         assert_matches::assert_matches,
-        io::{Read, Write},
+        io::{BufRead, Read, Write},
     };
 
     use bytes::Buf;
@@ -698,9 +684,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
         ];
         let mut interface = MockInterface::new();
@@ -743,9 +727,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.run()\n").into(),
         ];
@@ -789,9 +771,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.save()\n").into(),
         ];
@@ -836,9 +816,7 @@ mod unit {
         let expected: Vec<Vec<u8>> = vec![
             (*b"test_script=nil\n").into(),
             (*b"loadscript test_script\n").into(),
-            (*b"line1\n").into(),
-            (*b"line2\n").into(),
-            (*b"line3\n").into(),
+            (*b"line1\nline2\nline3").into(),
             (*b"\nendscript\n").into(),
             (*b"test_script.save()\n").into(),
             (*b"test_script.run()\n").into(),
@@ -903,28 +881,12 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == test_util::SIMPLE_FAKE_BINARY_CHUNK0)
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == test_util::SIMPLE_FAKE_BINARY_CHUNK1)
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == test_util::SIMPLE_FAKE_BINARY_CHUNK2)
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == test_util::SIMPLE_FAKE_BINARY_CHUNK3)
+            .withf(move |buf: &[u8]| {
+                buf == test_util::SIMPLE_FAKE_BINARY_FW
+                    .reader()
+                    .fill_buf()
+                    .unwrap()
+            })
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface

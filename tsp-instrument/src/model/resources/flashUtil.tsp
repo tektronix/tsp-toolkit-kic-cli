@@ -183,3 +183,10 @@ flashencode = function (lAddress, lData)
         print(lString)
     end
 end
+
+updateSlot = function (lSlotNumber)
+    if slot[lSlotNumber].firmware ~= nil and slot[lSlotNumber].firmware.update ~= nil then
+        slot[lSlotNumber].firmware.verify()
+        slot[lSlotNumber].firmware.update()
+    end
+end

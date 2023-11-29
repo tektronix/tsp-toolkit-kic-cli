@@ -11,8 +11,8 @@ use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
 use std::{
     fmt::Display,
-    fs::File,
-    io::{Read, Write},
+    fs::{File, OpenOptions},
+    io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
     thread::JoinHandle,
@@ -25,7 +25,7 @@ use crate::{
     command::Request,
     error::{InstrumentReplError, Result},
     instrument::{ParsedResponse, ResponseParser},
-    resources::KIC_COMMON_TSP,
+    resources::{KIC_COMMON_TSP, TSP_LINK_NODES_TSP},
     state_machine::ReadState,
     TspError,
 };
@@ -33,6 +33,7 @@ use crate::{
 pub struct Repl {
     inst: Box<dyn Instrument>,
     command: Command,
+    lang_cong_file_path: String,
 }
 /// Clear the output queue of the given TSP-enabled instrument.
 ///
@@ -82,6 +83,7 @@ impl Repl {
         Self {
             inst,
             command: Self::cli(),
+            lang_cong_file_path: String::new(),
         }
     }
 
@@ -118,6 +120,10 @@ impl Repl {
                     Action::PrintText => Self::print_data(response)?,
                     Action::PrintHex => Self::print_data(response)?,
                     Action::PrintError => Self::print_data(response)?,
+                    Action::GetNodeDetails => {
+                        Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
+                    }
+
                     Action::None => {}
                 }
             }
@@ -210,14 +216,25 @@ impl Repl {
                             )?;
                             prompt = true;
                         }
+                        Request::TspLinkNodes { json_file } => {
+                            self.set_lang_config_path(json_file.to_string_lossy().to_string());
+
+                            self.inst.write_script(
+                                b"TSP_LINK_NODES",
+                                TSP_LINK_NODES_TSP.to_string().as_bytes(),
+                                false,
+                                true,
+                            )?;
+                            prompt = true;
+                        }
                         Request::Info { .. } => {
                             Self::println_flush(&self.inst.info()?.to_string().normal())?;
                             prompt = true;
                         }
-                        Request::Update { file, .. } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
-                            self.inst.flash_firmware(contents.as_ref(), None)?;
+                            self.inst.flash_firmware(contents.as_ref(), slot)?;
                             // Flashing FW disables prompts before flashing but might
                             // lose runtime state, so we can't save the previous
                             // setting, so we just hardcode it to enabled here.
@@ -308,10 +325,41 @@ impl Repl {
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
             | ParsedResponse::TspErrorEnd
-            | ParsedResponse::ProgressIndicator => Ok(()),
+            | ParsedResponse::ProgressIndicator
+            | ParsedResponse::NodeStart
+            | ParsedResponse::NodeEnd => Ok(()),
         }
     }
 
+    fn update_node_config_json(file_path: String, resp: ParsedResponse) -> Result<()> {
+        match resp {
+            ParsedResponse::Data(d) => {
+                Self::write_json_data(file_path, String::from_utf8_lossy(&d).as_ref())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        if let Ok(mut file) = OpenOptions::new().write(true).create(true).open(file_path) {
+            // Convert the Lua string to JSON
+            let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
+
+            // Convert the JSON value to a pretty-printed string
+            let json_string = serde_json::to_string_pretty(&json_value)?;
+
+            file.write_all(json_string.as_bytes())?;
+        } else {
+            return Err(InstrumentReplError::IOError {
+                source: std::io::Error::new(io::ErrorKind::Other, "Failed to open file."),
+            });
+        }
+        Ok(())
+    }
+
+    fn set_lang_config_path(&mut self, file_path: String) {
+        self.lang_cong_file_path = file_path;
+    }
     #[allow(clippy::cognitive_complexity)]
     fn cli() -> Command {
         const CMD_TEMPLATE: &str = "\
@@ -348,7 +396,7 @@ impl Repl {
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
                 )
                 .arg(
-                    arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(usize))
+                    arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(u16))
                 )
                 .arg(
                     Arg::new("path").required_unless_present("help")
@@ -378,6 +426,17 @@ impl Repl {
                 )
                 .arg(
                     arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(usize))
+                )
+        )
+        .subcommand(
+            Command::new(".nodes").about("Fetch TSP-Link™ node details and update it to provided JSON file")
+                .help_template(SUBCMD_TEMPLATE)
+                .disable_help_flag(true)
+                .arg(
+                    Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
+                )
+                .arg(
+                    Arg::new("path").required_unless_present("help")
                 )
         )
         .disable_help_flag(true)
@@ -467,6 +526,39 @@ impl Repl {
                     Request::Script { file }
                 }
             },
+            Some((".nodes", flags)) => match flags.get_one::<bool>("help") {
+                Some(help) if *help => Request::Help {
+                    sub_cmd: Some(".nodes".to_string()),
+                },
+                _ => {
+                    let Some(file) = flags.get_one::<String>("path") else {
+                        return Err(InstrumentReplError::CommandError {
+                            details: "expected file path, but none were provided".to_string(),
+                        });
+                    };
+                    let file = file.clone();
+                    let Ok(json_file) = PathBuf::try_from(file.clone()) else {
+                        return Ok(Request::Usage(
+                            InstrumentReplError::CommandError {
+                                details: format!(
+                                    "expected file path, but unable to parse from \"{file}\""
+                                ),
+                            }
+                            .to_string(),
+                        ));
+                    };
+                    if !json_file.is_file() {
+                        return Ok(Request::Usage(
+                            InstrumentReplError::Other(format!(
+                                "unable to find file \"{}\"",
+                                json_file.to_string_lossy()
+                            ))
+                            .to_string(),
+                        ));
+                    }
+                    Request::TspLinkNodes { json_file }
+                }
+            },
             Some((".update", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
                     sub_cmd: Some(".update".to_string()),
@@ -499,7 +591,7 @@ impl Repl {
                         ));
                     }
 
-                    let slot = flags.get_one::<usize>("slot").copied();
+                    let slot = flags.get_one::<u16>("slot").copied();
                     Request::Update { file, slot }
                 }
             },
@@ -541,7 +633,7 @@ impl Repl {
             })?;
         Ok(jh)
     }
-
+    #[allow(clippy::too_many_lines)]
     const fn state_action(prev_state: Option<ReadState>, state: Option<ReadState>) -> Action {
         match (prev_state, state) {
             (None, Some(state)) => match state {
@@ -558,6 +650,10 @@ impl Repl {
                 }
 
                 ReadState::ErrorReadContinue => Action::PrintError,
+                ReadState::NodeDataReadStart | ReadState::NodeDataReadContinue => {
+                    Action::GetNodeDetails
+                }
+                ReadState::NodeDataReadEnd => Action::Prompt,
 
                 ReadState::ErrorReadStart | ReadState::FileLoading => Action::None,
             },
@@ -569,6 +665,19 @@ impl Repl {
 
                 (_, ReadState::DataReadEndPendingError) => Action::GetError,
 
+                //Action::GetNodeDetails
+                (
+                    ReadState::Init
+                    | ReadState::TextDataReadStart
+                    | ReadState::TextDataReadContinue
+                    | ReadState::DataReadEnd
+                    | ReadState::ErrorReadEnd
+                    | ReadState::FileLoading
+                    | ReadState::NodeDataReadStart,
+                    ReadState::NodeDataReadContinue,
+                ) => Action::GetNodeDetails,
+                //Action::GetNodeDetails
+
                 //Action::PrintText
                 (
                     ReadState::Init
@@ -576,7 +685,10 @@ impl Repl {
                     | ReadState::TextDataReadContinue
                     | ReadState::DataReadEnd
                     | ReadState::ErrorReadEnd
-                    | ReadState::FileLoading,
+                    | ReadState::FileLoading
+                    | ReadState::NodeDataReadStart
+                    | ReadState::NodeDataReadContinue
+                    | ReadState::NodeDataReadEnd,
                     ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
                 )
                 | (
@@ -601,31 +713,6 @@ impl Repl {
                 ) => Action::PrintHex,
                 // Action::PrintHex
 
-                // Action::None
-                (
-                    ReadState::Init | ReadState::DataReadEnd | ReadState::ErrorReadEnd,
-                    ReadState::Init,
-                )
-                | (
-                    ReadState::DataReadEndPendingError,
-                    ReadState::Init
-                    | ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue
-                    | ReadState::DataReadEnd,
-                )
-                | (
-                    ReadState::ErrorReadStart | ReadState::ErrorReadContinue,
-                    ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue,
-                )
-                | (ReadState::ErrorReadStart, ReadState::DataReadEnd)
-                | (_, ReadState::FileLoading | ReadState::ErrorReadStart) => Action::None,
-                // Action::None
-
                 // Action::Prompt
                 (
                     ReadState::TextDataReadStart
@@ -637,8 +724,31 @@ impl Repl {
                     | ReadState::FileLoading,
                     ReadState::Init,
                 )
-                | (_, ReadState::DataReadEnd | ReadState::ErrorReadEnd) => Action::Prompt,
+                | (
+                    _,
+                    ReadState::DataReadEnd | ReadState::ErrorReadEnd | ReadState::NodeDataReadEnd,
+                ) => Action::Prompt,
                 //Action::Prompt
+                (
+                    ReadState::Init | ReadState::DataReadEnd | ReadState::ErrorReadEnd,
+                    ReadState::Init,
+                )
+                | (
+                    ReadState::DataReadEndPendingError,
+                    ReadState::Init
+                    | ReadState::TextDataReadStart
+                    | ReadState::TextDataReadContinue
+                    | ReadState::BinaryDataReadStart
+                    | ReadState::BinaryDataReadContinue,
+                )
+                | (
+                    ReadState::ErrorReadStart | ReadState::ErrorReadContinue,
+                    ReadState::TextDataReadStart
+                    | ReadState::TextDataReadContinue
+                    | ReadState::BinaryDataReadStart
+                    | ReadState::BinaryDataReadContinue,
+                )
+                | (_, ReadState::FileLoading | ReadState::ErrorReadStart | _) => Action::None,
             },
         }
     }
@@ -659,5 +769,6 @@ enum Action {
     PrintText,
     PrintHex,
     PrintError,
+    GetNodeDetails,
     None,
 }

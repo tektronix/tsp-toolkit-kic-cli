@@ -16,6 +16,9 @@ pub enum ReadState {
     ErrorReadContinue,
     ErrorReadEnd,
     FileLoading,
+    NodeDataReadStart,
+    NodeDataReadContinue,
+    NodeDataReadEnd,
 }
 
 impl ReadState {
@@ -41,16 +44,39 @@ impl Display for ReadState {
                 Self::ErrorReadContinue => "continuing error dump read",
                 Self::ErrorReadEnd => "end of error dump read",
                 Self::FileLoading => "loading file",
+                Self::NodeDataReadStart => "start of node data",
+                Self::NodeDataReadContinue => "continuing node data",
+                Self::NodeDataReadEnd => "end of node data",
             }
         )
     }
 }
 
 impl ReadState {
+    #[allow(clippy::too_many_lines)]
     pub fn next_state(self, input: &ParsedResponse) -> Result<Self> {
         type IR = ParsedResponse;
         #[allow(clippy::match_same_arms, clippy::unnested_or_patterns)]
         match (&self, input) {
+            // Transitions from ErrorReadStart
+            (Self::NodeDataReadStart, IR::Data(_)) => Ok(Self::NodeDataReadContinue),
+            (Self::NodeDataReadStart, IR::NodeEnd) => Ok(Self::NodeDataReadEnd),
+            (Self::NodeDataReadStart, IR::ProgressIndicator) => Ok(Self::FileLoading),
+
+            // Transitions from ErrorReadContinue
+            (Self::NodeDataReadContinue, IR::Data(_)) => Ok(self),
+            (Self::NodeDataReadContinue, IR::NodeEnd) => Ok(Self::NodeDataReadEnd),
+            (Self::NodeDataReadContinue, IR::ProgressIndicator) => Ok(Self::FileLoading),
+
+            // Transitions from ErrorReadEnd
+            (Self::NodeDataReadEnd, IR::Prompt) => Ok(Self::DataReadEnd),
+            (Self::NodeDataReadEnd, IR::PromptWithError) => Ok(Self::DataReadEndPendingError),
+            (Self::NodeDataReadEnd, IR::TspErrorStart) => Ok(Self::ErrorReadStart),
+            (Self::NodeDataReadEnd, IR::Data(_)) => Ok(Self::TextDataReadStart),
+            (Self::NodeDataReadEnd, IR::BinaryData(_)) => Ok(Self::BinaryDataReadStart),
+            (Self::NodeDataReadEnd, IR::ProgressIndicator) => Ok(Self::FileLoading),
+            (Self::NodeDataReadEnd, IR::NodeStart) => Ok(Self::NodeDataReadStart),
+
             // Transitions from Init
             (Self::Init, IR::Prompt) => Ok(Self::DataReadEnd),
             (Self::Init, IR::PromptWithError) => Ok(Self::DataReadEndPendingError),
@@ -58,6 +84,7 @@ impl ReadState {
             (Self::Init, IR::Data(_)) => Ok(Self::TextDataReadStart),
             (Self::Init, IR::BinaryData(_)) => Ok(Self::BinaryDataReadStart),
             (Self::Init, IR::ProgressIndicator) => Ok(Self::FileLoading),
+            (Self::Init, IR::NodeStart) => Ok(Self::NodeDataReadStart),
 
             // Transitions from TextDataReadStart
             (Self::TextDataReadStart, IR::Prompt) => Ok(Self::DataReadEnd),
@@ -65,6 +92,7 @@ impl ReadState {
             (Self::TextDataReadStart, IR::TspErrorStart) => Ok(Self::ErrorReadStart),
             (Self::TextDataReadStart, IR::Data(_)) => Ok(Self::TextDataReadContinue),
             (Self::TextDataReadStart, IR::ProgressIndicator) => Ok(Self::FileLoading),
+            (Self::TextDataReadStart, IR::NodeStart) => Ok(Self::NodeDataReadStart),
 
             // Transitions from TextDataReadContinue
             (Self::TextDataReadContinue, IR::Prompt) => Ok(Self::DataReadEnd),
@@ -95,6 +123,7 @@ impl ReadState {
             (Self::DataReadEnd, IR::Data(_)) => Ok(Self::TextDataReadStart),
             (Self::DataReadEnd, IR::BinaryData(_)) => Ok(Self::BinaryDataReadStart),
             (Self::DataReadEnd, IR::ProgressIndicator) => Ok(Self::FileLoading),
+            (Self::DataReadEnd, IR::NodeStart) => Ok(Self::NodeDataReadStart),
 
             // Transitions from DataReadEndPendingError
             (Self::DataReadEndPendingError, IR::Prompt) => Ok(Self::DataReadEnd),
@@ -133,6 +162,7 @@ impl ReadState {
 
             // Erroneous transitions that require recovery
             // Listed explicitly to make sure we don't miss anything
+
             // Starting with Init
             (Self::Init, IR::TspError(_))
             | (Self::Init, IR::TspErrorEnd)
@@ -174,7 +204,8 @@ impl ReadState {
             | (Self::FileLoading, IR::TspErrorEnd)
             // ErrorReadEnd
             | (Self::ErrorReadEnd, IR::TspError(_))
-            | (Self::ErrorReadEnd, IR::TspErrorEnd) => {
+            | (Self::ErrorReadEnd, IR::TspErrorEnd)
+            | (_,_) => {
                 Err(InstrumentReplError::StateMachineTransitionError { state: self, input: input.clone()})
             }
 
