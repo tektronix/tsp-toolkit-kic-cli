@@ -20,6 +20,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.11.2]
 
+### Added
+- Feature to retrieve TSP-Link network details
+
 <!--Version Comparison Links-->
 [Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v0.11.2...HEAD
 
