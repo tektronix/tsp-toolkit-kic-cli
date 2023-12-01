@@ -234,6 +234,7 @@ impl Repl {
                         Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
+                            Self::print_flush(&"Flash update is in progress.\nClose the terminal and reconnect again once the instrument has restarted.".bright_yellow())?;
                             self.inst.flash_firmware(contents.as_ref(), slot)?;
                             // Flashing FW disables prompts before flashing but might
                             // lose runtime state, so we can't save the previous
