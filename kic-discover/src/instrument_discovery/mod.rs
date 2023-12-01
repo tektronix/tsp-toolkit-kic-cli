@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::{collections::HashSet, time::Duration};
 
-use tsp_instrument::instrument::info::{ConnectionAddr, InstrumentInfo};
+use tsp_toolkit_kic_lib::instrument::info::{ConnectionAddr, InstrumentInfo};
 
 use crate::ethernet::{LxiDeviceInfo, COMM_PORT};
 use crate::usbtmc::Usbtmc;

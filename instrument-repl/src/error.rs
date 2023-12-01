@@ -4,7 +4,7 @@
 use std::sync::mpsc::SendError;
 
 use thiserror::Error;
-use tsp_instrument;
+use tsp_toolkit_kic_lib;
 
 use crate::{command::Request, instrument::ParsedResponse, state_machine::ReadState};
 
@@ -15,9 +15,9 @@ pub enum InstrumentReplError {
     /// An Error occurred in the tsp-instrument crate.
     #[error("instrument error occurred: {source}")]
     InstrumentError {
-        ///The original [`tsp_instrument::InstrumentError`]
+        ///The original [`tsp_toolkit_kic_lib::InstrumentError`]
         #[from]
-        source: tsp_instrument::InstrumentError,
+        source: tsp_toolkit_kic_lib::InstrumentError,
     },
 
     /// An IO error occurred

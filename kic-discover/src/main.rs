@@ -2,7 +2,7 @@ use anyhow::Context;
 use async_std::task::sleep;
 use jsonrpc_http_server::CloseHandle;
 use kic_discover::instrument_discovery::InstrumentDiscovery;
-use tsp_instrument::instrument::info::InstrumentInfo;
+use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::collections::HashSet;
 use std::str;

@@ -19,7 +19,7 @@ use std::{
     time::Duration,
 };
 
-use tsp_instrument::instrument::Instrument;
+use tsp_toolkit_kic_lib::instrument::Instrument;
 
 use crate::{
     command::Request,

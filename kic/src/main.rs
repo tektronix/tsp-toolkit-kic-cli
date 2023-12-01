@@ -34,7 +34,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tsp_instrument::{
+use tsp_toolkit_kic_lib::{
     instrument::Instrument,
     interface::async_stream::AsyncStream,
     usbtmc::{self, UsbtmcAddr},

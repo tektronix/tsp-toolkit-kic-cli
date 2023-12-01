@@ -31,4 +31,4 @@ reqwest = "0.11"
 minidom = "0.15.0"
 rusb = "0.9.1"
 tmc = { workspace = true }
-tsp-instrument = { workspace = true }
+tsp-toolkit-kic-lib = { workspace = true }
