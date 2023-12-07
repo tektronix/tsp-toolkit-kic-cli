@@ -310,8 +310,8 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
             as Arc<dyn Interface + Send + Sync>)?),
     };
 
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-
+    let mut instrument: Box<dyn Instrument> = interface.try_into()?;
+    instrument.login()?;
     Ok(instrument)
 }
 
