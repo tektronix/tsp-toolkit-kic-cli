@@ -3,15 +3,15 @@ members = [
     "kic",
     "kic-discover",
     "instrument-repl",
-    "tsp-instrument",
+    "tsp-toolkit-kic-lib"
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.11.2"
+version = "0.12.0"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
-repository = "https://git.keithley.com/trebuchet/teaspoon/ki-comms"
+repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli"
 #TODO Minimum Supported Rust Version Reasoning:
 # * Optional dependencies in feature flags was introduced in 1.60
 
@@ -38,5 +38,5 @@ thiserror = "1.0.38"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1", features = ["async-await"] }
 tracing-subscriber = "0.3.16"
-tsp-instrument = { path = "tsp-instrument" }
+tsp-toolkit-kic-lib = { path = "tsp-toolkit-kic-lib" }
 regex = "1.9.1"

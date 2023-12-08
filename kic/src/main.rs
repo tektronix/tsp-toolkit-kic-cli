@@ -34,7 +34,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tsp_instrument::{
+use tsp_toolkit_kic_lib::{
     instrument::Instrument,
     interface::async_stream::AsyncStream,
     usbtmc::{self, UsbtmcAddr},
@@ -310,8 +310,8 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
             as Arc<dyn Interface + Send + Sync>)?),
     };
 
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-
+    let mut instrument: Box<dyn Instrument> = interface.try_into()?;
+    instrument.login()?;
     Ok(instrument)
 }
 

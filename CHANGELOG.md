@@ -16,7 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-## [Unreleased]
+<!-- ## [Unreleased] -->
+
+## [0.12.0]
+### Added
+- Add message when starting FW upgrade (TSP-455)
 
 ## [0.11.2]
 
@@ -24,6 +28,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v0.12.0...HEAD
 
+[0.12.0]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/releases/tag/v0.11.2...v0.12.0
 [0.11.2]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/releases/tag/v0.11.2

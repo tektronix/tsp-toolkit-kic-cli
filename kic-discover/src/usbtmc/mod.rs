@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, hash::Hash, time::Duration};
 use tmc::{list_instruments, Instrument, InstrumentHandle, TMCError, TMCResult};
-use tsp_instrument::{
+use tsp_toolkit_kic_lib::{
     instrument::info::{ConnectionAddr, InstrumentInfo},
     usbtmc::UsbtmcAddr,
 };

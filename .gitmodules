@@ -1,0 +1,4 @@
+[submodule "tsp-toolkit-kic-lib"]
+	path = tsp-toolkit-kic-lib
+	url = https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git
+	branch = dev
