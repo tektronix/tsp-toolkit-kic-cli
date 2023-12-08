@@ -8,10 +8,10 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.11.2"
+version = "0.12.0"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
-repository = "https://git.keithley.com/trebuchet/teaspoon/ki-comms"
+repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli"
 #TODO Minimum Supported Rust Version Reasoning:
 # * Optional dependencies in feature flags was introduced in 1.60
 
