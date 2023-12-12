@@ -310,11 +310,15 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
             as Arc<dyn Interface + Send + Sync>)?),
     };
 
-    let mut instrument: Box<dyn Instrument> = interface.try_into()?;
-    instrument.login()?;
+    let instrument: Box<dyn Instrument> = interface.try_into()?;
+
     Ok(instrument)
 }
 
+fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
+    inst.as_mut().login()?;
+    Ok(())
+}
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!(
         "\nKeithley TSP Shell\nType {} for more commands.\n",
@@ -323,6 +327,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
 
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    get_instrument_access(&mut instrument)?;
     eprintln!("{}", instrument.info()?);
     let mut repl = repl::Repl::new(instrument);
     Ok(repl.start()?)
@@ -332,6 +337,7 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    get_instrument_access(&mut instrument)?;
     eprintln!("{}", instrument.info()?);
     let slot: Option<u16> = args.get_one::<u16>("slot").copied();
     let Some(file) = args.get_one::<PathBuf>("file").cloned() else {
@@ -356,7 +362,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
-
+    get_instrument_access(&mut instrument)?;
     eprintln!("{}", instrument.info()?);
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
@@ -417,7 +423,7 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
-
+    get_instrument_access(&mut instrument)?;
     instrument.write_all(b"abort\n")?;
 
     Ok(())
