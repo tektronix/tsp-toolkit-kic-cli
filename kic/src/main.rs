@@ -311,7 +311,6 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
     };
 
     let instrument: Box<dyn Instrument> = interface.try_into()?;
-
     Ok(instrument)
 }
 
