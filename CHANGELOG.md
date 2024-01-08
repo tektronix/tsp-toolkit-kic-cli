@@ -16,7 +16,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-<!-- ## [Unreleased] -->
+## [Unreleased]
+
+### Fixed
+- Fixed Fatal Error due to firmware limitation on TTI instruments (TSP-415)
 
 ## [0.12.1]
 ### Changed
