@@ -17,7 +17,6 @@ jobs:
   rc-tag:
     name: Tag Release Candidate
     runs-on: ubuntu-latest
-    if: github.base_ref == 'main'
     steps:
         - name: Checkout
           uses: actions/checkout@v3
