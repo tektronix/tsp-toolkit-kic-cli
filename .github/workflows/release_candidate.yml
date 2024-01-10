@@ -43,5 +43,5 @@ jobs:
               LATEST="${V}-$((NUM_RCS))"
             fi
 
-            git tag "$LATEST" -m "Release Candidate $LATEST"
+            git tag -a "$LATEST" -m "Release Candidate $LATEST"
             git push "$LATEST"
