@@ -8,7 +8,10 @@ name: Release Candidate
 on:
   pull_request:
     branches:
-      - 'release/**'
+      - 'release/*'
+  push:
+    branches:
+      - 'release/*'
 
 jobs:
   rc-tag:
