@@ -12,7 +12,7 @@ on:
       - closed
 
 jobs:
-  tag:
+  release-tag:
     name: Tag Release
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true && github.base_ref == 'main'
