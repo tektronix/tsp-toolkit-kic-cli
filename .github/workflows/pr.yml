@@ -96,7 +96,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      
+
       - name: Prebuild
         run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
       - name: Run Tests
@@ -317,7 +317,8 @@ jobs:
 
             ${{steps.changelog.outputs.description}}
 
-          prerelease: true
+          prerelease: ${{contains(steps.lasttag.outputs.version, '-')}}
+          # if the release tag contains a `-`, it must be a prerelease.
           makeLatest: true
 
 

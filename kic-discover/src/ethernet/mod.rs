@@ -42,20 +42,6 @@ impl LxiDeviceInfo {
         // Every lxi compliant instrument will respond to this service name.
         //Send out a broadcast every X milliseconds for LXI instruments over mDNS
 
-        //TODO : remove once versatest LXI page is available.
-        if let Ok(out_str) = serde_json::to_string(&LxiDeviceInfo {
-            io_type: IoType::Lan,
-            ip_addr: IpAddr::V4(Ipv4Addr::new(134, 63, 78, 90)),
-            manufacturer: "Keithley Instruments".to_string(),
-            model: "VERSATEST-300".to_string(),
-            serial_number: "0123789".to_string(),
-            firmware_revision: "1.0.0".to_string(),
-            socket_port: "5025".to_string(),
-            instr_categ: "versatest".to_string(),
-        }) {
-            insert_disc_device(out_str.as_str())?;
-        }
-
         let stream =
             mdns::discover::interface(service_name, Duration::from_millis(500), interface_ip)?
                 .listen();
