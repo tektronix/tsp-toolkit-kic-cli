@@ -17,11 +17,17 @@ jobs:
   rc-tag:
     name: Tag Release Candidate
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
         - name: Checkout
           uses: actions/checkout@v3
           with:
             set-safe-directory: '*'
+        - name: Set Up Git
+          run: |
+            git config user.name "${{github.actor}}"
+            git config user.email "noreply@tektronix.com"
         - name: Get Version
           id: version
           run: |
