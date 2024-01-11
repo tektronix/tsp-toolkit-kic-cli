@@ -266,7 +266,7 @@ jobs:
 
   release-candidate:
     name: Release Candidate
-    if: ${{ ! github.event.pull_request.merged && github.base_ref == 'refs/heads/main' && contains(github.head_ref, 'release/') }}
+    if: ${{ github.base_ref == 'refs/heads/main' && contains(github.head_ref, 'release/') }}
     needs:
       - build
       - test
