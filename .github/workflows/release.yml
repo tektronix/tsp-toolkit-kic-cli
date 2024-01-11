@@ -5,30 +5,96 @@ name: Create Release
 # This will create the tag which will kick off a new build with a tagged release.
 
 on:
-  pull_request:
-    branches:
-      - 'release/**'
-    types:
-      - closed
+  workflow_call:
+    inputs:
+      prerelease:
+        description: 'If this release is a pre-release'
+        default: false
+        required: false
+        type: boolean
+      tag:
+        description: 'The tag version for this release'
+        required: true
+        type: string
+      branch:
+        description: 'The branch against which this release should be made'
+        default: ${{github.head_ref}}
+        type: string
+        required: false
+      artifacts:
+        description: 'An optional set of paths representing artifacts to upload to the release. This may be a single path or a comma delimited list of paths (or globs)'
+        type: string
+        required: false
+        default: ""
+      name:
+        description: 'The name of the release'
+        default: ${{inputs.tag}}
+        type: string
+        required: true
 
 jobs:
-  release-tag:
-    name: Tag Release
+  release:
+    name: Release
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true && github.base_ref == 'main'
     steps:
-        - name: Checkout
-          uses: actions/checkout@v3
-          with:
-            set-safe-directory: '*'
-        - name: Get Version
-          id: version
-          run: |
-            V="${GITHUB_REF#refs/heads/release/v}"
-            echo "version=${V}" >> $GITHUB_OUTPUT
-        - name: Create Tag
-          run: |
-            V="v${{steps.version.outputs.version}}"
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
+      - name: Get Tagged Version
+        id: lasttag
+        run: |
+          V="${{inputs.tag}}"
+          V="${V#v}" #strip leading 'v'
+          CL="${V%-*}"
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+      - name: Get Changelog for this Tag
+        id: changelog
+        uses: coditory/changelog-parser@v1
+        with:
+          version: ${{steps.lasttag.outputs.cl_version}}
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: ${{inputs.name}}
+          artifacts: ${{inputs.artifacts}}
+          body: |
+            ## Features Requests / Bugs
 
-            git tag -a "$V" -m "Release $V"
-            git push "$V"
+            If you find issues or have a feature request, please enter a [new issue on GitHub](${{github.server_url}}/${{github.repository}}/issues/new).
+
+            ## Installation
+
+            View the installation instructions in the [README](${{github.server_url}}/${{github.repository}}/blob/main/README.md)
+
+            ## Changelog
+
+            ${{steps.changelog.outputs.description}}
+
+          prerelease: ${{inputs.prerelease}}
+          makeLatest: true
+          tag: ${{inputs.tag}}
+
+# jobs:
+#   release-tag:
+#     name: Tag Release
+#     runs-on: ubuntu-latest
+#     if: github.event.pull_request.merged == true && github.base_ref == 'main'
+#     steps:
+#         - name: Checkout
+#           uses: actions/checkout@v3
+#           with:
+#             set-safe-directory: '*'
+#         - name: Get Version
+#           id: version
+#           run: |
+#             V="${GITHUB_REF#refs/heads/release/v}"
+#             echo "version=${V}" >> $GITHUB_OUTPUT
+#         - name: Create Tag
+#           run: |
+#             V="v${{steps.version.outputs.version}}"
+#
+#             git tag -a "$V" -m "Release $V"
+#             git push "$V"
