@@ -266,7 +266,7 @@ jobs:
 
   release-candidate:
     name: Release Candidate
-    if: ${{ github.base_ref == 'refs/heads/main' && contains(github.head_ref, 'release/') }}
+    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     needs:
       - build
       - test
@@ -310,7 +310,7 @@ jobs:
 
   release:
     name: Release
-    if: ${{ github.event.pull_request.merged && github.base_ref == 'refs/heads/main' && contains(github.head_ref, 'release/') }}
+    if: ${{ github.event.pull_request.merged && endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     needs:
       - build
       - test
