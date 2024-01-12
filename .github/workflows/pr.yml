@@ -285,7 +285,7 @@ jobs:
         id: lasttag
         run: |
           V="${{github.head_ref}}"
-          V="${V#refs/heads/release/}"
+          V="${V#release/}"
 
           if ${{! github.event.pull_request.merged}}; then
             V="${V}-0" # Default to RC 0
