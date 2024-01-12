@@ -96,7 +96,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      
+
       - name: Prebuild
         run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
       - name: Run Tests
@@ -265,25 +265,42 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: read
     needs:
       - build
       - test
       - sbom
-    runs-on: ubuntu-latest
+    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
+          fetch-tags: true
           submodules: recursive
           token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      - name: Get Tagged Version
+      - name: Get RC Version
         id: lasttag
         run: |
-          V="${GITHUB_REF#refs/tags/v}"
-          CL="${V%-*}"
+          COMMIT="${{github.sha}}"
+          V="${{github.head_ref}}"
+          V="${V#release/}"
+
+          if ${{! github.event.pull_request.merged}}; then
+            V="${V}-$(git tag --list ${V}* | wc -l)"
+          fi
+
+          CL=${V#v}
+          CL=${CL%-*}
+
           echo "version=${V}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+      - run: 'git tag --list ${V}*'
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -307,17 +324,18 @@ jobs:
           body: |
             ## Features Requests / Bugs
 
-            If you find issues or have a feature request, please enter a [new issue on GitHub](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/issues/new).
+            If you find issues or have a feature request, please enter a [new issue on GitHub](${{github.server_url}}/${{github.repository}}/issues/new).
 
             ## Installation
 
-            View the installation instructions in the [README](https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/blob/main/README.md)
+            View the installation instructions in the [README](${{github.server_url}}/${{github.repository}}/blob/main/README.md)
 
             ## Changelog
 
             ${{steps.changelog.outputs.description}}
 
-          prerelease: true
+          prerelease: ${{! github.event.pull_request.merged}}
+          commit: ${{steps.lasttag.outputs.commit}}
           makeLatest: true
-
+          tag: ${{steps.lasttag.outputs.version}}
 
