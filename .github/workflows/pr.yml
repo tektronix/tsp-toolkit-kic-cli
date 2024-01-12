@@ -334,7 +334,7 @@ jobs:
 
             ${{steps.changelog.outputs.description}}
 
-          prerelease: ${{github.event.pull_request.merged}}
+          prerelease: ${{! github.event.pull_request.merged}}
           makeLatest: true
           tag: ${{steps.lasttag.outputs.version}}
 
