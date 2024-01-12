@@ -299,6 +299,7 @@ jobs:
           echo "version=${V}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+      - run: git tag --list "${V}-*"
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
