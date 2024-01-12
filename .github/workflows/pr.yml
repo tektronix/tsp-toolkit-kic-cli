@@ -288,13 +288,7 @@ jobs:
           V="${V#release/}"
 
           if ${{! github.event.pull_request.merged}}; then
-            V="${V}-0" # Default to RC 0
-            git tag --list "${V}-*"
-            NUM_RCS=$(git tag --list "${V}-*" | wc -l)
-
-            if [[ $NUM_RCS -gt 0 ]]; then
-              V="${V}-${NUM_RCS}"
-            fi
+            V="${V}-$(git tag --list ${V}-* | wc -l)"
           fi
 
           CL=${V#v}
