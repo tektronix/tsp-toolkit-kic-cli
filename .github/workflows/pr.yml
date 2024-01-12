@@ -285,6 +285,7 @@ jobs:
       - name: Get RC Version
         id: lasttag
         run: |
+          COMMIT="${{github.sha}}"
           V="${{github.head_ref}}"
           V="${V#release/}"
 
@@ -297,6 +298,7 @@ jobs:
 
           echo "version=${V}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -331,6 +333,7 @@ jobs:
             ${{steps.changelog.outputs.description}}
 
           prerelease: ${{! github.event.pull_request.merged}}
+          commit: ${{steps.lasttag.outputs.commit}}
           makeLatest: true
           tag: ${{steps.lasttag.outputs.version}}
 
