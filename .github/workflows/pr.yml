@@ -284,7 +284,8 @@ jobs:
       - name: Get RC Version
         id: lasttag
         run: |
-          V="${GITHUB_REF#refs/heads/release/}"
+          V="${{github.head_ref}}"
+          V="${V#refs/heads/release/}"
 
           if ${{! github.event.pull_request.merged}}; then
             V="${V}-0" # Default to RC 0
