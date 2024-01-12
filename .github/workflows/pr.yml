@@ -263,70 +263,43 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
-
-  release-candidate:
-    name: Release Candidate
-    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
-    needs:
-      - build
-      - test
-      - sbom
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      - name: Get Tagged Version
-        id: lasttag
-        run: |
-          V="${GITHUB_REF#refs/heads/release/}"
-          LATEST="${V}-0" # Default to RC 0
-          NUM_RCS=$(git tag --list "${V}-*" | wc -l)
-
-          if [[ $NUM_RCS -gt 0 ]]; then
-            LATEST="${V}-${NUM_RCS}"
-          fi
-          echo "version=${V}" >> $GITHUB_OUTPUT
-      - name: Get Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: executable
-          path: target
-      - name: Get SBOM
-        uses: actions/download-artifact@v3
-        with:
-          name: software-bom
-          path: sbom
-      - name: Create Release
-        uses: ./.github/workflows/release
-        with:
-          name: ${{steps.lasttag.outputs.version}}
-          artifacts: target/*,sbom/**/*
-          prerelease: true
-          # if the release tag contains a `-`, it must be a prerelease.
-          makeLatest: true
-
   release:
     name: Release
-    if: ${{ github.event.pull_request.merged && endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: read
     needs:
       - build
       - test
       - sbom
-    runs-on: ubuntu-latest
+    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: recursive
           token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      - name: Get Tagged Version
+      - name: Get RC Version
         id: lasttag
         run: |
           V="${GITHUB_REF#refs/heads/release/}"
+
+          if ${{! github.event.pull_request.merged}}; then
+            V="${V}-0" # Default to RC 0
+            NUM_RCS=$(git tag --list "${V}-*" | wc -l)
+
+            if [[ $NUM_RCS -gt 0 ]]; then
+              V="${V}-${NUM_RCS}"
+            fi
+          fi
+
+          CL=${V#v}
+          CL=${CL%-*}
+
           echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -337,13 +310,30 @@ jobs:
         with:
           name: software-bom
           path: sbom
+      - name: Get Changelog for this Tag
+        id: changelog
+        uses: coditory/changelog-parser@v1
+        with:
+          version: ${{steps.lasttag.outputs.cl_version}}
       - name: Create Release
-        uses: ./.github/workflows/release
+        uses: ncipollo/release-action@v1
         with:
           name: ${{steps.lasttag.outputs.version}}
           artifacts: target/*,sbom/**/*
-          prerelease: false
-          # if the release tag contains a `-`, it must be a prerelease.
-          makeLatest: true
+          body: |
+            ## Features Requests / Bugs
 
+            If you find issues or have a feature request, please enter a [new issue on GitHub](${{github.server_url}}/${{github.repository}}/issues/new).
+
+            ## Installation
+
+            View the installation instructions in the [README](${{github.server_url}}/${{github.repository}}/blob/main/README.md)
+
+            ## Changelog
+
+            ${{steps.changelog.outputs.description}}
+
+          prerelease: ${{github.event.pull_request.merged}}
+          makeLatest: true
+          tag: ${{steps.lasttag.outputs.version}}
 
