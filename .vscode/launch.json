@@ -59,7 +59,7 @@
                 "args": [
                     "build",
                     "--bin=kic",
-                    "--package=ki-comms"
+                    "--package=kic"
                 ],
                 "filter": {
                     "name": "kic",
@@ -69,7 +69,7 @@
             "args": [
                 "connect",
                 "lan",
-                "134.64.245.68",
+                "134.63.78.78",
             ]
         }
     ]
