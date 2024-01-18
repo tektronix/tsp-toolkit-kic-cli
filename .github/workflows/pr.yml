@@ -2,6 +2,11 @@ name: Pull Request
 
 on:
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
   push:
     tags:
       - '*'
@@ -219,8 +224,13 @@ jobs:
     name: Publish
     if: startsWith(github.ref, 'refs/tags/')
     needs:
-      - package
+      - build
+      - lint
+      - style
       - test
+      - code_coverage
+      - package
+      - sbom
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
@@ -272,7 +282,11 @@ jobs:
       pull-requests: read
     needs:
       - build
+      - lint
+      - style
       - test
+      - code_coverage
+      - package
       - sbom
     if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     steps:
