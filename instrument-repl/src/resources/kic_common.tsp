@@ -106,6 +106,7 @@ if _KIC.is_tti() then
         local errorstr = [[ERM>START]] .. '\n'
         for _err_num = 1, eventlog.getcount(eventlog.SEV_ERROR) do
             local event_id, message, severity, node_id, secs, nanos = eventlog.next(eventlog.SEV_ERROR)
+            if _err_num > 1 then errorstr = errorstr .. "," end
             errorstr = errorstr ..
                 [[ERM>]] .. _KIC.toJson({
                     error_code = event_id,

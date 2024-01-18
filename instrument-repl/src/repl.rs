@@ -279,30 +279,28 @@ impl Repl {
 
     fn get_errors(&mut self) -> Result<Vec<TspError>> {
         self.inst.write_all(b"print(_KIC.error_message())\n")?;
+
         let mut errors: Vec<TspError> = Vec::new();
-        let mut err: String = String::new();
+
         'error_loop: loop {
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
             let _ = self.inst.read(&mut read_buf)?;
+
             if !(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0))).is_empty() {
-                err.push_str(&String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0)));
-                if err.contains(">DONE") {
-                    break 'error_loop;
+                let parser = ResponseParser::new(&read_buf);
+                for response in parser {
+                    match response {
+                        ParsedResponse::TspError(e) => {
+                            errors.push(serde_json::from_str(e.trim())?);
+                        }
+                        ParsedResponse::TspErrorEnd => break 'error_loop,
+                        _ => {}
+                    }
                 }
             }
         }
 
-        let parser = ResponseParser::new(err.as_bytes());
-        for response in parser {
-            match response {
-                ParsedResponse::TspError(e) => {
-                    let x: TspError = serde_json::from_str(e.trim())?;
-                    errors.push(x);
-                }
-                _ => {}
-            }
-        }
         self.inst.set_nonblocking(true)?;
         Ok(errors)
     }

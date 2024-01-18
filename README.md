@@ -1,14 +1,6 @@
 # Keithley Instrument Communicator
 
-The Keithley Instrument Communicator (KIC) is a command-line application that enables simple communication to an instrument. 
-
-## Certificates Setup
-
-Tektronix uses self-signed certificates. This makes life difficult when using standard tooling like `npm`. In order to use the GitLab npm package registry, you'll need to tell npm that those self-signed certificates are safe. `npm` annoyingly doesn't use your system's installed CA certs, so we have to add to the accepted ones.
-
-1. Download the [ca-certs](https://git.keithley.com/devops/certificates/-/jobs/artifacts/main/download?job=package) from the devops/certificates project (link will start download).
-2. Extract and put them somewhere (I personally like `~/.certs/Tektronix_*.crt`)
-3. Add NODE_EXTRA_CA_CERTS to your environment variables with the full path to the `Tektronix_Global.gitlab.chain1.crt` file
+The Keithley Instrument Communicator (KIC) is a command-line application that enables simple communication to an instrument.
 
 ## Getting started
 <details>
@@ -37,7 +29,7 @@ git commit -m "<COMMIT_MESSAGE>" --no-verify
 ### Method 1: `npm`
 Make sure you have [set up the certificates](#certificates-setup) and have [set up a Personal Access Token](https://git.keithley.com/-/profile/personal_access_tokens?name=NPM+Access+Token&scopes=api,read_user,read_registry,read_repository) (keep track of that token, you'll need to generate a new one if you lose it).
 
-This can be installed by running 
+This can be installed by running
 
 ```bash
 $ npm config set @trebuchet:registry https://git.keithley.com/api/v4/projects/33/packages/npm
@@ -81,7 +73,7 @@ kic --help
 ```
 
 ## Support
-If you find issues or have a feature request, please enter a [new issue on GitLab](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/issues/new). 
+If you find issues or have a feature request, please enter a [new issue on GitLab](https://git.keithley.com/trebuchet/teaspoon/ki-comms/-/issues/new).
 This will allow us to filter the issues into JIRA to avoid duplicates and keep things focussed.
 
 ## Roadmap
