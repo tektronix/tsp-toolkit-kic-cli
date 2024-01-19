@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 - Fixed Fatal Error due to firmware limitation on TTI instruments (TSP-415)
+- Fixed instrument connection failed (TSP-486)
 
 ## [0.12.1]
 ### Changed
