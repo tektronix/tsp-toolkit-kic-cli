@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "instrument-repl"
-version = "0.12.2"
+version = "0.13.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "kic"
-version = "0.12.2"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1383,7 +1383,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover"
-version = "0.12.2"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2951,8 +2951,8 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tsp-toolkit-kic-lib"
-version = "0.11.2"
-source = "git+https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git?branch=dev#c39f6ce296c82acc21106dcec0f2af8f864ecaf6"
+version = "0.13.0"
+source = "git+https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git?tag=v0.13.0-0#9115b94f0542cc5d5f55673f7b65aab6f226598b"
 dependencies = [
  "bytes 1.5.0",
  "chrono",
