@@ -271,6 +271,7 @@ jobs:
 
           npm version --no-git-tag-version "${V}"
           git add --all
+          git commit -m "never push"
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
