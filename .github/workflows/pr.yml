@@ -259,7 +259,7 @@ jobs:
           V="${V#release/v}"
 
           if ${{! github.event.pull_request.merged}}; then
-            V="${V}-$(git tag --list ${V}* | wc -l)"
+            V="${V}-$(git tag --list v${V}* | wc -l)"
           fi
 
           CL=${V}
