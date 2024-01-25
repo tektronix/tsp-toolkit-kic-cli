@@ -220,7 +220,7 @@ jobs:
 
   publish:
     name: Publish
-    if: startsWith(github.ref, 'refs/tags/')
+    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     needs:
       - build
       - lint
@@ -252,12 +252,22 @@ jobs:
       - name: Get Tagged Version
         id: lasttag
         run: |
-          V="${GITHUB_REF#refs/tags/v}"
-          CL="${V%-*}"
-          echo "version=${V}" >> $GITHUB_OUTPUT
+          COMMIT="${{github.sha}}"
+          V="${{github.head_ref}}"
+          V="${V#release/}"
+
+          if ${{! github.event.pull_request.merged}}; then
+            V="${V}-$(git tag --list ${V}* | wc -l)"
+          fi
+
+          CL=${V#v}
+          CL=${CL%-*}
+
+          echo "version=${V#v}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
-          # set version to RC version if this is a tagged build
-          npm version --no-git-tag-version --allow-same-version "$V"
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+
+          npm version --no-git-tag-version --allow-same-version "${V#v}"
         if: startsWith(github.ref, 'refs/tags/')
       - name: Get Artifacts
         uses: actions/download-artifact@v3
