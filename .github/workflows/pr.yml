@@ -256,20 +256,20 @@ jobs:
         run: |
           COMMIT="${{github.sha}}"
           V="${{github.head_ref}}"
-          V="${V#release/}"
+          V="${V#release/v}"
 
           if ${{! github.event.pull_request.merged}}; then
             V="${V}-$(git tag --list ${V}* | wc -l)"
           fi
 
-          CL=${V#v}
+          CL=${V}
           CL=${CL%-*}
 
-          echo "version=${V#v}" >> $GITHUB_OUTPUT
+          echo "version=${V}" >> $GITHUB_OUTPUT
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
-          npm version --no-git-tag-version --allow-same-version prerelease
+          npm version --no-git-tag-version "${V}"
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
