@@ -263,6 +263,10 @@ impl Repl {
                             prompt = true;
                             Self::println_flush(&s)?;
                         }
+                        Request::InvalidInput(s) => {
+                            prompt = true;
+                            Self::println_flush(&(s + "\n").red())?;
+                        }
                         Request::None => {
                             prompt = true;
                         }
@@ -286,7 +290,7 @@ impl Repl {
             let mut read_buf: Vec<u8> = vec![0; 1024];
             let _ = self.inst.read(&mut read_buf)?;
             if !(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0))).is_empty() {
-                err.push_str(&String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0)));
+                err.push_str(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0)));
                 if err.contains(">DONE") {
                     break 'error_loop;
                 }
@@ -295,12 +299,9 @@ impl Repl {
 
         let parser = ResponseParser::new(err.as_bytes());
         for response in parser {
-            match response {
-                ParsedResponse::TspError(e) => {
-                    let x: TspError = serde_json::from_str(e.trim())?;
-                    errors.push(x);
-                }
-                _ => {}
+            if let ParsedResponse::TspError(e) = response {
+                let x: TspError = serde_json::from_str(e.trim())?;
+                errors.push(x);
             }
         }
         self.inst.set_nonblocking(true)?;
@@ -455,10 +456,16 @@ impl Repl {
                 return Ok(Request::Script { file: path });
             }
         }
+
+        if !Self::starts_with_command(input) {
+            return Ok(Request::Tsp(input.trim().to_string()));
+        }
+
         let Some(cmd) = shlex::split(input.trim()) else {
-            return Err(crate::InstrumentReplError::CommandError {
-                details: "invalid quoting".to_string(),
-            });
+            return Ok(Request::InvalidInput(format!(
+                "Invalid command {}",
+                input.trim()
+            )));
         };
         let cli = Self::cli();
 
@@ -602,6 +609,20 @@ impl Repl {
         })
     }
 
+    /// Return `true` if input belong to cli subcommands
+    fn starts_with_command(input: &str) -> bool {
+        // Split the input string into words
+        let words_in_input: Vec<&str> = input.split_whitespace().collect();
+
+        // Check if there is at least one word in the input
+        if let Some(first_word) = words_in_input.first() {
+            return Self::cli()
+                .get_subcommands()
+                .any(|e| e.get_name() == *first_word);
+        }
+
+        false
+    }
     /// Start a thread that blocks on user input lines, converts them to the proper request
     /// and `send()`s them on the `out` channel.
     ///

@@ -70,6 +70,18 @@ _KIC["is_tti"] = function() return models[localnode.model] == TTI end
 _KIC["is_2600"] = function() return models[localnode.model] == _2600 end
 _KIC["is_versatest"] = function() return models[localnode.model] == VERSATEST end
 
+---interate over input string and escape special characters in a given string, 
+---making it safe for inclusion in JSON
+---@param s string
+---@return string
+local function escape_str(s)
+    local in_char  = {'\\', '"', '/', '\b', '\f', '\n', '\r', '\t'}
+    local out_char = {'\\', '"', '/',  'b',  'f',  'n',  'r',  't'}
+    for i, c in ipairs(in_char) do
+      s = string.gsub(s, c, '\\' .. out_char[i])
+    end
+    return s
+  end
 _KIC["toJson"] = function(o)
     local s = ''
     if type(o) == 'table' then
@@ -109,7 +121,7 @@ if _KIC.is_tti() then
             errorstr = errorstr ..
                 [[ERM>]] .. _KIC.toJson({
                     error_code = event_id,
-                    message = message,
+                    message = escape_str(message),
                     severity = severity,
                     node_id = node_id,
                     time = { secs = secs, nanos = nanos }
@@ -124,7 +136,7 @@ elseif _KIC.is_2600() then
         local errorstr = [[ERM>START]].."\n"
         for _err_num = 1, errorqueue.count do
             local error_code, message, severity, node_id = errorqueue.next()
-            errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=message, severity=severity, node_id=node_id, time=nil}) .. "\n"
+            errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=escape_str(message), severity=severity, node_id=node_id, time=nil}) .. "\n"
         end
         errorstr = errorstr..[[ERM>DONE]]
         return errorstr
@@ -134,7 +146,7 @@ elseif _KIC.is_versatest() then
         local errorstr = [[ERM>START]].."\n"
         for _err_num = 1, errorqueue.count do
             local error_code, message, severity, node_id = errorqueue.next()
-            errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=message, severity=severity, node_id=node_id, time=nil}) .. "\n"
+            errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=escape_str(message), severity=severity, node_id=node_id, time=nil}) .. "\n"
         end
         errorstr = errorstr..[[ERM>DONE]]
         return errorstr
