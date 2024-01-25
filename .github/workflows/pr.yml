@@ -269,7 +269,7 @@ jobs:
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
-          npm version --no-git-tag-version --allow-same-version "${V#v}"
+          npm version --no-git-tag-version --allow-same-version prerelease
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
