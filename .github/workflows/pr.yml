@@ -268,7 +268,6 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
           npm version --no-git-tag-version --allow-same-version "${V#v}"
-        if: startsWith(github.ref, 'refs/tags/')
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
