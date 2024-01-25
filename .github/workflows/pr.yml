@@ -25,11 +25,11 @@ jobs:
         run: cargo fmt --version
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
       - name: Check Style
-        run: cargo fmt --check --verbose
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo fmt --check --verbose
 
   lint:
     name: Lint
@@ -44,11 +44,11 @@ jobs:
         run: cargo clippy --version
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
       - name: Lint
-        run: cargo clippy
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo clippy
 
   sbom:
     name: Generate CycloneDX
@@ -61,14 +61,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
       - name: Install Tools
         run: |
           npm ci --devDependencies
       - name: Generate Rust BOM
-        run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
       - name: Generate NPM BOM
         run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
@@ -98,14 +98,15 @@ jobs:
           grcov --version
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-
       - name: Prebuild
-        run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
       - name: Run Tests
         run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           mkdir -p "${{env.TEST_DIR}}"
           cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
       - name: Process Test Results
@@ -173,11 +174,11 @@ jobs:
         run: rustc --version
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
       - name: Build
-        run: cargo build --target "${{matrix.target_triple}}" --release
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo build --target "${{matrix.target_triple}}" --release
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -201,9 +202,6 @@ jobs:
         run: npm --version
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -250,8 +248,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
           set-safe-directory: '*'
       - name: Get Tagged Version
         id: lasttag
@@ -292,12 +288,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_ACCESS_TOKEN }}
-      - name: Get RC Version
+      - name: Get Tagged Version
         id: lasttag
         run: |
           COMMIT="${{github.sha}}"
