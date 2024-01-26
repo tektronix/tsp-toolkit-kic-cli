@@ -202,11 +202,35 @@ jobs:
         run: npm --version
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          set-safe-directory: '*'
+          fetch-depth: 0
+          fetch-tags: true
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
           name: executable
           path: target/
+      - name: Get Tagged Version
+        id: lasttag
+        if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
+        run: |
+          COMMIT="${{github.sha}}"
+          V="${{github.head_ref}}"
+          V="${V#release/v}"
+
+          if ${{! github.event.pull_request.merged}}; then
+            V="${V}-$(git tag --list v${V}* | wc -l)"
+          fi
+
+          CL=${V}
+          CL=${CL%-*}
+
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+
+          npm version --no-git-tag-version "${V}"
       - name: npm Package
         run: |
           mkdir -p bin
@@ -247,33 +271,6 @@ jobs:
           scope: '@tek-engineering'
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          set-safe-directory: '*'
-          fetch-depth: 0
-          fetch-tags: true
-      - name: Get Tagged Version
-        id: lasttag
-        run: |
-          COMMIT="${{github.sha}}"
-          V="${{github.head_ref}}"
-          V="${V#release/v}"
-
-          if ${{! github.event.pull_request.merged}}; then
-            V="${V}-$(git tag --list v${V}* | wc -l)"
-          fi
-
-          CL=${V}
-          CL=${CL%-*}
-
-          echo "version=${V}" >> $GITHUB_OUTPUT
-          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
-          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
-
-          npm version --no-git-tag-version "${V}"
-          git config --global user.email "github_tsp_toolkit_build@tektronix.com"
-          git config --global user.name "Github-TSPToolkitBuild_fortive"
-          git add --all
-          git commit -m "never push"
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
