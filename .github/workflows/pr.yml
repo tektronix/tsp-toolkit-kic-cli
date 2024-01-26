@@ -215,6 +215,7 @@ jobs:
         id: lasttag
         if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
         run: |
+          git config --global --add safe.directory "$PWD"
           COMMIT="${{github.sha}}"
           V="${{github.head_ref}}"
           V="${V#release/v}"
