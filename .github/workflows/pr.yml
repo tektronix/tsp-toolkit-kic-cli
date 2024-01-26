@@ -24,7 +24,7 @@ jobs:
       - name: Tool Versions
         run: cargo fmt --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Check Style
         run: |
           git config --global credential.helper store
@@ -43,7 +43,7 @@ jobs:
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Lint
         run: |
           git config --global credential.helper store
@@ -60,7 +60,7 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Tools
         run: |
           npm ci --devDependencies
@@ -97,7 +97,7 @@ jobs:
           cargo --version
           grcov --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Prebuild
         run: |
           git config --global credential.helper store
@@ -173,7 +173,7 @@ jobs:
       - name: Tool Versions
         run: rustc --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
         run: |
           git config --global credential.helper store
@@ -201,7 +201,7 @@ jobs:
       - name: Tool Versions
         run: npm --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           set-safe-directory: '*'
           fetch-depth: 0
@@ -270,7 +270,7 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@tek-engineering'
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Get Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -299,7 +299,7 @@ jobs:
     if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
