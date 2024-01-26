@@ -270,6 +270,8 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
           npm version --no-git-tag-version "${V}"
+          git config --global user.email "github_tsp_toolkit_build@tektronix.com"
+          git config --global user.name "Github-TSPToolkitBuild_fortive"
           git add --all
           git commit -m "never push"
       - name: Get Artifacts
