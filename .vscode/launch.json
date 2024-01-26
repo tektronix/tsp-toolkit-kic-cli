@@ -59,7 +59,7 @@
                 "args": [
                     "build",
                     "--bin=kic",
-                    "--package=ki-comms"
+                    "--package=kic"
                 ],
                 "filter": {
                     "name": "kic",

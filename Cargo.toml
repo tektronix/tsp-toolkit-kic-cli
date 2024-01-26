@@ -3,12 +3,11 @@ members = [
     "kic",
     "kic-discover",
     "instrument-repl",
-    "tsp-toolkit-kic-lib"
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.12.2"
+version = "0.13.0"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli"
@@ -38,5 +37,5 @@ thiserror = "1.0.38"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1", features = ["async-await"] }
 tracing-subscriber = "0.3.16"
-tsp-toolkit-kic-lib = { path = "tsp-toolkit-kic-lib" }
+tsp-toolkit-kic-lib = { git = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git", tag = "v0.13.0-0"}
 regex = "1.9.1"
