@@ -27,6 +27,7 @@ pub enum Request {
         sub_cmd: Option<String>,
     },
     Usage(String),
+    InvalidInput(String),
     None,
 }
 
