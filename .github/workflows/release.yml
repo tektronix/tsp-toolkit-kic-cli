@@ -1,0 +1,34 @@
+name: Create Release
+
+# Create a release tag automatically when a pull request from a `release/**` branch is
+# merged into the `main` branch.
+# This will create the tag which will kick off a new build with a tagged release.
+
+on:
+  pull_request:
+    branches:
+      - 'release/**'
+    types:
+      - closed
+
+jobs:
+  tag:
+    name: Tag Release
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && github.base_ref == 'main'
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+          with:
+            set-safe-directory: '*'
+        - name: Get Version
+          id: version
+          run: |
+            V="${GITHUB_REF#refs/heads/release/v}"
+            echo "version=${V}" >> $GITHUB_OUTPUT
+        - name: Create Tag
+          run: |
+            V="v${{steps.version.outputs.version}}"
+
+            git tag "$V" -m "Release $V"
+            git push "$V"
