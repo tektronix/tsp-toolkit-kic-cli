@@ -231,7 +231,7 @@ jobs:
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
-          npm version --no-git-tag-version "${V}"
+          npm version --no-git-tag-version "${V}" || true
       - name: npm Package
         run: |
           mkdir -p bin
