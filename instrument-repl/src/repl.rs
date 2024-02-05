@@ -345,7 +345,7 @@ impl Repl {
     }
 
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
-        if let Ok(mut file) = OpenOptions::new().write(true).create(true).open(file_path) {
+        if let Ok(mut file) = File::create(file_path) {
             // Convert the Lua string to JSON
             let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
 
