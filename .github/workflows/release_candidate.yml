@@ -1,0 +1,39 @@
+name: Release Candidate
+
+# Create a release candidate tag automatically when a pull request from a `release/**`
+# branch is merged into the `main` branch.
+# This will create the tag which will kick off a new build with a tagged release
+# candidate.
+
+on:
+  pull_request:
+    branches:
+      - 'release/**'
+
+jobs:
+  tag:
+    name: Tag Release Candidate
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'main'
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+          with:
+            set-safe-directory: '*'
+        - name: Get Version
+          id: version
+          run: |
+            V="${GITHUB_REF#refs/heads/release/v}"
+            echo "version=${V}" >> $GITHUB_OUTPUT
+        - name: Create Tag
+          run: |
+            V="v${{steps.version.outputs.version}}"
+            LATEST="${V}-0" # Default to RC 0
+            NUM_RCS=$(git tag --list "${V}-*" | wc -l)
+
+            if [[ $NUM_RCS -gt 0 ]]; then
+              LATEST="${V}-$((NUM_RCS))"
+            fi
+
+            git tag "$LATEST" -m "Release Candidate $LATEST"
+            git push "$LATEST"
