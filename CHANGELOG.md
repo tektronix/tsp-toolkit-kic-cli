@@ -16,20 +16,32 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.13.0]
+
+### Fixed
+
+- Terminal closes when sending invalid TSP (TSP-513)
+
 ## [0.12.2]
 
 ### Fixed
+
 - Fixed Fatal Error due to firmware limitation on TTI instruments (TSP-415)
 - Fixed instrument connection failed (TSP-486)
 
 ## [0.12.1]
+
 ### Changed
+
 - Restore password hide feature back after ki-comms refactor (TSP-363)
 - Implement Password prompt (TSP-480)
+- 
 ### Fixed
+
 - Extension wants a password when there isn't one (TSP-416)
 
 ## [0.12.0]
+
 ### Added
 - Add message when starting FW upgrade (TSP-455)
 
@@ -39,7 +51,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v0.12.2...HEAD
+[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/releases/tag/v0.13.0
 
 [0.12.2]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/releases/tag/v0.12.2
 [0.12.1]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/releases/tag/v0.12.1
