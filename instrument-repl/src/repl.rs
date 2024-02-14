@@ -117,9 +117,9 @@ impl Repl {
                     Action::GetError => {
                         get_error = true;
                     }
-                    Action::PrintText => Self::print_data(response)?,
-                    Action::PrintHex => Self::print_data(response)?,
-                    Action::PrintError => Self::print_data(response)?,
+                    Action::PrintText => Self::print_data(*state, response)?,
+                    Action::PrintHex => Self::print_data(*state, response)?,
+                    Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
                         Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
                     }
@@ -130,7 +130,7 @@ impl Repl {
             if get_error {
                 let errors = self.get_errors()?;
                 for e in errors {
-                    Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                    Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
                 }
                 prompt = true;
                 *state = Some(ReadState::DataReadEnd);
@@ -166,7 +166,7 @@ impl Repl {
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let errors = self.get_errors()?;
         for e in errors {
-            Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+            Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
 
         let mut prompt = true;
@@ -193,7 +193,7 @@ impl Repl {
                         Request::GetError => {
                             let errors = self.get_errors()?;
                             for e in errors {
-                                Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                                Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
                             }
                             prompt = true;
                         }
@@ -320,11 +320,22 @@ impl Repl {
         Ok(())
     }
 
-    fn print_data(resp: ParsedResponse) -> Result<()> {
+    fn print_data(state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
         match resp {
             ParsedResponse::TspError(e) => Self::print_flush(&(e + "\n").red()),
             ParsedResponse::Data(d) => Self::print_flush(&String::from_utf8_lossy(&d).to_string()),
-            ParsedResponse::BinaryData(b) => Self::print_flush(&format!("{:X?}", &b)),
+            ParsedResponse::BinaryData(b) => match state {
+                Some(ReadState::BinaryDataReadContinue | ReadState::BinaryDataReadStart) => {
+                    for x in b {
+                        Self::print_flush(&format!("{:02X} ", &x,))?;
+                    }
+                    Ok(())
+                }
+                Some(ReadState::TextDataReadContinue | ReadState::TextDataReadStart) => {
+                    Self::print_flush(&format!("#0{}", &String::from_utf8_lossy(&b).to_string()))
+                }
+                _ => Ok(()),
+            },
             ParsedResponse::Prompt
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
