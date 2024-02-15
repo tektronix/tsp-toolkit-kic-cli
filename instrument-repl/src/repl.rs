@@ -11,7 +11,7 @@ use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
 use std::{
     fmt::Display,
-    fs::{File, OpenOptions},
+    fs::File,
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
