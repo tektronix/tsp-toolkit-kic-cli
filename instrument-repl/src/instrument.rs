@@ -71,7 +71,7 @@ impl ParsedResponse {
 
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn parse_next(input: &Vec<u8>) -> Option<(Self, Vec<u8>)> {
+    pub fn parse_next(input: &[u8]) -> Option<(Self, Vec<u8>)> {
         if input.is_empty() || input[0] == 0u8 {
             return None;
         };
@@ -172,7 +172,7 @@ impl ParsedResponse {
             return Some((Self::BinaryData(data), r));
         }
         let (msg, r): (Vec<u8>, Vec<u8>) = Self::find_next(input).map_or_else(
-            || (input.clone(), Vec::new()),
+            || (input.to_owned(), Vec::new()),
             |next_token| (input[..next_token].to_vec(), input[next_token..].to_vec()),
         );
         Some((Self::Data(msg), r))
