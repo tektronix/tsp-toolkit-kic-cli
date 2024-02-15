@@ -15,6 +15,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.13.2]
+
+### Fixed
+- Fixed crash when binary delimiter (`#0`) is encountered in instrument output (TSP-544)
+- Truncate old file content in the node configuration file (TSP-533)
 
 ## [0.13.0]
 
