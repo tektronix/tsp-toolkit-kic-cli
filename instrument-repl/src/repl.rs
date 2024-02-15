@@ -11,7 +11,7 @@ use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
 use std::{
     fmt::Display,
-    fs::{File, OpenOptions},
+    fs::File,
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
@@ -117,9 +117,9 @@ impl Repl {
                     Action::GetError => {
                         get_error = true;
                     }
-                    Action::PrintText => Self::print_data(response)?,
-                    Action::PrintHex => Self::print_data(response)?,
-                    Action::PrintError => Self::print_data(response)?,
+                    Action::PrintText => Self::print_data(*state, response)?,
+                    Action::PrintHex => Self::print_data(*state, response)?,
+                    Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
                         Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
                     }
@@ -130,7 +130,7 @@ impl Repl {
             if get_error {
                 let errors = self.get_errors()?;
                 for e in errors {
-                    Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                    Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
                 }
                 prompt = true;
                 *state = Some(ReadState::DataReadEnd);
@@ -166,7 +166,7 @@ impl Repl {
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let errors = self.get_errors()?;
         for e in errors {
-            Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+            Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
 
         let mut prompt = true;
@@ -193,7 +193,7 @@ impl Repl {
                         Request::GetError => {
                             let errors = self.get_errors()?;
                             for e in errors {
-                                Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                                Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
                             }
                             prompt = true;
                         }
@@ -320,11 +320,22 @@ impl Repl {
         Ok(())
     }
 
-    fn print_data(resp: ParsedResponse) -> Result<()> {
+    fn print_data(state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
         match resp {
             ParsedResponse::TspError(e) => Self::print_flush(&(e + "\n").red()),
             ParsedResponse::Data(d) => Self::print_flush(&String::from_utf8_lossy(&d).to_string()),
-            ParsedResponse::BinaryData(b) => Self::print_flush(&format!("{:X?}", &b)),
+            ParsedResponse::BinaryData(b) => match state {
+                Some(ReadState::BinaryDataReadContinue | ReadState::BinaryDataReadStart) => {
+                    for x in b {
+                        Self::print_flush(&format!("{:02X} ", &x,))?;
+                    }
+                    Ok(())
+                }
+                Some(ReadState::TextDataReadContinue | ReadState::TextDataReadStart) => {
+                    Self::print_flush(&format!("#0{}", &String::from_utf8_lossy(&b).to_string()))
+                }
+                _ => Ok(()),
+            },
             ParsedResponse::Prompt
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
@@ -345,7 +356,7 @@ impl Repl {
     }
 
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
-        if let Ok(mut file) = OpenOptions::new().write(true).create(true).open(file_path) {
+        if let Ok(mut file) = File::create(file_path) {
             // Convert the Lua string to JSON
             let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
 
