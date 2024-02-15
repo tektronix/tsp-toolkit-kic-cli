@@ -90,14 +90,14 @@ impl ReadState {
             (Self::TextDataReadStart, IR::Prompt) => Ok(Self::DataReadEnd),
             (Self::TextDataReadStart, IR::PromptWithError) => Ok(Self::DataReadEndPendingError),
             (Self::TextDataReadStart, IR::TspErrorStart) => Ok(Self::ErrorReadStart),
-            (Self::TextDataReadStart, IR::Data(_)) => Ok(Self::TextDataReadContinue),
+            (Self::TextDataReadStart, IR::Data(_) | IR::BinaryData(_)) => Ok(Self::TextDataReadContinue),
             (Self::TextDataReadStart, IR::ProgressIndicator) => Ok(Self::FileLoading),
             (Self::TextDataReadStart, IR::NodeStart) => Ok(Self::NodeDataReadStart),
 
             // Transitions from TextDataReadContinue
             (Self::TextDataReadContinue, IR::Prompt) => Ok(Self::DataReadEnd),
             (Self::TextDataReadContinue, IR::PromptWithError) => Ok(Self::DataReadEndPendingError),
-            (Self::TextDataReadContinue, IR::Data(_)) => Ok(self),
+            (Self::TextDataReadContinue, IR::Data(_) | IR::BinaryData(_)) => Ok(self),
             (Self::TextDataReadContinue, IR::ProgressIndicator) => Ok(Self::FileLoading),
 
             // Transition from BinaryDataReadStart
@@ -169,12 +169,10 @@ impl ReadState {
             // TextDataReadStart
             | (Self::TextDataReadStart, IR::TspError(_))
             | (Self::TextDataReadStart, IR::TspErrorEnd)
-            | (Self::TextDataReadStart, IR::BinaryData(_))
             // TextDataReadContinue
             | (Self::TextDataReadContinue, IR::TspErrorStart)
             | (Self::TextDataReadContinue, IR::TspError(_))
             | (Self::TextDataReadContinue, IR::TspErrorEnd)
-            | (Self::TextDataReadContinue, IR::BinaryData(_))
             // BinaryDataReadStart
             | (Self::BinaryDataReadStart, IR::TspError(_))
             | (Self::BinaryDataReadStart, IR::TspErrorEnd)

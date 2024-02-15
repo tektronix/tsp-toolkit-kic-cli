@@ -37,5 +37,5 @@ thiserror = "1.0.38"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1", features = ["async-await"] }
 tracing-subscriber = "0.3.16"
-tsp-toolkit-kic-lib = { git = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git", tag = "v0.13.0"}
+tsp-toolkit-kic-lib = { git = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git", branch = "dev"}
 regex = "1.9.1"
