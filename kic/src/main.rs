@@ -298,6 +298,16 @@ impl ConnectionType {
     }
 }
 
+fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
+    let interface: Box<dyn Interface> = match t {
+        ConnectionType::Lan(addr) => Box::new(TcpStream::connect(addr)?),
+        ConnectionType::Usb(addr) => Box::new(usbtmc::Stream::try_from(addr)?),
+    };
+
+    let instrument: Box<dyn Instrument> = interface.try_into()?;
+    Ok(instrument)
+}
+
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     let interface: Box<dyn Interface> = match t {
         ConnectionType::Lan(addr) => Box::new(AsyncStream::try_from(Arc::new(TcpStream::connect(
@@ -334,8 +344,11 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn update(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    let lan = ConnectionType::try_from_arg_matches(args)?;
+    let Some((_, args)) = args.subcommand() else {
+        unreachable!("arguments didn't exist")
+    };
+    let mut instrument: Box<dyn Instrument> = connect_sync_instrument(lan)?;
     get_instrument_access(&mut instrument)?;
     eprintln!("{}", instrument.info()?);
     let slot: Option<u16> = args.get_one::<u16>("slot").copied();
