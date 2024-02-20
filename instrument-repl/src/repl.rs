@@ -462,10 +462,9 @@ impl Repl {
         if input.trim().is_empty() {
             return Ok(Request::None);
         }
-        if let Ok(path) = PathBuf::try_from(input.trim()) {
-            if path.is_file() {
-                return Ok(Request::Script { file: path });
-            }
+        let path = PathBuf::from(input.trim());
+        if path.is_file() {
+            return Ok(Request::Script { file: path });
         }
 
         if !Self::starts_with_command(input) {
@@ -524,17 +523,7 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let file = PathBuf::from(file);
                     if !file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(
@@ -557,17 +546,8 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(json_file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let json_file = PathBuf::from(file.clone());
+
                     if !json_file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(

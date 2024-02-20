@@ -200,9 +200,7 @@ impl Iterator for ResponseParser {
     type Item = ParsedResponse;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some((ret, remainder)) = ParsedResponse::parse_next(&self.data) else {
-            return None;
-        };
+        let (ret, remainder) = ParsedResponse::parse_next(&self.data)?;
 
         let remainder = remainder.trim_ascii_start().to_vec();
 
