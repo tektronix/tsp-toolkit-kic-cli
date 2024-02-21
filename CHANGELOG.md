@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - Fixed crash when binary delimiter (`#0`) is encountered in instrument output (TSP-544)
 - Truncate old file content in the node configuration file (TSP-533)
+- Fix issue with `update` subcommand exiting too soon (TSP-572, TSP-573)
 
 ## [0.13.0]
 
