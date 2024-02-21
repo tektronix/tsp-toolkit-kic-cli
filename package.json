@@ -1,6 +1,6 @@
 {
     "name": "@tek-engineering/kic-cli",
-    "version": "0.13.0",
+    "version": "0.13.2",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
