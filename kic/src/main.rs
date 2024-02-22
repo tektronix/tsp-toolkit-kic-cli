@@ -28,8 +28,7 @@ use instrument_repl::repl::{self};
 use std::{
     collections::HashMap,
     env::set_var,
-    ffi::OsString,
-    io::Read,
+    io::{Read, Write},
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
     sync::Arc,
@@ -55,7 +54,7 @@ struct LanTerminateArgs {
     port: Option<u16>,
 
     /// The IP address of the instrument to connect to.
-    ip_addr: OsString,
+    ip_addr: IpAddr,
 }
 
 // hack to make sure we rebuild if either Cargo.toml changes, since `clap` gets
@@ -333,7 +332,6 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         "\nKeithley TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
-
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
     get_instrument_access(&mut instrument)?;
@@ -433,10 +431,14 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
-    get_instrument_access(&mut instrument)?;
-    instrument.write_all(b"abort\n")?;
+    let connection = ConnectionType::try_from_arg_matches(args)?;
+    match connection {
+        ConnectionType::Lan(socket) => {
+            let mut connection = TcpStream::connect(socket)?;
+            connection.write_all(b"ABORT\n")?;
+        }
+        ConnectionType::Usb(_) => {}
+    }
 
     Ok(())
 }
