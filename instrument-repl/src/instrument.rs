@@ -8,7 +8,6 @@ pub enum ParsedResponse {
     TspError(String),
     TspErrorEnd,
     Data(Vec<u8>),
-    BinaryData(Vec<u8>),
     ProgressIndicator,
     NodeStart,
     NodeEnd,
@@ -23,7 +22,6 @@ impl Display for ParsedResponse {
             Self::TspError(e) => format!("error item: \"{e}\""),
             Self::TspErrorEnd => "end of error dump".to_string(),
             Self::Data(d) => format!("textual data: \"{d:?}\""),
-            Self::BinaryData(b) => format!("binary data: \"{b:?}\"",),
             Self::ProgressIndicator => "progress indicator".to_string(),
             Self::NodeStart => "node data start".to_string(),
             Self::NodeEnd => "node data end".to_string(),
@@ -62,7 +60,6 @@ impl ParsedResponse {
                 b"ERM>DONE".to_vec(),
                 b"ERM>".to_vec(),
                 b">>>>".to_vec(),
-                b"#0".to_vec(),
                 b"NODE>START".to_vec(),
                 b"NODE>END".to_vec(),
             ],
@@ -71,7 +68,7 @@ impl ParsedResponse {
 
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn parse_next(input: &Vec<u8>) -> Option<(Self, Vec<u8>)> {
+    pub fn parse_next(input: &[u8]) -> Option<(Self, Vec<u8>)> {
         if input.is_empty() || input[0] == 0u8 {
             return None;
         };
@@ -153,26 +150,8 @@ impl ParsedResponse {
             };
             return Some((Self::ProgressIndicator, v));
         }
-        if s.starts_with("#0") {
-            let (data, r): (Vec<u8>, Vec<u8>) = if input.len() > 4 {
-                Self::find_next(&input[2..]).map_or_else(
-                    || (input[2..].to_vec(), Vec::new()),
-                    |next_token| {
-                        #[allow(clippy::arithmetic_side_effects)]
-                        let next_token = next_token
-                            .checked_add(2)
-                            .unwrap_or(input.len() - 1)
-                            .clamp(2, input.len() - 1);
-                        (input[2..next_token].to_vec(), input[next_token..].to_vec())
-                    },
-                )
-            } else {
-                (Vec::new(), Vec::new())
-            };
-            return Some((Self::BinaryData(data), r));
-        }
         let (msg, r): (Vec<u8>, Vec<u8>) = Self::find_next(input).map_or_else(
-            || (input.clone(), Vec::new()),
+            || (input.to_owned(), Vec::new()),
             |next_token| (input[..next_token].to_vec(), input[next_token..].to_vec()),
         );
         Some((Self::Data(msg), r))
@@ -200,9 +179,7 @@ impl Iterator for ResponseParser {
     type Item = ParsedResponse;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some((ret, remainder)) = ParsedResponse::parse_next(&self.data) else {
-            return None;
-        };
+        let (ret, remainder) = ParsedResponse::parse_next(&self.data)?;
 
         let remainder = remainder.trim_ascii_start().to_vec();
 
@@ -244,26 +221,6 @@ mod unit {
         let mut parser = ResponseParser::new(test);
 
         assert_eq!(parser.next(), Some(ParsedResponse::TspErrorStart));
-        assert_eq!(
-            parser.next(),
-            Some(ParsedResponse::TspError("An Error Message".to_string()))
-        );
-        assert_eq!(parser.next(), Some(ParsedResponse::TspErrorEnd));
-        assert_eq!(parser.next(), None);
-    }
-
-    #[test]
-    fn instrument_response_parser_binary_data() {
-        let test =
-            b"#0`~1!2@3#4$5%6^7&8*9(0)-_=\t+qQwWeE}[]\\|<,.>/?ERM>An Error Message\nERM>DONE";
-        let mut parser = ResponseParser::new(test);
-
-        assert_eq!(
-            parser.next(),
-            Some(ParsedResponse::BinaryData(
-                b"`~1!2@3#4$5%6^7&8*9(0)-_=\t+qQwWeE}[]\\|<,.>/?".to_vec()
-            ))
-        );
         assert_eq!(
             parser.next(),
             Some(ParsedResponse::TspError("An Error Message".to_string()))
@@ -317,13 +274,7 @@ mod unit {
         assert_eq!(
             parser.next(),
             Some(ParsedResponse::TspError(
-                "Some Error Message!!!!".to_string()
-            ))
-        );
-        assert_eq!(
-            parser.next(),
-            Some(ParsedResponse::BinaryData(
-                b"`~!@#$%^&*()-_=+[]}\\|;:'\",<.>/?".to_vec()
+                "Some Error Message!!!! #0`~!@#$%^&*()-_=+[]}\\|;:'\",<.>/?".to_string()
             ))
         );
         assert_eq!(parser.next(), None);
