@@ -11,7 +11,7 @@ use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
 use std::{
     fmt::Display,
-    fs::{File, OpenOptions},
+    fs::File,
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
@@ -117,9 +117,8 @@ impl Repl {
                     Action::GetError => {
                         get_error = true;
                     }
-                    Action::PrintText => Self::print_data(response)?,
-                    Action::PrintHex => Self::print_data(response)?,
-                    Action::PrintError => Self::print_data(response)?,
+                    Action::PrintText => Self::print_data(*state, response)?,
+                    Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
                         Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
                     }
@@ -130,7 +129,7 @@ impl Repl {
             if get_error {
                 let errors = self.get_errors()?;
                 for e in errors {
-                    Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                    Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
                 }
                 prompt = true;
                 *state = Some(ReadState::DataReadEnd);
@@ -166,7 +165,7 @@ impl Repl {
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let errors = self.get_errors()?;
         for e in errors {
-            Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+            Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
 
         let mut prompt = true;
@@ -193,7 +192,7 @@ impl Repl {
                         Request::GetError => {
                             let errors = self.get_errors()?;
                             for e in errors {
-                                Self::print_data(ParsedResponse::TspError(e.to_string()))?;
+                                Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
                             }
                             prompt = true;
                         }
@@ -320,11 +319,10 @@ impl Repl {
         Ok(())
     }
 
-    fn print_data(resp: ParsedResponse) -> Result<()> {
+    fn print_data(_state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
         match resp {
             ParsedResponse::TspError(e) => Self::print_flush(&(e + "\n").red()),
             ParsedResponse::Data(d) => Self::print_flush(&String::from_utf8_lossy(&d).to_string()),
-            ParsedResponse::BinaryData(b) => Self::print_flush(&format!("{:X?}", &b)),
             ParsedResponse::Prompt
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
@@ -345,7 +343,7 @@ impl Repl {
     }
 
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
-        if let Ok(mut file) = OpenOptions::new().write(true).create(true).open(file_path) {
+        if let Ok(mut file) = File::create(file_path) {
             // Convert the Lua string to JSON
             let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
 
@@ -451,10 +449,9 @@ impl Repl {
         if input.trim().is_empty() {
             return Ok(Request::None);
         }
-        if let Ok(path) = PathBuf::try_from(input.trim()) {
-            if path.is_file() {
-                return Ok(Request::Script { file: path });
-            }
+        let path = PathBuf::from(input.trim());
+        if path.is_file() {
+            return Ok(Request::Script { file: path });
         }
 
         if !Self::starts_with_command(input) {
@@ -513,17 +510,7 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let file = PathBuf::from(file);
                     if !file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(
@@ -546,17 +533,8 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(json_file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let json_file = PathBuf::from(file.clone());
+
                     if !json_file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(
@@ -669,10 +647,6 @@ impl Repl {
 
                 ReadState::TextDataReadStart | ReadState::TextDataReadContinue => Action::PrintText,
 
-                ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue => {
-                    Action::PrintHex
-                }
-
                 ReadState::ErrorReadContinue => Action::PrintError,
                 ReadState::NodeDataReadStart | ReadState::NodeDataReadContinue => {
                     Action::GetNodeDetails
@@ -714,35 +688,13 @@ impl Repl {
                     | ReadState::NodeDataReadContinue
                     | ReadState::NodeDataReadEnd,
                     ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                )
-                | (
-                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
                 ) => Action::PrintText,
                 //Action::PrintText
-
-                // Action::PrintHex
-                (
-                    ReadState::Init
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue
-                    | ReadState::DataReadEnd
-                    | ReadState::ErrorReadEnd
-                    | ReadState::FileLoading,
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
-                )
-                | (
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
-                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                ) => Action::PrintHex,
-                // Action::PrintHex
 
                 // Action::Prompt
                 (
                     ReadState::TextDataReadStart
                     | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue
                     | ReadState::ErrorReadStart
                     | ReadState::ErrorReadContinue
                     | ReadState::FileLoading,
@@ -761,16 +713,11 @@ impl Repl {
                     ReadState::DataReadEndPendingError,
                     ReadState::Init
                     | ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue,
+                    | ReadState::TextDataReadContinue,
                 )
                 | (
                     ReadState::ErrorReadStart | ReadState::ErrorReadContinue,
-                    ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue,
+                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
                 )
                 | (_, ReadState::FileLoading | ReadState::ErrorReadStart | _) => Action::None,
             },
@@ -791,7 +738,6 @@ enum Action {
     Prompt,
     GetError,
     PrintText,
-    PrintHex,
     PrintError,
     GetNodeDetails,
     None,
