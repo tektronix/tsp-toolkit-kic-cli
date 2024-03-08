@@ -4,7 +4,6 @@
 use std::sync::mpsc::SendError;
 
 use thiserror::Error;
-use tsp_toolkit_kic_lib;
 
 use crate::{command::Request, instrument::ParsedResponse, state_machine::ReadState};
 

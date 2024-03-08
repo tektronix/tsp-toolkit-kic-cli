@@ -118,7 +118,6 @@ impl Repl {
                         get_error = true;
                     }
                     Action::PrintText => Self::print_data(*state, response)?,
-                    Action::PrintHex => Self::print_data(*state, response)?,
                     Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
                         Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
@@ -323,22 +322,10 @@ impl Repl {
         Ok(())
     }
 
-    fn print_data(state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
+    fn print_data(_state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
         match resp {
             ParsedResponse::TspError(e) => Self::print_flush(&(e + "\n").red()),
             ParsedResponse::Data(d) => Self::print_flush(&String::from_utf8_lossy(&d).to_string()),
-            ParsedResponse::BinaryData(b) => match state {
-                Some(ReadState::BinaryDataReadContinue | ReadState::BinaryDataReadStart) => {
-                    for x in b {
-                        Self::print_flush(&format!("{:02X} ", &x,))?;
-                    }
-                    Ok(())
-                }
-                Some(ReadState::TextDataReadContinue | ReadState::TextDataReadStart) => {
-                    Self::print_flush(&format!("#0{}", &String::from_utf8_lossy(&b).to_string()))
-                }
-                _ => Ok(()),
-            },
             ParsedResponse::Prompt
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
@@ -465,10 +452,9 @@ impl Repl {
         if input.trim().is_empty() {
             return Ok(Request::None);
         }
-        if let Ok(path) = PathBuf::try_from(input.trim()) {
-            if path.is_file() {
-                return Ok(Request::Script { file: path });
-            }
+        let path = PathBuf::from(input.trim());
+        if path.is_file() {
+            return Ok(Request::Script { file: path });
         }
 
         if !Self::starts_with_command(input) {
@@ -527,17 +513,7 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let file = PathBuf::from(file);
                     if !file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(
@@ -560,17 +536,8 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
-                    let file = file.clone();
-                    let Ok(json_file) = PathBuf::try_from(file.clone()) else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let json_file = PathBuf::from(file.clone());
+
                     if !json_file.is_file() {
                         return Ok(Request::Usage(
                             InstrumentReplError::Other(format!(
@@ -683,10 +650,6 @@ impl Repl {
 
                 ReadState::TextDataReadStart | ReadState::TextDataReadContinue => Action::PrintText,
 
-                ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue => {
-                    Action::PrintHex
-                }
-
                 ReadState::ErrorReadContinue => Action::PrintError,
                 ReadState::NodeDataReadStart | ReadState::NodeDataReadContinue => {
                     Action::GetNodeDetails
@@ -728,35 +691,13 @@ impl Repl {
                     | ReadState::NodeDataReadContinue
                     | ReadState::NodeDataReadEnd,
                     ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                )
-                | (
-                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
                 ) => Action::PrintText,
                 //Action::PrintText
-
-                // Action::PrintHex
-                (
-                    ReadState::Init
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue
-                    | ReadState::DataReadEnd
-                    | ReadState::ErrorReadEnd
-                    | ReadState::FileLoading,
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
-                )
-                | (
-                    ReadState::BinaryDataReadStart | ReadState::BinaryDataReadContinue,
-                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
-                ) => Action::PrintHex,
-                // Action::PrintHex
 
                 // Action::Prompt
                 (
                     ReadState::TextDataReadStart
                     | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue
                     | ReadState::ErrorReadStart
                     | ReadState::ErrorReadContinue
                     | ReadState::FileLoading,
@@ -775,16 +716,11 @@ impl Repl {
                     ReadState::DataReadEndPendingError,
                     ReadState::Init
                     | ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue,
+                    | ReadState::TextDataReadContinue,
                 )
                 | (
                     ReadState::ErrorReadStart | ReadState::ErrorReadContinue,
-                    ReadState::TextDataReadStart
-                    | ReadState::TextDataReadContinue
-                    | ReadState::BinaryDataReadStart
-                    | ReadState::BinaryDataReadContinue,
+                    ReadState::TextDataReadStart | ReadState::TextDataReadContinue,
                 )
                 | (_, ReadState::FileLoading | ReadState::ErrorReadStart | _) => Action::None,
             },
@@ -805,7 +741,6 @@ enum Action {
     Prompt,
     GetError,
     PrintText,
-    PrintHex,
     PrintError,
     GetNodeDetails,
     None,
