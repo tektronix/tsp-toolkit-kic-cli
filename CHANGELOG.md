@@ -41,7 +41,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Restore password hide feature back after ki-comms refactor (TSP-363)
 - Implement Password prompt (TSP-480)
-
+-
 ### Fixed
 
 - Extension wants a password when there isn't one (TSP-416)
