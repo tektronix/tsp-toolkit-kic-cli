@@ -11,7 +11,7 @@ use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
 use std::{
     fmt::Display,
-    fs::{File, OpenOptions},
+    fs::File,
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
@@ -208,8 +208,11 @@ impl Repl {
                             let Some(name) = name.to_str() else {
                                 unreachable!("Could not convert OsStr to &str");
                             };
+
+                            let script_name = format!("kic_{name}");
+
                             self.inst.write_script(
-                                name.as_bytes(),
+                                script_name.as_bytes(),
                                 contents.as_bytes(),
                                 false,
                                 true,
