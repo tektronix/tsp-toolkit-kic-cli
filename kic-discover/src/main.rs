@@ -1,13 +1,14 @@
 use anyhow::Context;
 use async_std::task::sleep;
-use jsonrpc_http_server::CloseHandle;
+use jsonrpsee::{
+    server::{Server, ServerHandle},
+    RpcModule,
+};
 use kic_discover::instrument_discovery::InstrumentDiscovery;
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::collections::HashSet;
 use std::str;
-use std::sync::mpsc;
-use std::thread::JoinHandle;
 use std::time::Duration;
 
 use clap::{command, Args, Command, FromArgMatches, Parser, Subcommand};
@@ -70,8 +71,10 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     eprintln!("Keithley Instruments Discovery");
-    let (exit_tx, exit_rx) = mpsc::channel();
-    let handler = init_json_rpc(exit_tx).context("Unable to start JSON RPC server")?;
+    let close_handle = init_rpc()
+        .await
+        .context("Unable to start JSON RPC server")?;
+
     let is_exit_timer = require_exit_timer(&sub);
 
     match sub {
@@ -106,15 +109,10 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    if let Ok(close_handle) = exit_rx.recv() {
-        if is_exit_timer {
-            sleep(Duration::from_secs(5)).await;
-        }
-        close_handle.close();
+    if is_exit_timer {
+        sleep(Duration::from_secs(5)).await;
     }
-
-    handler.join().expect("JSON RPC server closed with errors");
-    //handler.join().context("JSON RPC server closed with errors")?;
+    close_handle.stop()?;
 
     Ok(())
 }
@@ -128,36 +126,30 @@ fn require_exit_timer(sub: &SubCli) -> bool {
     false
 }
 
-fn init_json_rpc(rpc_close: mpsc::Sender<CloseHandle>) -> anyhow::Result<JoinHandle<()>> {
-    let handler = std::thread::spawn(move || {
-        let mut io = jsonrpc_http_server::jsonrpc_core::IoHandler::default();
-        io.add_method("get_instr_list", |_| {
-            let mut new_out_str = "".to_owned();
+async fn init_rpc() -> anyhow::Result<ServerHandle> {
+    let server = Server::builder().build("127.0.0.1:3030").await?;
 
-            if let Ok(db) = DISC_INSTRUMENTS.lock() {
-                db.iter()
-                    .enumerate()
-                    .for_each(|(_i, item)| new_out_str = format!("{new_out_str}{item}\n"));
-            };
+    let mut module = RpcModule::new(());
+    module.register_method("get_instr_list", |_, _| {
+        let mut new_out_str = "".to_owned();
 
-            #[cfg(debug_assertions)]
-            eprintln!("newoutstr = {new_out_str}");
-            Ok(jsonrpc_http_server::jsonrpc_core::serde_json::Value::String(new_out_str))
-        });
+        if let Ok(db) = DISC_INSTRUMENTS.lock() {
+            db.iter()
+                .enumerate()
+                .for_each(|(_i, item)| new_out_str = format!("{new_out_str}{item}\n"));
+        };
 
-        let server = jsonrpc_http_server::ServerBuilder::new(io)
-            .cors(jsonrpc_http_server::DomainsValidation::AllowOnly(vec![
-                jsonrpc_http_server::AccessControlAllowOrigin::Null,
-            ]))
-            .start_http(&"127.0.0.1:3030".parse().unwrap())
-            .expect("Unable to start RPC server");
+        #[cfg(debug_assertions)]
+        eprintln!("newoutstr = {new_out_str}");
 
-        if rpc_close.send(server.close_handle()).is_ok() {
-            server.wait();
-        }
-    });
+        serde_json::Value::String(new_out_str)
+    })?;
 
-    Ok(handler)
+    let handle = server.start(module);
+
+    tokio::spawn(handle.clone().stopped());
+
+    Ok(handle)
 }
 
 async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
