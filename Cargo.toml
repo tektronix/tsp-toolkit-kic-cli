@@ -1,5 +1,9 @@
 [workspace]
-members = ["kic", "kic-discover", "instrument-repl"]
+members = [
+    "kic",
+    "kic-discover",
+    "instrument-repl",
+]
 resolver = "2"
 
 [workspace.package]

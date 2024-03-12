@@ -207,8 +207,11 @@ impl Repl {
                             let Some(name) = name.to_str() else {
                                 unreachable!("Could not convert OsStr to &str");
                             };
+
+                            let script_name = format!("kic_{name}");
+
                             self.inst.write_script(
-                                name.as_bytes(),
+                                script_name.as_bytes(),
                                 contents.as_bytes(),
                                 false,
                                 true,
