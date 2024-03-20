@@ -68,7 +68,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
+          cargo cyclonedx --format json --all --describe crate -vvv
       - name: Generate NPM BOM
         run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
