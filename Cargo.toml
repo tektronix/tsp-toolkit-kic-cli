@@ -1,9 +1,13 @@
 [workspace]
-members = ["kic", "kic-discover", "instrument-repl"]
+members = [
+    "kic",
+    "kic-discover",
+    "instrument-repl",
+]
 resolver = "2"
 
 [workspace.package]
-version = "0.13.2"
+version = "0.14.1"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli"
@@ -12,13 +16,13 @@ repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli"
 
 
 [workspace.dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 bytes = "1.5.0"
-clap = { version = "4.5.1", features = ["derive", "cargo", "string"] }
+clap = { version = "4.5.3", features = ["derive", "cargo", "string"] }
 colored = "2.1.0"
 exitcode = "1.1.2"
 instrument-repl = { path = "instrument-repl" }
-jsonrpsee = { version = "0.22.2", features = [
+jsonrpsee = { version = "0.22.3", features = [
     "tokio",
     "tracing",
     "server",
@@ -29,13 +33,13 @@ minidom = "0.15.2"
 mockall = { version = "0.12.1", features = ["nightly"] }
 phf = { version = "0.11.2", features = ["macros"] }
 regex = "1.10.3"
-reqwest = "0.11.24"
+reqwest = "0.12.0"
 rpassword = "7.3.1"
 rusb = "0.9.3"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1.40", features = ["async-await"] }
 tracing-subscriber = "0.3.18"
-tsp-toolkit-kic-lib = { git = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git", branch = "dev" }
+tsp-toolkit-kic-lib = { git = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib.git", tag = "v0.14.1" }
