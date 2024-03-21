@@ -198,8 +198,12 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
+      - name: Update ClamAV
+        run: freshclam
       - name: Tool Versions
-        run: npm --version
+        run: |
+          npm --version
+          clamscan -V
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -232,11 +236,14 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
           npm version --no-git-tag-version "${V}" || true
-      - name: npm Package
+      - name: Move Packages
         run: |
           mkdir -p bin
           for f in target/*; do cp "$f" bin; done;
-          npm pack
+      - name: Run ClamAV
+        run: clamscan -v bin/*
+      - name: npm Package
+        run: npm pack
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:

@@ -11,4 +11,8 @@ pub enum KicError {
         /// The reason why the arguments failed to parse.
         details: String,
     },
+
+    /// Another user must relinquish the instrument before it can be logged into.
+    #[error("there is another session connected to the instrument that must logout")]
+    InstrumentLogoutRequired,
 }

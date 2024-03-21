@@ -9,6 +9,7 @@
 use chrono::Utc;
 use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
+use regex::Regex;
 use std::{
     fmt::Display,
     fs::File,
@@ -208,14 +209,27 @@ impl Repl {
                                 unreachable!("Could not convert OsStr to &str");
                             };
 
-                            let script_name = format!("kic_{name}");
+                            let re = Regex::new(r"[^A-Za-z\d_]");
+                            match re {
+                                Ok(re_res) => {
+                                    let result = re_res.replace_all(name, "_");
 
-                            self.inst.write_script(
-                                script_name.as_bytes(),
-                                contents.as_bytes(),
-                                false,
-                                true,
-                            )?;
+                                    let script_name = format!("kic_{result}");
+
+                                    self.inst.write_script(
+                                        script_name.as_bytes(),
+                                        contents.as_bytes(),
+                                        false,
+                                        true,
+                                    )?;
+                                }
+                                Err(err_msg) => {
+                                    unreachable!(
+                                        "Issue with regex creation: {}",
+                                        err_msg.to_string()
+                                    );
+                                }
+                            }
                             prompt = true;
                         }
                         Request::TspLinkNodes { json_file } => {

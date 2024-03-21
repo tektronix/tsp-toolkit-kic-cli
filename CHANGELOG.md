@@ -15,6 +15,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [Unreleased]
+
+### Fixed
+- Change language to `TSP` after connection to TTI instrument (TSP-561)
+- **tsp-toolkit-kic-lib:** Use `*TST?` to check login state instead of
+  `print("unlocked")` just in case we are in a SCPI command set mode.
+- Fix script name issues if the name contains special characters (TSP-505)
 
 ## [0.14.1]
 

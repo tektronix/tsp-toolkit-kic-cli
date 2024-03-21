@@ -25,16 +25,21 @@ use clap::{
 };
 use colored::Colorize;
 use instrument_repl::repl::{self};
+use regex::Regex;
 use std::{
     collections::HashMap,
     env::set_var,
-    io::{Read, Write},
+    io::{stdin, Read, Write},
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
+    process::exit,
     sync::Arc,
+    thread,
+    time::Duration,
 };
+
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument,
+    instrument::{self, Instrument},
     interface::async_stream::AsyncStream,
     usbtmc::{self, UsbtmcAddr},
     Interface,
@@ -324,7 +329,30 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
 }
 
 fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
-    inst.as_mut().login()?;
+    match inst.as_mut().check_login()? {
+        instrument::State::Needed => inst.as_mut().login()?,
+        instrument::State::LogoutNeeded => return Err(KicError::InstrumentLogoutRequired.into()),
+        instrument::State::NotNeeded => {}
+    };
+    match inst.as_mut().get_language()? {
+        instrument::CmdLanguage::Scpi => {
+            eprintln!("Instrument command-set is not set to TSP. Would you like to change the command-set to TSP and reboot? (Y/n)");
+
+            let mut buf = String::new();
+            stdin().read_line(&mut buf)?;
+            let buf = buf.trim();
+            if buf.is_empty() || buf.contains(['Y', 'y']) {
+                inst.as_mut()
+                    .change_language(instrument::CmdLanguage::Tsp)?;
+                inst.write_all(b"ki.reboot()\n")?;
+                eprintln!("Instrument rebooting, please reconnect after reboot completes.");
+                thread::sleep(Duration::from_millis(1500));
+                exit(0);
+            }
+        }
+        instrument::CmdLanguage::Tsp => {}
+    }
+
     Ok(())
 }
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
@@ -334,7 +362,9 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     );
     let mut instrument: Box<dyn Instrument> =
         connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+
     get_instrument_access(&mut instrument)?;
+
     eprintln!("{}", instrument.info()?);
     let mut repl = repl::Repl::new(instrument);
     Ok(repl.start()?)
@@ -394,16 +424,29 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
             details: "unable to get file stem".to_string(),
         })?
         .to_string_lossy();
-    let script_name = format!("kic_{stem}");
 
-    let mut script_content: Vec<u8> = Vec::new();
+    let re = Regex::new(r"[^A-Za-z\d_]");
 
-    let mut file = std::fs::File::open(path)?;
-    file.read_to_end(&mut script_content)?;
+    match re {
+        Ok(re_res) => {
+            let result = re_res.replace_all(&stem, "_");
 
-    eprintln!("Loading script to instrument.");
-    instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
-    eprintln!("Script loading completed.");
+            let script_name = format!("kic_{result}");
+
+            let mut script_content: Vec<u8> = Vec::new();
+
+            let mut file = std::fs::File::open(path)?;
+            file.read_to_end(&mut script_content)?;
+
+            eprintln!("Loading script to instrument.");
+            instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
+            eprintln!("Script loading completed.");
+        }
+        Err(err_msg) => {
+            unreachable!("Issue with regex creation: {}", err_msg.to_string());
+        }
+    }
+
     Ok(())
 }
 
