@@ -56,15 +56,15 @@ release underneath (see all previous versions for examples).
 Be sure to add the associated links at the bottom of the file underneath the "Unreleased" reference:
 
 ```diff
-[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/vX.Y.Z...HEAD
-+[X.Y.Z]: https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/compare/v(X.Y.Z-1)...vX.Y.Z
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/vX.Y.Z...HEAD
++[X.Y.Z]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v(X.Y.Z-1)...vX.Y.Z
 ```
 (Where `v(X.Y.Z - 1)` is the previous released version)
 
 Be sure to check the merge requests for this past version to make sure everything was added to the changelog. Add anything that was missed (with JIRA issue number).
 
 You can do that with a query like the one at this link:
-https://github.com/TEK-Engineering/tsp-toolkit-kic-cli/pulls?q=is%3Apr+milestone%3Av0.10.0+
+https://github.com/tektronix/tsp-toolkit-kic-cli/pulls?q=is%3Apr+milestone%3Av0.10.0+
 
 ### 5. Update the Version Information
 

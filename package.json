@@ -10,7 +10,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/TEK-Engineering/tsp-toolkit-kic-cli.git"
+        "url": "git+https://github.com/tektronix/tsp-toolkit-kic-cli.git"
     },
     "typings": "index.d.ts",
     "files": [

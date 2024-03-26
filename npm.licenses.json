@@ -697,7 +697,7 @@
   },
   "@tektronix/kic-cli@0.15.0": {
     "licenses": "Apache*",
-    "repository": "https://github.com/TEK-Engineering/tsp-toolkit-kic-cli",
+    "repository": "https://github.com/tektronix/tsp-toolkit-kic-cli",
     "name": "@tektronix/kic-cli",
     "version": "0.15.0",
     "description": "The Keithley Instrument Communicator (KIC) is a command-line application that enables simple communication to an instrument.",
