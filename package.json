@@ -1,5 +1,5 @@
 {
-    "name": "@tek-engineering/kic-cli",
+    "name": "@tektronix/kic-cli",
     "version": "0.15.0",
     "main": "index.js",
     "bin": {
