@@ -552,15 +552,6 @@ impl Repl {
                     };
                     let json_file = PathBuf::from(file.clone());
 
-                    if !json_file.is_file() {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::Other(format!(
-                                "unable to find file \"{}\"",
-                                json_file.to_string_lossy()
-                            ))
-                            .to_string(),
-                        ));
-                    }
                     Request::TspLinkNodes { json_file }
                 }
             },
