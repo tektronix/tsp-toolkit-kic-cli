@@ -220,15 +220,31 @@ jobs:
         if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
         run: |
           git config --global --add safe.directory "$PWD"
+          apt-get install -yqq jq
           COMMIT="${{github.sha}}"
-          V="${{github.head_ref}}"
-          V="${V#release/v}"
-
-          if ${{! github.event.pull_request.merged}}; then
-            V="${V}-$(git tag --list v${V}* | wc -l)"
+          if ${{contains(github.head_ref, 'release')}}; then
+            V="${{github.head_ref}}"
+            V="${V#release/}"
+          else
+            V="$(cargo metadata --format-version=1 --no-deps | jq '.packages[0].version')"
+            V=v${V//\"/} #remove '"'s
           fi
 
-          CL=${V}
+          # Check to see if the version tag already exists
+          # If it does, print a message and exit with an error code
+          if [ $(git tag --list "$V") ]; then
+            echo "Version tag already exists. Did you bump the version number?"
+            exit 1
+          fi
+
+          # Create an RC release if
+          # 1) This PR is a release branch that hasn't been merged to main.
+          # 2) This is a feature branch being merged into the main branch.
+          if ${{(! github.event.pull_request.merged && contains(github.head_ref, 'release')) || (github.event.pull_request.merged && !contains(github.head_ref, 'release'))}}; then
+            V="${V}-$(git tag --list ${V}* | wc -l)"
+          fi
+
+          CL=${V#v}
           CL=${CL%-*}
 
           echo "version=${V}" >> $GITHUB_OUTPUT
