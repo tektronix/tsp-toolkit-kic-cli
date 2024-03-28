@@ -17,7 +17,7 @@ end
 if tsplink.initialize == nil then
   tsplink.reset(1)
 else
-  tsplink.initialize(0)
+  tsplink.initialize(1)
 end
 
 if (tsplink.state == "online") then
