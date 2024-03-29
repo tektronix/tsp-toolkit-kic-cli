@@ -17,6 +17,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.15.1]
 
+### Changed
+- No changes yet
+
 ## [0.15.0]
 
 ### Fixed
