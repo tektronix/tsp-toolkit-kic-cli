@@ -217,7 +217,7 @@ jobs:
           path: target/
       - name: Get Tagged Version
         id: lasttag
-        if: ${{ endsWith(github.base_ref, 'main') && (contains(github.head_ref, 'release/') || github.event.pull_request.merged) }}
+        #TODO DEBUG if: ${{ endsWith(github.base_ref, 'main') && (contains(github.head_ref, 'release/') || github.event.pull_request.merged) }}
         run: |
           git config --global --add safe.directory "$PWD"
           apt-get update && apt-get install -yqq jq
@@ -227,7 +227,9 @@ jobs:
             V="${V#release/}"
           else
             V="$(cargo metadata --format-version=1 --no-deps | jq '.packages[0].version')"
-            V=v${V//\"/} #remove '"'s
+            echo "Extracted version: $V"
+            #V=v${V//\"/} #remove '"'s
+            V="$(echo "v${V}" | sed 's/\"//g')"
           fi
 
           # Check to see if the version tag already exists
