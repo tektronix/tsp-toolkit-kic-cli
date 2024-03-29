@@ -226,7 +226,6 @@ jobs:
           else
             V="$(cargo metadata --format-version=1 --no-deps | jq '.packages[0].version')"
             echo "Extracted version: $V"
-            #V=v${V//\"/} #remove '"'s
             V="$(echo "v${V}" | sed 's/\"//g')"
             echo "Cleaned up version: $V"
           fi
@@ -341,7 +340,6 @@ jobs:
           else
             V="$(cargo metadata --format-version=1 --no-deps | jq '.packages[0].version')"
             echo "Extracted version: $V"
-            #V=v${V//\"/} #remove '"'s
             V="$(echo "v${V}" | sed 's/\"//g')"
             echo "Cleaned up version: $V"
           fi
