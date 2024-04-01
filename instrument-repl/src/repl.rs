@@ -12,7 +12,7 @@ use colored::Colorize;
 use regex::Regex;
 use std::{
     fmt::Display,
-    fs::File,
+    fs::{self, File},
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
@@ -360,6 +360,21 @@ impl Repl {
     }
 
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        let path = PathBuf::from(file_path.clone());
+        let Some(path) = path.parent() else {
+            return Err(InstrumentReplError::IOError {
+                source: std::io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "given path did not have a containing folder",
+                ),
+            });
+        };
+
+        // If the path doesn't already exist, recursively create it.
+        if !path.is_dir() {
+            fs::create_dir_all(path)?;
+        }
+
         if let Ok(mut file) = File::create(file_path) {
             // Convert the Lua string to JSON
             let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
