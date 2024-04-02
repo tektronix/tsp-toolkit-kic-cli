@@ -135,8 +135,7 @@ async fn init_rpc() -> anyhow::Result<ServerHandle> {
 
         if let Ok(db) = DISC_INSTRUMENTS.lock() {
             db.iter()
-                .enumerate()
-                .for_each(|(_i, item)| new_out_str = format!("{new_out_str}{item}\n"));
+                .for_each(|item| new_out_str = format!("{new_out_str}{item}\n"));
         };
 
         #[cfg(debug_assertions)]

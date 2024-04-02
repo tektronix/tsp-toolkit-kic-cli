@@ -12,7 +12,7 @@ use colored::Colorize;
 use regex::Regex;
 use std::{
     fmt::Display,
-    fs::File,
+    fs::{self, File},
     io::{self, Read, Write},
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
@@ -121,7 +121,7 @@ impl Repl {
                     Action::PrintText => Self::print_data(*state, response)?,
                     Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
-                        Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
+                        Self::update_node_config_json(&self.lang_cong_file_path, &response);
                     }
 
                     Action::None => {}
@@ -350,16 +350,41 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(file_path: String, resp: ParsedResponse) -> Result<()> {
-        match resp {
-            ParsedResponse::Data(d) => {
-                Self::write_json_data(file_path, String::from_utf8_lossy(&d).as_ref())
+    fn update_node_config_json(file_path: &str, resp: &ParsedResponse) {
+        if let ParsedResponse::Data(d) = &resp {
+            if let Err(e) =
+                Self::write_json_data(file_path.to_string(), String::from_utf8_lossy(d).as_ref())
+            {
+                eprintln!("Unable to write configuration: {e}");
             }
-            _ => Ok(()),
         }
     }
 
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        let path = PathBuf::from(file_path.clone());
+        let Some(path) = path.parent() else {
+            return Err(InstrumentReplError::IOError {
+                source: std::io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "given path did not have a containing folder",
+                ),
+            });
+        };
+
+        if path.is_file() {
+            return Err(InstrumentReplError::IOError {
+                source: std::io::Error::new(
+                    io::ErrorKind::NotADirectory,
+                    "the parent folder is already a file",
+                ),
+            });
+        }
+
+        // If the path doesn't already exist, recursively create it.
+        if !path.is_dir() {
+            fs::create_dir_all(path)?;
+        }
+
         if let Ok(mut file) = File::create(file_path) {
             // Convert the Lua string to JSON
             let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
@@ -552,15 +577,6 @@ impl Repl {
                     };
                     let json_file = PathBuf::from(file.clone());
 
-                    if !json_file.is_file() {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::Other(format!(
-                                "unable to find file \"{}\"",
-                                json_file.to_string_lossy()
-                            ))
-                            .to_string(),
-                        ));
-                    }
                     Request::TspLinkNodes { json_file }
                 }
             },
