@@ -121,7 +121,7 @@ impl Repl {
                     Action::PrintText => Self::print_data(*state, response)?,
                     Action::PrintError => Self::print_data(*state, response)?,
                     Action::GetNodeDetails => {
-                        Self::update_node_config_json(self.lang_cong_file_path.clone(), response)?;
+                        Self::update_node_config_json(&self.lang_cong_file_path, &response);
                     }
 
                     Action::None => {}
@@ -350,12 +350,13 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(file_path: String, resp: ParsedResponse) -> Result<()> {
-        match resp {
-            ParsedResponse::Data(d) => {
-                Self::write_json_data(file_path, String::from_utf8_lossy(&d).as_ref())
+    fn update_node_config_json(file_path: &str, resp: &ParsedResponse) {
+        if let ParsedResponse::Data(d) = &resp {
+            if let Err(e) =
+                Self::write_json_data(file_path.to_string(), String::from_utf8_lossy(d).as_ref())
+            {
+                eprintln!("Unable to write configuration: {e}");
             }
-            _ => Ok(()),
         }
     }
 
@@ -369,6 +370,15 @@ impl Repl {
                 ),
             });
         };
+
+        if path.is_file() {
+            return Err(InstrumentReplError::IOError {
+                source: std::io::Error::new(
+                    io::ErrorKind::NotADirectory,
+                    "the parent folder is already a file",
+                ),
+            });
+        }
 
         // If the path doesn't already exist, recursively create it.
         if !path.is_dir() {
