@@ -18,7 +18,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.15.1]
 
 ### Changed
-- No changes yet
+- **tsp-toolkit-kic-lib:** Clean up instrument connections when an AsyncStream
+  stream is dropped
+
+### Fixed
+- Remove errors when fetching nodes with `.nodes` command
+
+### Security
+- Bump `h2` version
 
 ## [0.15.0]
 
