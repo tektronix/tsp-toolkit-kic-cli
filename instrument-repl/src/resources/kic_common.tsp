@@ -64,13 +64,14 @@ local models = {
     ["708B"] = _2600,
     ["VERSATEST-600"] = VERSATEST,
     ["TSPop"] = VERSATEST,
+    ["TSP"] = VERSATEST,
 }
 
 _KIC["is_tti"] = function() return models[localnode.model] == TTI end
 _KIC["is_2600"] = function() return models[localnode.model] == _2600 end
 _KIC["is_versatest"] = function() return models[localnode.model] == VERSATEST end
 
----interate over input string and escape special characters in a given string, 
+---interate over input string and escape special characters in a given string,
 ---making it safe for inclusion in JSON
 ---@param s string
 ---@return string
@@ -146,6 +147,22 @@ elseif _KIC.is_versatest() then
         local errorstr = [[ERM>START]].."\n"
         for _err_num = 1, errorqueue.count do
             local error_code, message, severity, node_id = errorqueue.next()
+            errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=escape_str(message), severity=severity, node_id=node_id, time=nil}) .. "\n"
+        end
+        errorstr = errorstr..[[ERM>DONE]]
+        return errorstr
+    end
+else
+    -- Default function declarations just in case we encounter an unknown instrument
+    -- model. Anything defined here should return a string that satisfies the
+    -- caller so kic-cli can complete.
+    _KIC["error_message"] = function()
+        local errorstr = [[ERM>START]].."\n"
+        for _err_num = 1, errorqueue.count do
+            error_code = 0
+            severity = 0
+            node_id = 0
+            message = "Model number not recognized: '"..localnode.model.."'"
             errorstr = errorstr.. "ERM>" .._KIC.toJson({error_code=error_code, message=escape_str(message), severity=severity, node_id=node_id, time=nil}) .. "\n"
         end
         errorstr = errorstr..[[ERM>DONE]]
