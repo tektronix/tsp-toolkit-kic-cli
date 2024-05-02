@@ -33,15 +33,3 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tsp-toolkit-kic-lib = { workspace = true }
 
-[lints.rust]
-warnings = "deny"
-
-[lints.clippy]
-pedantic = { level = "deny", priority = -1 }
-nursery = { level = "deny", priority = -1 }
-undocumented_unsafe_blocks = "deny"
-arithmetic_side_effects = "deny"
-
-[lints.rustdoc]
-all = "warn"
-missing_doc_code_examples = "warn"

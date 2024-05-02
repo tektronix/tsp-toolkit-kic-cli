@@ -106,15 +106,21 @@ pub fn is_nimitz(in_str: &str) -> bool {
     false
 }
 
+/// Insert a discovered device into our map of instruments
+///
+/// # Errors
+/// If we fail to lock the `DISC_INSTRUMENTS` variable, a [`std::io::Error`]
+/// with [`std::io::ErrorKind::PermissionDenied`] will be returned.
 pub fn insert_disc_device(device: &str) -> Result<(), Error> {
-    let mut db = DISC_INSTRUMENTS.lock().map_err(|_| {
-        std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "failed to acquire".to_string(),
-        )
-    })?;
-
-    db.insert(device.to_string());
+    DISC_INSTRUMENTS
+        .lock()
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "failed to acquire".to_string(),
+            )
+        })?
+        .insert(device.to_string());
     Ok(())
 }
 

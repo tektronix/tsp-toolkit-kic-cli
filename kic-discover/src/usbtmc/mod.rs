@@ -16,6 +16,15 @@ pub struct Usbtmc {
 }
 
 impl Usbtmc {
+    /// Construct a new [`Usbtmc`] device that holds the details of a USB
+    /// device.
+    ///
+    /// # Errors
+    /// This will return a [`TMCResult`] error if the details of the device
+    /// cannot be fetched from the USB subsystem. This can occur for platform
+    /// dependent reasons such as the device being assigned an unsupported
+    /// USB driver in Windows or the device not having proper udev rules created
+    /// in Linux.
     pub fn new(device: rusb::Device<rusb::Context>) -> TMCResult<Self> {
         let vendor = device.device_descriptor()?.vendor_id();
         let product = device.device_descriptor()?.product_id();
@@ -27,6 +36,13 @@ impl Usbtmc {
         })
     }
 
+    /// Discover instruments connected via USB.
+    ///
+    /// # Errors
+    /// Errors can occur if
+    /// - [`rusb::Context`] has an error during construction
+    /// - [`list_instruments`] has an error
+    #[allow(clippy::unused_async)] // to keep API consistent
     pub async fn usb_discover(
         _timeout: Option<Duration>,
     ) -> anyhow::Result<HashSet<InstrumentInfo>> {
@@ -62,17 +78,16 @@ impl Usbtmc {
             let manufacturer = instrument
                 .read_manufacturer_string()?
                 .unwrap_or_else(|| String::from("NA"));
-            let firmware_revision = match instrument.read_device_version()? {
-                Some(version) => version.to_string(),
-                None => String::from("NA"),
-            };
+            let firmware_revision = instrument
+                .read_device_version()?
+                .map_or_else(|| String::from("NA"), |version| version.to_string());
             let model = String::from(model_lut(instrument.device_desc.product_id()));
             let serial_number = instrument
                 .read_serial_number()?
                 .unwrap_or_else(|| String::from("NA"))
                 .clone();
 
-            let tmc_instr: Result<Usbtmc, TMCError> = instrument.try_into();
+            let tmc_instr: Result<Self, TMCError> = instrument.try_into();
 
             //ToDo: test versatest when it's discoverable
             let res = model_check(model.as_str());
@@ -114,7 +129,7 @@ impl TryFrom<Instrument<rusb::Context>> for Usbtmc {
     type Error = TMCError;
 
     fn try_from(value: Instrument<rusb::Context>) -> Result<Self, Self::Error> {
-        Usbtmc::new(value.device)
+        Self::new(value.device)
     }
 }
 

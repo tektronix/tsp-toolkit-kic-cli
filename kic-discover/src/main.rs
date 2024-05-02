@@ -83,28 +83,28 @@ async fn main() -> anyhow::Result<()> {
             let lan_instruments = discover_lan(args).await?;
             println!("Discovered {} Lan instruments", lan_instruments.len());
             for instrument in lan_instruments {
-                println!("{}", instrument);
+                println!("{instrument}");
             }
         }
         SubCli::Usb(_) => {
             #[allow(clippy::mutable_key_type)]
             let usb_instruments = discover_usb().await?;
             for instrument in usb_instruments {
-                println!("{}", instrument);
+                println!("{instrument}");
             }
         }
-        SubCli::All(_args) => {
+        SubCli::All(args) => {
             #[allow(clippy::mutable_key_type)]
             let usb_instruments = discover_usb().await?;
             for instrument in usb_instruments {
-                println!("{}", instrument);
+                println!("{instrument}");
             }
 
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = discover_lan(_args).await?;
+            let lan_instruments = discover_lan(args).await?;
             println!("Discovered {} Lan instruments", lan_instruments.len());
             for instrument in lan_instruments {
-                println!("{}", instrument);
+                println!("{instrument}");
             }
         }
     }
@@ -117,9 +117,9 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn require_exit_timer(sub: &SubCli) -> bool {
-    if let SubCli::All(_args) = sub {
-        if _args.exit {
+const fn require_exit_timer(sub: &SubCli) -> bool {
+    if let SubCli::All(args) = sub {
+        if args.exit {
             return true;
         }
     }
@@ -130,8 +130,8 @@ async fn init_rpc() -> anyhow::Result<ServerHandle> {
     let server = Server::builder().build("127.0.0.1:3030").await?;
 
     let mut module = RpcModule::new(());
-    module.register_method("get_instr_list", |_, _| {
-        let mut new_out_str = "".to_owned();
+    module.register_method("get_instr_list", |_, ()| {
+        let mut new_out_str = String::new();
 
         if let Ok(db) = DISC_INSTRUMENTS.lock() {
             db.iter()
@@ -152,7 +152,7 @@ async fn init_rpc() -> anyhow::Result<ServerHandle> {
 }
 
 async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = "".to_owned();
+    let mut instr_str = String::new();
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     let instruments = discover_instance.lan_discover().await;
@@ -160,7 +160,7 @@ async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInf
     match &instruments {
         Ok(instrs_set) => {
             for instr in instrs_set {
-                instr_str = format!("{}{}\n", instr_str, instr);
+                instr_str = format!("{instr_str}{instr}\n");
             }
         }
 
@@ -177,7 +177,7 @@ async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInf
 }
 
 async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = "".to_owned();
+    let mut instr_str = String::new();
 
     let dur = Duration::from_secs(5); //Not used in USB
     let discover_instance = InstrumentDiscovery::new(dur);
@@ -186,7 +186,7 @@ async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
     match &instruments {
         Ok(instrs_set) => {
             for instr in instrs_set {
-                instr_str = format!("{}{}\n", instr_str, instr);
+                instr_str = format!("{instr_str}{instr}\n");
             }
         }
 

@@ -20,6 +20,7 @@ pub const SERVICE_NAMES: [&str; 3] = [
     //"_scpi-telnet._tcp.local",
 ];
 
+#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct LxiDeviceInfo {
     io_type: IoType,
@@ -85,9 +86,18 @@ impl LxiDeviceInfo {
         const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
         if let Ok(root) = xml_data.parse::<Element>() {
             if root.is("LXIDevice", DEVICE_NS) {
-                let manufacturer = root.get_child("Manufacturer", DEVICE_NS).unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS)).text();
-                let model = root.get_child("Model", DEVICE_NS).unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS)).text();
-                let serial_number = root.get_child("SerialNumber", DEVICE_NS).unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS)).text();
+                let manufacturer = root
+                    .get_child("Manufacturer", DEVICE_NS)
+                    .unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS))
+                    .text();
+                let model = root
+                    .get_child("Model", DEVICE_NS)
+                    .unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS))
+                    .text();
+                let serial_number = root
+                    .get_child("SerialNumber", DEVICE_NS)
+                    .unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS))
+                    .text();
                 let firmware_revision = root
                     .get_child("FirmwareRevision", DEVICE_NS)
                     .unwrap_or(&minidom::Element::bare("FirmwareRevision", DEVICE_NS))
