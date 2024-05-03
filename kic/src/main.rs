@@ -1,12 +1,4 @@
 #![feature(lint_reasons, rustdoc_missing_doc_code_examples)]
-#![deny(
-    clippy::undocumented_unsafe_blocks,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::arithmetic_side_effects
-)]
-#![warn(missing_docs, rustdoc::all)]
-#![allow(rustdoc::missing_doc_code_examples)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with

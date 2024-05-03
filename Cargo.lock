@@ -1130,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "instrument-repl"
-version = "0.15.1"
+version = "0.15.3"
 dependencies = [
  "chrono",
  "clap",
@@ -1250,7 +1250,7 @@ dependencies = [
 
 [[package]]
 name = "kic"
-version = "0.15.1"
+version = "0.15.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -1269,7 +1269,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover"
-version = "0.15.1"
+version = "0.15.3"
 dependencies = [
  "anyhow",
  "async-std",

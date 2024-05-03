@@ -15,6 +15,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.15.3]
+
+- Fix issue where unrecognized model number causes kic-cli to never exit (TSP-645)
+
 ## [0.15.1]
 
 ### Changed

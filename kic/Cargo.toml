@@ -23,3 +23,4 @@ windows-sys = { version = "0.52.0", features = [
     "Win32_Foundation",
 ] }
 regex = "1.10.3"
+

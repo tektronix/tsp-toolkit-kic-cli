@@ -7,7 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.15.1"
+version = "0.15.3"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
@@ -44,3 +44,15 @@ tracing = { version = "0.1.40", features = ["async-await"] }
 tracing-subscriber = "0.3.18"
 tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", tag = "v0.15.1" }
 
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+arithmetic_side_effects = "deny"
+
+[workspace.lints.rustdoc]
+all = "warn"
+missing_doc_code_examples = "warn"

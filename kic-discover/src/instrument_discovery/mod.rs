@@ -13,8 +13,8 @@ pub struct InstrumentDiscovery {
 
 impl InstrumentDiscovery {
     #[must_use]
-    pub fn new(timeout: Duration) -> InstrumentDiscovery {
-        InstrumentDiscovery {
+    pub const fn new(timeout: Duration) -> Self {
+        Self {
             timeout: Some(timeout),
         }
     }
@@ -38,6 +38,10 @@ impl InstrumentDiscovery {
     //     Ok(discovery_results)
     // }
 
+    /// Discover instruments on the network.
+    ///
+    /// # Errors
+    /// If [`LxiDeviceInfo::discover`] fails, an error will be returned
     pub async fn lan_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
         let mut discovery_results: HashSet<InstrumentInfo> = HashSet::new();
 
@@ -55,6 +59,10 @@ impl InstrumentDiscovery {
         Ok(discovery_results)
     }
 
+    /// Discover instruments over USB
+    ///
+    /// # Errors
+    /// If [`Usbtmc::usb_discover`] fails, and error will be returned.
     pub async fn usb_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
         let mut discovery_results: HashSet<InstrumentInfo> = HashSet::new();
 
