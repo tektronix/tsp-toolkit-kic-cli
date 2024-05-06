@@ -230,7 +230,7 @@ impl Repl {
                                     );
                                 }
                             }
-                            prompt = true;
+                            prompt = false;
                         }
                         Request::TspLinkNodes { json_file } => {
                             self.set_lang_config_path(json_file.to_string_lossy().to_string());
