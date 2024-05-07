@@ -17,7 +17,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.15.3]
 
+### Fixed
+
 - Fix issue where unrecognized model number causes kic-cli to never exit (TSP-645)
+- Fix issue in which the prompt would be displayed immediately after loading a script
 
 ## [0.15.1]
 
@@ -42,7 +45,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.14.1]
 
 ### Changed
-- Prepend `kic_` to scripts loaded by kic_cli to prevent name-collisions (TSP-505)
+- Prepend `kic_` to scripts loaded by `kic_cli` to prevent name-collisions (TSP-505)
 
 ### Fixed
 - Update Dependencies (TSP-576)
@@ -90,7 +93,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.15.3...HEAD
+[0.15.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.15.3
 [0.15.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.15.1
 [0.15.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.15.0
 [0.14.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.14.1
