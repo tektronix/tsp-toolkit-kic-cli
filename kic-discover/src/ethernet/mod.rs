@@ -106,9 +106,9 @@ impl LxiDeviceInfo {
                 let s1: Vec<&str> = xml_data.split("::SOCKET").collect();
                 let port_split: Vec<&str> = s1[0].split("::").collect();
                 let socket_port = if port_split.is_empty() {
-                    port_split[port_split.len().saturating_sub(1)].to_string()
+                    COMM_PORT.to_string()
                 } else {
-                    "5025".to_string()
+                    port_split[port_split.len().saturating_sub(1)].to_string()
                 };
 
                 //ToDo: test versatest when it's discoverable
