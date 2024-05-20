@@ -24,7 +24,7 @@ pub const SERVICE_NAMES: [&str; 3] = [
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct LxiDeviceInfo {
     io_type: IoType,
-    pub ip_addr: IpAddr,
+    pub instr_address: IpAddr,
     pub manufacturer: String,
     pub model: String,
     pub serial_number: String,
@@ -117,7 +117,7 @@ impl LxiDeviceInfo {
                 if manufacturer.to_ascii_lowercase().contains("keithley") && res.0 {
                     let device = Self {
                         io_type: IoType::Lan,
-                        ip_addr: instr_addr,
+                        instr_address: instr_addr,
                         manufacturer,
                         model,
                         serial_number,
