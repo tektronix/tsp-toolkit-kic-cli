@@ -95,7 +95,7 @@ impl Usbtmc {
                 if let Ok(mut instr) = tmc_instr {
                     let usb_info = UsbDeviceInfo {
                         io_type: IoType::Usb,
-                        unique_string: instr.unique_string.clone(),
+                        instr_address: instr.unique_string.clone(),
                         manufacturer,
                         model,
                         serial_number,
@@ -170,7 +170,7 @@ const fn model_lut(pid: u16) -> &'static str {
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct UsbDeviceInfo {
     io_type: IoType,
-    unique_string: String,
+    instr_address: String,
     manufacturer: String,
     model: String,
     serial_number: String,

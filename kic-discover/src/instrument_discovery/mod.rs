@@ -89,7 +89,7 @@ impl From<LxiDeviceInfo> for InstrumentInfo {
             serial_number: Some(lxi_info.serial_number),
             firmware_rev: Some(lxi_info.firmware_revision),
             address: Some(ConnectionAddr::Lan(SocketAddr::new(
-                lxi_info.ip_addr,
+                lxi_info.instr_address,
                 COMM_PORT,
             ))),
         }
