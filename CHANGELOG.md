@@ -15,6 +15,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+
+## [0.16.0]
+
+### Changed
+- Both lxi and usb device info struct's instrument address field has same name (TSP-634)
+
 ## [0.15.3]
 
 ### Fixed
