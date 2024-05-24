@@ -24,7 +24,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.15.3]
 
 ### Fixed
-
 - Fix issue where unrecognized model number causes kic-cli to never exit (TSP-645)
 - Fix issue in which the prompt would be displayed immediately after loading a script
 
