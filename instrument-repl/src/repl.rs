@@ -433,7 +433,7 @@ impl Repl {
                 )
         )
         .subcommand(
-            Command::new(".update").about("Upgrade the firmware on the connected instrument")
+            Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
@@ -580,9 +580,9 @@ impl Repl {
                     Request::TspLinkNodes { json_file }
                 }
             },
-            Some((".update", flags)) => match flags.get_one::<bool>("help") {
+            Some((".upgrade", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
-                    sub_cmd: Some(".update".to_string()),
+                    sub_cmd: Some(".upgrade".to_string()),
                 },
                 _ => {
                     let Some(file) = flags.get_one::<String>("path") else {
