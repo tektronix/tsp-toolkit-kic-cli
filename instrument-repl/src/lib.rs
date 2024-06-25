@@ -10,7 +10,7 @@
     clippy::nursery,
     clippy::arithmetic_side_effects
 )]
-#![feature(byte_slice_trim_ascii, assert_matches)]
+#![feature(assert_matches)]
 use std::env;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
