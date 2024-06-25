@@ -5,8 +5,9 @@ _KIC["TSP_VERSIONS"] = {"tti", "2600", "versatest"}
 _KIC[".load_time_prompts"] = localnode.prompts
 
 local _2600 = 0
-local TTI = 1
-local VERSATEST = 2
+local _3700 = 1
+local TTI = 2
+local VERSATEST = 3
 
 local models = {
     ["2450"] = TTI,
@@ -52,16 +53,16 @@ local models = {
     ["2604B-L"] = _2600,
     ["2614B-L"] = _2600,
     ["2634B-L"] = _2600,
-    ["3706"] = _2600,
-    ["3706-SNFP"] = _2600,
-    ["3706-S"] = _2600,
-    ["3706-NFP"] = _2600,
-    ["3706A"] = _2600,
-    ["3706A-SNFP"] = _2600,
-    ["3706A-S"] = _2600,
-    ["3706A-NFP"] = _2600,
-    ["707B"] = _2600,
-    ["708B"] = _2600,
+    ["3706"] = _3700,
+    ["3706-SNFP"] = _3700,
+    ["3706-S"] = _3700,
+    ["3706-NFP"] = _3700,
+    ["3706A"] = _3700,
+    ["3706A-SNFP"] = _3700,
+    ["3706A-S"] = _3700,
+    ["3706A-NFP"] = _3700,
+    ["707B"] = _3700,
+    ["708B"] = _3700,
     ["VERSATEST-600"] = VERSATEST,
     ["TSPop"] = VERSATEST,
     ["TSP"] = VERSATEST,
@@ -69,6 +70,7 @@ local models = {
 
 _KIC["is_tti"] = function() return models[localnode.model] == TTI end
 _KIC["is_2600"] = function() return models[localnode.model] == _2600 end
+_KIC["is_3700"] = function() return models[localnode.model] == _3700 end
 _KIC["is_versatest"] = function() return models[localnode.model] == VERSATEST end
 
 ---interate over input string and escape special characters in a given string,
@@ -132,7 +134,7 @@ if _KIC.is_tti() then
         return errorstr
     end
 
-elseif _KIC.is_2600() then
+elseif _KIC.is_2600() or _KIC.is_3700() then
     _KIC["error_message"] = function()
         local errorstr = [[ERM>START]].."\n"
         for _err_num = 1, errorqueue.count do
@@ -190,7 +192,8 @@ _KIC["cleanup"] = function ()
 end
 
 --clean up functions that aren't important after setup--
-_KIC["is_tti"] = nil
 _KIC["is_2600"] = nil
+_KIC["is_3700"] = nil
+_KIC["is_tti"] = nil
 _KIC["is_versatest"] = nil
 _KIC["set_tsp_version"] = nil
