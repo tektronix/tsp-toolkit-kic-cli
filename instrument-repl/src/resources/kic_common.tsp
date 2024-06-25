@@ -5,9 +5,9 @@ _KIC["TSP_VERSIONS"] = {"tti", "2600", "versatest"}
 _KIC[".load_time_prompts"] = localnode.prompts
 
 local _2600 = 0
-local TTI = 1
-local VERSATEST = 2
-local _3700 = 3
+local _3700 = 1
+local TTI = 2
+local VERSATEST = 3
 
 local models = {
     ["2450"] = TTI,
@@ -192,8 +192,8 @@ _KIC["cleanup"] = function ()
 end
 
 --clean up functions that aren't important after setup--
-_KIC["is_tti"] = nil
 _KIC["is_2600"] = nil
 _KIC["is_3700"] = nil
+_KIC["is_tti"] = nil
 _KIC["is_versatest"] = nil
 _KIC["set_tsp_version"] = nil
