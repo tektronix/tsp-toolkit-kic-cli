@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - Renamed update to upgrade for firmware upgrade (TSP-463)
+- **tsp-toolkit-kic-lib** Fix Support for FW flash on the 3706B and 70xB *Open Source Contribution: c3charvat*
 
 ## [0.16.0]
 

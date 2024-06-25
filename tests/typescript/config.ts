@@ -45,6 +45,9 @@ export enum Ki2600InstrumentModel{
     KI_2604B_L = "2604B-L",
     KI_2614B_L = "2614B-L",
     KI_2634B_L = "2634B-L",
+}
+
+export enum Ki3700InstrumentModel{
     KI_3706 = "3706",
     KI_3706_SNFP = "3706-SNFP",
     KI_3706_S = "3706-S",
@@ -76,7 +79,7 @@ export interface Connection {
 export interface Instrument {
     name: string
     description: string | undefined | null
-    model: TtiInstrumentModel | Ki2600InstrumentModel | TrebInstrumentModel
+    model: TtiInstrumentModel | Ki2600InstrumentModel | Ki3700InstrumentModel | TrebInstrumentModel
     connections: Connection[]
     available: boolean
 }
