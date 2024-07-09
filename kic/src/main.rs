@@ -134,7 +134,7 @@ fn cmds() -> Command {
             ])
         })
         .subcommand({
-            let cmd = Command::new("update")
+            let cmd = Command::new("upgrade")
                 .about("Upgrade the firmware of an instrument or module.");
 
             add_connection_subcommands(cmd, [
@@ -212,8 +212,8 @@ fn main() -> anyhow::Result<()> {
         Some(("connect", sub_matches)) => {
             return connect(sub_matches);
         }
-        Some(("update", sub_matches)) => {
-            return update(sub_matches);
+        Some(("upgrade", sub_matches)) => {
+            return upgrade(sub_matches);
         }
         Some(("terminate", sub_matches)) => {
             return terminate(sub_matches);
@@ -362,7 +362,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(repl.start()?)
 }
 
-fn update(args: &ArgMatches) -> anyhow::Result<()> {
+fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
     eprintln!("\nKeithley TSP Shell\n");
     let lan = ConnectionType::try_from_arg_matches(args)?;
     let Some((_, args)) = args.subcommand() else {
