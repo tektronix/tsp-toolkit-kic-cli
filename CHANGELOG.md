@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.16.2]
+
+### Changed
+- Renamed update to upgrade for firmware upgrade in CLI arguments (TSP-741)
+
 ## [0.16.1]
 
 ### Changed
@@ -104,7 +109,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.16.2...HEAD
+[0.16.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.1
 [0.16.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.1
 [0.16.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.0
 [0.15.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.15.3
