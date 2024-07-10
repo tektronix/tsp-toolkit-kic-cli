@@ -19,15 +19,26 @@ use colored::Colorize;
 use instrument_repl::repl::{self};
 use regex::Regex;
 use std::{
-    collections::HashMap, env::set_var, fs::OpenOptions, io::{stdin, Read, Write}, net::{IpAddr, SocketAddr, TcpStream}, path::PathBuf, process::exit, sync::Arc, thread, time::Duration
+    collections::HashMap,
+    env::set_var,
+    fs::OpenOptions,
+    io::{stdin, Read, Write},
+    net::{IpAddr, SocketAddr, TcpStream},
+    path::PathBuf,
+    process::exit,
+    sync::Arc,
+    thread,
+    time::Duration,
 };
 use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument, interface::async_stream::AsyncStream, usbtmc::{self, UsbtmcAddr}, Interface
+    instrument::Instrument,
+    interface::async_stream::AsyncStream,
+    usbtmc::{self, UsbtmcAddr},
+    Interface,
 };
-
 
 #[derive(Debug, Subcommand)]
 enum TerminateType {
@@ -208,7 +219,6 @@ fn main() -> anyhow::Result<()> {
 
     let matches = cmd.clone().get_matches();
 
-
     if matches.get_flag("no-color") {
         set_var("NO_COLOR", "1");
     }
@@ -261,7 +271,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-    trace!("Application starting with the following args: {:?}", std::env::args());
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
 
     match matches.subcommand() {
         Some(("print-description", _)) => {
@@ -534,7 +547,9 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
 
     let slot: Option<u16> = args.get_one::<u16>("slot").copied();
     let Some(file) = args.get_one::<PathBuf>("file").cloned() else {
-        let e = KicError::ArgParseError { details: "firmware file path was not provided".to_string(), };
+        let e = KicError::ArgParseError {
+            details: "firmware file path was not provided".to_string(),
+        };
         error!("{e}");
         return Err(e.into());
     };
