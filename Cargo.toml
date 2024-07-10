@@ -18,7 +18,7 @@ repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
 [workspace.dependencies]
 anyhow = "1.0.81"
 bytes = "1.5.0"
-clap = { version = "4.5.3", features = ["derive", "cargo", "string"] }
+clap = { version = "4.5.9", features = ["derive", "cargo", "string"] }
 colored = "2.1.0"
 exitcode = "1.1.2"
 instrument-repl = { path = "instrument-repl" }
@@ -56,3 +56,4 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+
