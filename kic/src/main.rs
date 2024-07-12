@@ -316,7 +316,7 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 if let Some(log_file) = log_file {
-                    args.push("--log_file".to_string());
+                    args.push("--log-file".to_string());
                     args.push(log_file.to_str().unwrap().to_string())
                 }
 
