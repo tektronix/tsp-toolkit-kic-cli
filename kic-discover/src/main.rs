@@ -122,6 +122,7 @@ fn start_logger(verbose: &bool, log_file: &Option<PathBuf>) -> anyhow::Result<()
 }
 
 #[tokio::main]
+#[instrument]
 async fn main() -> anyhow::Result<()> {
     let cmd = command!()
         .propagate_version(true)
@@ -152,32 +153,73 @@ async fn main() -> anyhow::Result<()> {
     match sub {
         SubCli::Lan(args) => {
             start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = discover_lan(args).await?;
-            println!("Discovered {} Lan instruments", lan_instruments.len());
+            let lan_instruments = match discover_lan(args).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in LAN discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("LAN Discovery complete");
+            trace!("Discovered {} LAN instruments", lan_instruments.len());
+            println!("Discovered {} LAN instruments", lan_instruments.len());
+            trace!("Discovered instruments: {lan_instruments:?}");
             for instrument in lan_instruments {
                 println!("{instrument}");
             }
         }
         SubCli::Usb(args) => {
             start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering USB instruments");
             #[allow(clippy::mutable_key_type)]
-            let usb_instruments = discover_usb().await?;
+            let usb_instruments = match discover_usb().await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in USB discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("USB Discovery complete");
+            trace!("Discovered {} USB instruments", usb_instruments.len());
+            trace!("Discovered instruments: {usb_instruments:?}");
             for instrument in usb_instruments {
                 println!("{instrument}");
             }
         }
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering USB instruments");
             #[allow(clippy::mutable_key_type)]
-            let usb_instruments = discover_usb().await?;
+            let usb_instruments = match discover_usb().await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in USB discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("USB Discovery complete");
+            trace!("Discovered {} USB instruments", usb_instruments.len());
+            println!("Discovered {} USB instruments", usb_instruments.len());
+            trace!("Discovered USB instruments: {usb_instruments:?}");
             for instrument in usb_instruments {
                 println!("{instrument}");
             }
 
+            info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = discover_lan(args).await?;
-            println!("Discovered {} Lan instruments", lan_instruments.len());
+            let lan_instruments = match discover_lan(args).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in LAN discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("LAN Discovery complete");
+            trace!("Discovered {} LAN instruments", lan_instruments.len());
+            println!("Discovered {} LAN instruments", lan_instruments.len());
+            trace!("Discovered LAN instruments: {lan_instruments:?}");
             for instrument in lan_instruments {
                 println!("{instrument}");
             }
