@@ -5,7 +5,7 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
-use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
+use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
