@@ -5,12 +5,14 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn, instrument, level_filters::LevelFilter};
+use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::collections::HashSet;
 use std::str;
 use std::time::Duration;
+use std::fs::OpenOptions;
 
 use clap::{command, Args, Command, FromArgMatches, Parser, Subcommand};
 
@@ -24,7 +26,7 @@ struct Cli {
     verbose: bool,
 
     /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
-    #[arg(global = true, short = 'l', long = "log-file")]
+    #[arg(name = "log-file", global = true, short = 'l', long = "log-file")]
     log_file: Option<PathBuf>,
 
     #[command(subcommand)]
@@ -48,7 +50,7 @@ pub(crate) struct DiscoverCmd {
     verbose: bool,
 
     /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
-    #[clap(from_global)]
+    #[clap(name = "log-file", from_global)]
     log_file: Option<PathBuf>,
 
     /// Print JSON-encoded instrument information.
@@ -66,11 +68,61 @@ pub(crate) struct DiscoverCmd {
     exit: bool,
 }
 
+fn start_logger(verbose: &bool, log_file: &Option<PathBuf>) -> anyhow::Result<()> {
+    match (verbose, log_file) {
+        (true, Some(l)) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr)
+                .with_filter(LevelFilter::INFO);
+
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(err)
+                .with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, Some(l)) => {
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .with_ansi(false);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (true, None) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(err);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, None) => {}
+    }
+
+    info!("Application started");
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    info!("Starting discovery");
-    trace!("args: {:?}", std::env::args());
-    eprintln!("args: {:?}", std::env::args());
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)
@@ -80,6 +132,8 @@ async fn main() -> anyhow::Result<()> {
     let cmd = cmd.subcommand(Command::new("print-description").hide(true));
 
     let matches = cmd.clone().get_matches();
+
+    eprintln!("args: {matches:?}");
 
     if let Some(("print-description", _)) = matches.subcommand() {
         println!("{}", cmd.get_about().unwrap_or_default());
@@ -99,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
 
     match sub {
         SubCli::Lan(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
             #[allow(clippy::mutable_key_type)]
             let lan_instruments = discover_lan(args).await?;
             println!("Discovered {} Lan instruments", lan_instruments.len());
@@ -106,7 +161,8 @@ async fn main() -> anyhow::Result<()> {
                 println!("{instrument}");
             }
         }
-        SubCli::Usb(_) => {
+        SubCli::Usb(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
             #[allow(clippy::mutable_key_type)]
             let usb_instruments = discover_usb().await?;
             for instrument in usb_instruments {
@@ -114,6 +170,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         SubCli::All(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
             #[allow(clippy::mutable_key_type)]
             let usb_instruments = discover_usb().await?;
             for instrument in usb_instruments {
@@ -133,6 +190,8 @@ async fn main() -> anyhow::Result<()> {
         sleep(Duration::from_secs(5)).await;
     }
     close_handle.stop()?;
+
+    info!("Discovery complete");
 
     Ok(())
 }
