@@ -19,6 +19,7 @@ use std::{
     thread::JoinHandle,
     time::Duration,
 };
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use tsp_toolkit_kic_lib::instrument::Instrument;
 
@@ -36,11 +37,26 @@ pub struct Repl {
     command: Command,
     lang_cong_file_path: String,
 }
+
+fn accumulate_and_search(accumulator: &mut String, buf: &[u8], needle: &str) -> bool {
+    let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
+    let buf = &buf[..first_null];
+    if !buf.is_empty() {
+        accumulator.push_str(&String::from_utf8_lossy(buf));
+    }
+    if accumulator.contains(needle) {
+        info!("Successfully cleared instrument output queue");
+        true
+    } else {
+        false
+    }
+}
 /// Clear the output queue of the given TSP-enabled instrument.
 ///
 /// # Errors
 /// Errors in this function can range from [`std::io::Error`]s to being unable to
 /// clear the output queue in the requested number of attempts.
+#[instrument(skip(inst))]
 pub fn clear_output_queue(
     inst: &mut Box<dyn Instrument>,
     max_attempts: usize,
@@ -48,6 +64,7 @@ pub fn clear_output_queue(
 ) -> Result<()> {
     let timestamp = Utc::now().to_string();
 
+    info!("Clearing instrument output queue");
     inst.write_all(format!("print(\"{timestamp}\")\n").as_bytes())?;
 
     inst.set_nonblocking(true)?;
@@ -64,15 +81,11 @@ pub fn clear_output_queue(
             }
             Err(e) => Err(e),
         }?;
-        let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
-        let buf = &buf[..first_null];
-        if !buf.is_empty() {
-            accumulate = format!("{accumulate}{}", String::from_utf8_lossy(buf));
-        }
-        if accumulate.contains(&timestamp) {
+        if accumulate_and_search(&mut accumulate, &buf, &timestamp) {
             return Ok(());
         }
     }
+    error!("Unable to clear instrument output queue");
     Err(InstrumentReplError::Other(
         "unable to clear instrument output queue".to_string(),
     ))
@@ -96,6 +109,7 @@ impl Repl {
         clear_output_queue(&mut self.inst, max_attempts, delay_between_attempts)
     }
 
+    #[instrument(skip(self))]
     fn handle_data(
         &mut self,
         data: &[u8],
@@ -107,6 +121,7 @@ impl Repl {
             .trim_end_matches(char::from(0))
             .is_empty()
         {
+            debug!("Handling data");
             let parser = ResponseParser::new(data);
             let mut get_error = false;
             for response in parser {
@@ -114,27 +129,42 @@ impl Repl {
                 *state = Some(prev_state.unwrap_or_default().next_state(&response)?);
 
                 match Self::state_action(*prev_state, *state) {
-                    Action::Prompt => prompt = true,
+                    Action::Prompt => {
+                        trace!("Set prompt = true");
+                        prompt = true;
+                    }
                     Action::GetError => {
+                        trace!("set get_errors = true");
                         get_error = true;
                     }
-                    Action::PrintText => Self::print_data(*state, response)?,
-                    Action::PrintError => Self::print_data(*state, response)?,
+                    Action::PrintText => {
+                        trace!("Print data");
+                        Self::print_data(*state, response)?;
+                    }
+                    Action::PrintError => {
+                        trace!("Print error");
+                        Self::print_data(*state, response)?;
+                    }
                     Action::GetNodeDetails => {
+                        trace!("Update node configuration file");
                         Self::update_node_config_json(&self.lang_cong_file_path, &response);
                     }
 
-                    Action::None => {}
+                    Action::None => {
+                        trace!("No action required based on data");
+                    }
                 }
             }
             if get_error {
                 let errors = self.get_errors()?;
                 for e in errors {
+                    error!("TSP error: {e}");
                     Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
                 }
                 prompt = true;
                 *state = Some(ReadState::DataReadEnd);
             }
+            debug!("Data handling complete");
         }
         Ok(prompt)
     }
@@ -144,8 +174,10 @@ impl Repl {
     /// # Errors
     /// There are many errors that can be returned from this function, they include but
     /// aren't limited to any errors possible from [`std::io::Read`] or [`std::io::Write`]
-    #[allow(clippy::too_many_lines)] //This is just going to be a long function
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)] //This is just going to be a long function
+    #[instrument(skip(self))]
     pub fn start(&mut self) -> Result<()> {
+        info!("Starting REPL");
         let mut prev_state: Option<ReadState> = None;
         let mut state: Option<ReadState> = None;
         self.inst.set_nonblocking(true)?;
@@ -156,20 +188,24 @@ impl Repl {
 
         self.clear_output_queue(5000, Duration::from_millis(1))?;
 
+        debug!("Writing common script to instrument");
         self.inst.write_script(
             b"_kic_common",
             KIC_COMMON_TSP.to_string().as_bytes(),
             false,
             true,
         )?;
+        debug!("Writing common script to instrument completed");
 
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let errors = self.get_errors()?;
         for e in errors {
+            error!("TSP error: {e}");
             Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
 
         let mut prompt = true;
+        debug!("Starting user loop");
         'user_loop: loop {
             self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
@@ -178,13 +214,13 @@ impl Repl {
             let read_buf: Vec<u8> = read_buf[..read_size].into();
             prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
 
-            // Only request error messages if an error is indicated.
             if prompt {
                 prompt = false;
                 Self::print_flush(&"\nTSP> ".blue())?;
             }
             match loop_in.try_recv() {
                 Ok(msg) => {
+                    debug!("User loop received request: {msg:?}");
                     match msg {
                         Request::Tsp(tsp) => {
                             self.inst.write_all(format!("{tsp}\n").as_bytes())?;
@@ -193,6 +229,7 @@ impl Repl {
                         Request::GetError => {
                             let errors = self.get_errors()?;
                             for e in errors {
+                                error!("TSP error: {e}");
                                 Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
                             }
                             prompt = true;
@@ -258,6 +295,7 @@ impl Repl {
                             self.inst.write_all(b"localnode.prompts=1\n")?;
                         }
                         Request::Exit => {
+                            info!("Exiting...");
                             break 'user_loop;
                         }
                         Request::Help { sub_cmd } => {
@@ -281,6 +319,7 @@ impl Repl {
                         }
                         Request::InvalidInput(s) => {
                             prompt = true;
+                            warn!("Invalid input: {s}");
                             Self::println_flush(&(s + "\n").red())?;
                         }
                         Request::None => {
@@ -487,12 +526,15 @@ impl Repl {
     }
 
     #[allow(clippy::too_many_lines)] // This is a parser function, it is unavoidably long
+    #[instrument]
     fn parse_user_commands(input: &str) -> Result<Request> {
+        debug!("Parsing user input");
         if input.trim().is_empty() {
             return Ok(Request::None);
         }
         let path = PathBuf::from(input.trim());
         if path.is_file() {
+            trace!("Detected file path: {path:?}");
             return Ok(Request::Script { file: path });
         }
 
@@ -642,30 +684,36 @@ impl Repl {
     ///
     /// # Errors
     /// This function can error if the thread couldn't be created.
+    #[instrument]
     fn init_user_input(out: Sender<Request>) -> Result<JoinHandle<Result<()>>> {
         let jh = std::thread::Builder::new()
             .name("user_input".to_string())
-            .spawn(move || {
-                'input_loop: loop {
-                    // break the loop if told to exit
-                    // NOTE: It is possible that we could get stuck on the readline below
-                    //       if the caller of this function doesn't close the Sender or send
-                    //       a message quickly enough.
-                    let mut input = String::new();
-                    let _ = std::io::stdin().read_line(&mut input)?;
-                    let req = Self::parse_user_commands(&input)?;
-                    match out.send(req.clone()) {
-                        Ok(()) => {}
-                        Err(SendError(_)) => break 'input_loop,
+            .spawn(
+                #[allow(clippy::cognitive_complexity)]
+                move || {
+                    info!("Starting user input loop");
+                    'input_loop: loop {
+                        // break the loop if told to exit
+                        // NOTE: It is possible that we could get stuck on the readline below
+                        //       if the caller of this function doesn't close the Sender or send
+                        //       a message quickly enough.
+                        let mut input = String::new();
+                        let _ = std::io::stdin().read_line(&mut input)?;
+                        let req = Self::parse_user_commands(&input)?;
+                        match out.send(req.clone()) {
+                            Ok(()) => {}
+                            Err(SendError(_)) => break 'input_loop,
+                        }
+                        // This `if` statement seeks to fix the NOTE above about not exiting.
+                        // It feels a little awkward, but should be effective.
+                        if req == Request::Exit {
+                            break 'input_loop;
+                        }
                     }
-                    // This `if` statement seeks to fix the NOTE above about not exiting.
-                    // It feels a little awkward, but should be effective.
-                    if req == Request::Exit {
-                        break 'input_loop;
-                    }
-                }
-                Ok(())
-            })?;
+                    info!("Closing user input loop");
+                    Ok(())
+                },
+            )?;
         Ok(jh)
     }
     #[allow(clippy::too_many_lines)]
@@ -759,7 +807,9 @@ impl Repl {
 }
 
 impl Drop for Repl {
+    #[instrument(skip(self))]
     fn drop(&mut self) {
+        trace!("Calling Repl::drop()");
         let _ = self
             .inst
             .write_all(b"if (_KIC ~= nil and _KIC['cleanup'] ~= nil) then _KIC.cleanup() end\n");
