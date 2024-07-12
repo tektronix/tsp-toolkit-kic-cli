@@ -1,10 +1,11 @@
 use anyhow::Context;
-use async_std::task::sleep;
+use async_std::{path::PathBuf, task::sleep};
 use jsonrpsee::{
     server::{Server, ServerHandle},
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
+use tracing::{debug, error, info, trace, warn};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::collections::HashSet;
@@ -18,6 +19,14 @@ use kic_discover::DISC_INSTRUMENTS;
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.
+    #[arg(global = true, short = 'v', long = "verbose")]
+    verbose: bool,
+
+    /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
+    #[arg(global = true, short = 'l', long = "log-file")]
+    log_file: Option<PathBuf>,
+
     #[command(subcommand)]
     conn: SubCli,
 }
@@ -34,6 +43,14 @@ enum SubCli {
 
 #[derive(Debug, Args, Clone, PartialEq)]
 pub(crate) struct DiscoverCmd {
+    /// Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.
+    #[arg(from_global)]
+    verbose: bool,
+
+    /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
+    #[clap(from_global)]
+    log_file: Option<PathBuf>,
+
     /// Print JSON-encoded instrument information.
     #[clap(long)]
     json: bool,
@@ -51,12 +68,15 @@ pub(crate) struct DiscoverCmd {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    info!("Starting discovery");
+    trace!("args: {:?}", std::env::args());
+    eprintln!("args: {:?}", std::env::args());
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)
         .allow_external_subcommands(true);
 
-    let cmd = SubCli::augment_subcommands(cmd);
+    let cmd = Cli::augment_args(cmd);
     let cmd = cmd.subcommand(Command::new("print-description").hide(true));
 
     let matches = cmd.clone().get_matches();

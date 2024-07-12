@@ -116,6 +116,7 @@ fn cmds() -> Command {
             .long("log-file")
             .required(false)
             .help("Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.")
+            .global(true)
             .value_parser(PathBufValueParser::new()),
         )
         .arg(
@@ -124,6 +125,7 @@ fn cmds() -> Command {
             .long("verbose")
             .required(false)
             .help("Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.")
+            .global(true)
             .action(ArgAction::SetTrue),
         )
         .arg(
@@ -131,6 +133,7 @@ fn cmds() -> Command {
                 .short('c')
                 .long("no-color")
                 .help("Turn off ANSI color and formatting codes")
+                .global(true)
                 .action(ArgAction::SetTrue),
         )
         // This is mostly for subcommands, but is left here as an example.
@@ -297,20 +300,39 @@ fn main() -> anyhow::Result<()> {
             return info(sub_matches);
         }
         Some((ext, sub_matches)) => {
+            debug!("Subcommand '{ext}' not defined internally, checking external commands");
             if let Some((path, ..)) = external_cmd_lut.get(ext) {
-                let args: Vec<_> = sub_matches
+                trace!("Subcommand exists at '{path:?}'");
+
+                let mut args: Vec<_> = sub_matches
                     .get_many::<String>("options")
                     .into_iter()
                     .flatten()
                     .cloned()
                     .collect();
 
-                Process::new(path.clone(), args)
+                if verbose {
+                    args.push("--verbose".to_string())
+                }
+
+                if let Some(log_file) = log_file {
+                    args.push("--log_file".to_string());
+                    args.push(log_file.to_str().unwrap().to_string())
+                }
+
+                debug!("Replacing this executable with '{path:?}' args: {args:?}");
+
+                if let Err(e) = Process::new(path.clone(), args)
                     .exec_replace()
-                    .context(format!("{ext} subcommand should launch in a child process"))?;
+                    .context(format!("{ext} subcommand should launch in a child process"))
+                {
+                    error!("{e}");
+                    return Err(e);
+                }
                 //Process::exec_replace() only returns to this function if there was a error.
             } else {
                 let err = clap::Error::new(clap::error::ErrorKind::UnknownArgument);
+                error!("{err}");
                 println!("{err}");
                 cmd.print_help()?;
                 return Err(err.into());
@@ -318,6 +340,8 @@ fn main() -> anyhow::Result<()> {
         }
         _ => unreachable!(),
     }
+
+    info!("Application closing");
 
     Ok(())
 }
@@ -585,10 +609,37 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
     eprintln!("\nKeithley TSP Shell\n");
 
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
-    get_instrument_access(&mut instrument)?;
-    eprintln!("{}", instrument.info()?);
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
+
+    if let Err(e) = get_instrument_access(&mut instrument) {
+        error!("Error setting up instrument: {e}");
+        return Err(e);
+    }
+
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+    info!("IDN: {info}");
+    eprintln!("{info}");
+
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
     };
@@ -596,19 +647,24 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     let run: bool = *args.get_one::<bool>("run").unwrap_or(&true);
     let save: bool = *args.get_one::<bool>("save").unwrap_or(&false);
 
-    let Some(path) = args.get_one::<PathBuf>("file") as Option<&PathBuf> else {
-        return Err(KicError::ArgParseError {
-            details: "firmware file path was not provided".to_string(),
-        }
-        .into());
+    let Some(path) = args.get_one::<PathBuf>("file").cloned() else {
+        let e = KicError::ArgParseError {
+            details: "script file path was not provided".to_string(),
+        };
+        error!("{e}");
+        return Err(e.into());
     };
 
-    let stem = path
-        .file_stem()
-        .context(KicError::ArgParseError {
+    let Some(stem) = path.file_stem() else {
+        let e = KicError::ArgParseError {
             details: "unable to get file stem".to_string(),
-        })?
-        .to_string_lossy();
+        };
+
+        error!("{e}");
+        return Err(e.into());
+    };
+
+    let stem = stem.to_string_lossy();
 
     let re = Regex::new(r"[^A-Za-z\d_]");
 
@@ -620,12 +676,22 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
             let mut script_content: Vec<u8> = Vec::new();
 
-            let mut file = std::fs::File::open(path)?;
-            file.read_to_end(&mut script_content)?;
+            let mut file = match std::fs::File::open(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("Error opening script file: {e}");
+                    return Err(e.into());
+                }
+            };
+            if let Err(e) = file.read_to_end(&mut script_content) {
+                error!("Error reading script file: {e}");
+                return Err(e.into());
+            }
 
             eprintln!("Loading script to instrument.");
             instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
             eprintln!("Script loading completed.");
+            info!("Script loading completed.");
         }
         Err(err_msg) => {
             unreachable!("Issue with regex creation: {}", err_msg.to_string());
@@ -635,9 +701,23 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[instrument(skip(args))]
 fn info(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    info!("Getting instrument info");
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
 
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
@@ -645,28 +725,60 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 
-    let info = instrument.info()?;
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+
+    trace!("print as json?: {json:?}");
+
     let info: String = if json {
         serde_json::to_string(&info)?
     } else {
         info.to_string()
     };
 
+    info!("Information to print: {info}");
     println!("{info}");
 
     Ok(())
 }
 
+#[instrument(skip(args))]
 fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Terminating existing operations");
+    trace!("args: {args:?}");
     eprintln!("\nKeithley TSP Shell\n");
-    let connection = ConnectionType::try_from_arg_matches(args)?;
+
+    let connection = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
     match connection {
         ConnectionType::Lan(socket) => {
-            let mut connection = TcpStream::connect(socket)?;
-            connection.write_all(b"ABORT\n")?;
+            let mut connection = match TcpStream::connect(socket) {
+                Ok(c) => c,
+                Err(e) => {
+                    error!("{e}");
+                    return Err(e.into());
+                }
+            };
+
+            if let Err(e) = connection.write_all(b"ABORT\n") {
+                error!("Unable to write 'ABORT': {e}");
+                return Err(e.into());
+            }
         }
         ConnectionType::Usb(_) => {}
     }
+
+    info!("Operations terminated");
 
     Ok(())
 }
