@@ -133,8 +133,6 @@ async fn main() -> anyhow::Result<()> {
 
     let matches = cmd.clone().get_matches();
 
-    eprintln!("args: {matches:?}");
-
     if let Some(("print-description", _)) = matches.subcommand() {
         println!("{}", cmd.get_about().unwrap_or_default());
         return Ok(());
@@ -231,52 +229,17 @@ async fn init_rpc() -> anyhow::Result<ServerHandle> {
 }
 
 async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = String::new();
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.lan_discover().await;
+    let instruments = discover_instance.lan_discover().await?;
 
-    match &instruments {
-        Ok(instrs_set) => {
-            for instr in instrs_set {
-                instr_str = format!("{instr_str}{instr}\n");
-            }
-        }
-
-        Err(e) => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-            .into());
-        }
-    };
-
-    Ok(instruments.unwrap())
+    Ok(instruments)
 }
 
 async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = String::new();
-
     let dur = Duration::from_secs(5); //Not used in USB
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.usb_discover().await;
+    let instruments = discover_instance.usb_discover().await?;
 
-    match &instruments {
-        Ok(instrs_set) => {
-            for instr in instrs_set {
-                instr_str = format!("{instr_str}{instr}\n");
-            }
-        }
-
-        Err(e) => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-            .into());
-        }
-    };
-
-    Ok(instruments.unwrap())
+    Ok(instruments)
 }
