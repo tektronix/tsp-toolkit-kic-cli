@@ -1,9 +1,4 @@
-#![feature(
-    lint_reasons,
-    rustdoc_missing_doc_code_examples,
-    stmt_expr_attributes,
-    io_error_more
-)]
+#![feature(rustdoc_missing_doc_code_examples, stmt_expr_attributes, io_error_more)]
 #![deny(
     clippy::undocumented_unsafe_blocks,
     clippy::pedantic,

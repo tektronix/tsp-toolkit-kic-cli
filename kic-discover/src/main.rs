@@ -1,13 +1,16 @@
 use anyhow::Context;
-use async_std::task::sleep;
+use async_std::{path::PathBuf, task::sleep};
 use jsonrpsee::{
     server::{Server, ServerHandle},
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
+use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
+use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::collections::HashSet;
+use std::fs::OpenOptions;
 use std::str;
 use std::time::Duration;
 
@@ -18,6 +21,14 @@ use kic_discover::DISC_INSTRUMENTS;
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.
+    #[arg(global = true, short = 'v', long = "verbose")]
+    verbose: bool,
+
+    /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
+    #[arg(name = "log-file", global = true, short = 'l', long = "log-file")]
+    log_file: Option<PathBuf>,
+
     #[command(subcommand)]
     conn: SubCli,
 }
@@ -34,6 +45,14 @@ enum SubCli {
 
 #[derive(Debug, Args, Clone, PartialEq)]
 pub(crate) struct DiscoverCmd {
+    /// Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.
+    #[arg(from_global)]
+    verbose: bool,
+
+    /// Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.
+    #[clap(name = "log-file", from_global)]
+    log_file: Option<PathBuf>,
+
     /// Print JSON-encoded instrument information.
     #[clap(long)]
     json: bool,
@@ -49,14 +68,68 @@ pub(crate) struct DiscoverCmd {
     exit: bool,
 }
 
+fn start_logger(verbose: &bool, log_file: &Option<PathBuf>) -> anyhow::Result<()> {
+    match (verbose, log_file) {
+        (true, Some(l)) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr)
+                .with_filter(LevelFilter::INFO);
+
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(err)
+                .with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, Some(l)) => {
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .with_ansi(false);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (true, None) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(err);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, None) => {}
+    }
+
+    info!("Application started");
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
+    Ok(())
+}
+
 #[tokio::main]
+#[instrument]
 async fn main() -> anyhow::Result<()> {
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)
         .allow_external_subcommands(true);
 
-    let cmd = SubCli::augment_subcommands(cmd);
+    let cmd = Cli::augment_args(cmd);
     let cmd = cmd.subcommand(Command::new("print-description").hide(true));
 
     let matches = cmd.clone().get_matches();
@@ -79,30 +152,74 @@ async fn main() -> anyhow::Result<()> {
 
     match sub {
         SubCli::Lan(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = discover_lan(args).await?;
-            println!("Discovered {} Lan instruments", lan_instruments.len());
+            let lan_instruments = match discover_lan(args).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in LAN discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("LAN Discovery complete");
+            trace!("Discovered {} LAN instruments", lan_instruments.len());
+            println!("Discovered {} LAN instruments", lan_instruments.len());
+            trace!("Discovered instruments: {lan_instruments:?}");
             for instrument in lan_instruments {
                 println!("{instrument}");
             }
         }
-        SubCli::Usb(_) => {
+        SubCli::Usb(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering USB instruments");
             #[allow(clippy::mutable_key_type)]
-            let usb_instruments = discover_usb().await?;
+            let usb_instruments = match discover_usb().await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in USB discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("USB Discovery complete");
+            trace!("Discovered {} USB instruments", usb_instruments.len());
+            trace!("Discovered instruments: {usb_instruments:?}");
             for instrument in usb_instruments {
                 println!("{instrument}");
             }
         }
         SubCli::All(args) => {
+            start_logger(&args.verbose, &args.log_file)?;
+            info!("Discovering USB instruments");
             #[allow(clippy::mutable_key_type)]
-            let usb_instruments = discover_usb().await?;
+            let usb_instruments = match discover_usb().await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in USB discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("USB Discovery complete");
+            trace!("Discovered {} USB instruments", usb_instruments.len());
+            println!("Discovered {} USB instruments", usb_instruments.len());
+            trace!("Discovered USB instruments: {usb_instruments:?}");
             for instrument in usb_instruments {
                 println!("{instrument}");
             }
 
+            info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = discover_lan(args).await?;
-            println!("Discovered {} Lan instruments", lan_instruments.len());
+            let lan_instruments = match discover_lan(args).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in LAN discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("LAN Discovery complete");
+            trace!("Discovered {} LAN instruments", lan_instruments.len());
+            println!("Discovered {} LAN instruments", lan_instruments.len());
+            trace!("Discovered LAN instruments: {lan_instruments:?}");
             for instrument in lan_instruments {
                 println!("{instrument}");
             }
@@ -113,6 +230,8 @@ async fn main() -> anyhow::Result<()> {
         sleep(Duration::from_secs(5)).await;
     }
     close_handle.stop()?;
+
+    info!("Discovery complete");
 
     Ok(())
 }
@@ -152,52 +271,17 @@ async fn init_rpc() -> anyhow::Result<ServerHandle> {
 }
 
 async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = String::new();
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.lan_discover().await;
+    let instruments = discover_instance.lan_discover().await?;
 
-    match &instruments {
-        Ok(instrs_set) => {
-            for instr in instrs_set {
-                instr_str = format!("{instr_str}{instr}\n");
-            }
-        }
-
-        Err(e) => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-            .into());
-        }
-    };
-
-    Ok(instruments.unwrap())
+    Ok(instruments)
 }
 
 async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let mut instr_str = String::new();
-
     let dur = Duration::from_secs(5); //Not used in USB
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.usb_discover().await;
+    let instruments = discover_instance.usb_discover().await?;
 
-    match &instruments {
-        Ok(instrs_set) => {
-            for instr in instrs_set {
-                instr_str = format!("{instr_str}{instr}\n");
-            }
-        }
-
-        Err(e) => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-            .into());
-        }
-    };
-
-    Ok(instruments.unwrap())
+    Ok(instruments)
 }

@@ -1,4 +1,4 @@
-#![feature(lint_reasons, rustdoc_missing_doc_code_examples)]
+#![feature(rustdoc_missing_doc_code_examples)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with
@@ -21,6 +21,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     env::set_var,
+    fs::OpenOptions,
     io::{stdin, Read, Write},
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
@@ -29,9 +30,11 @@ use std::{
     thread,
     time::Duration,
 };
+use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
+use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::{self, Instrument},
+    instrument::Instrument,
     interface::async_stream::AsyncStream,
     usbtmc::{self, UsbtmcAddr},
     Interface,
@@ -108,10 +111,29 @@ fn cmds() -> Command {
         .subcommand_required(true)
         .allow_external_subcommands(true)
         .arg(
+            Arg::new("log-file")
+            .short('l')
+            .long("log-file")
+            .required(false)
+            .help("Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.")
+            .global(true)
+            .value_parser(PathBufValueParser::new()),
+        )
+        .arg(
+            Arg::new("verbose")
+            .short('v')
+            .long("verbose")
+            .required(false)
+            .help("Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.")
+            .global(true)
+            .action(ArgAction::SetTrue),
+        )
+        .arg(
             Arg::new("no-color")
                 .short('c')
                 .long("no-color")
                 .help("Turn off ANSI color and formatting codes")
+                .global(true)
                 .action(ArgAction::SetTrue),
         )
         // This is mostly for subcommands, but is left here as an example.
@@ -204,6 +226,59 @@ fn main() -> anyhow::Result<()> {
         set_var("NO_COLOR", "1");
     }
 
+    let verbose: bool = matches.get_flag("verbose");
+    let log_file: Option<&PathBuf> = matches.get_one("log-file");
+
+    match (verbose, log_file) {
+        (true, Some(l)) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr)
+                .with_filter(LevelFilter::INFO);
+
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(err)
+                .with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, Some(l)) => {
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .with_ansi(false);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(log);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (true, None) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(err);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, None) => {}
+    }
+
+    info!("Application started");
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
+
     match matches.subcommand() {
         Some(("print-description", _)) => {
             println!("{}", clap::crate_description!());
@@ -225,20 +300,39 @@ fn main() -> anyhow::Result<()> {
             return info(sub_matches);
         }
         Some((ext, sub_matches)) => {
+            debug!("Subcommand '{ext}' not defined internally, checking external commands");
             if let Some((path, ..)) = external_cmd_lut.get(ext) {
-                let args: Vec<_> = sub_matches
+                trace!("Subcommand exists at '{path:?}'");
+
+                let mut args: Vec<_> = sub_matches
                     .get_many::<String>("options")
                     .into_iter()
                     .flatten()
                     .cloned()
                     .collect();
 
-                Process::new(path.clone(), args)
+                if verbose {
+                    args.push("--verbose".to_string())
+                }
+
+                if let Some(log_file) = log_file {
+                    args.push("--log-file".to_string());
+                    args.push(log_file.to_str().unwrap().to_string())
+                }
+
+                debug!("Replacing this executable with '{path:?}' args: {args:?}");
+
+                if let Err(e) = Process::new(path.clone(), args)
                     .exec_replace()
-                    .context(format!("{ext} subcommand should launch in a child process"))?;
+                    .context(format!("{ext} subcommand should launch in a child process"))
+                {
+                    error!("{e}");
+                    return Err(e);
+                }
                 //Process::exec_replace() only returns to this function if there was a error.
             } else {
                 let err = clap::Error::new(clap::error::ErrorKind::UnknownArgument);
+                error!("{err}");
                 println!("{err}");
                 cmd.print_help()?;
                 return Err(err.into());
@@ -247,9 +341,12 @@ fn main() -> anyhow::Result<()> {
         _ => unreachable!(),
     }
 
+    info!("Application closing");
+
     Ok(())
 }
 
+#[derive(Debug)]
 enum ConnectionType {
     Lan(SocketAddr),
     Usb(UsbtmcAddr),
@@ -294,17 +391,25 @@ impl ConnectionType {
     }
 }
 
+#[instrument]
 fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
+    info!("Synchronously connecting to instrument");
     let interface: Box<dyn Interface> = match t {
         ConnectionType::Lan(addr) => Box::new(TcpStream::connect(addr)?),
         ConnectionType::Usb(addr) => Box::new(usbtmc::Stream::try_from(addr)?),
     };
+    trace!("Synchronously connected to interface");
 
+    trace!("Converting interface to instrument");
     let instrument: Box<dyn Instrument> = interface.try_into()?;
+    trace!("Converted interface to instrument");
+    info!("Successfully connected to instrument");
     Ok(instrument)
 }
 
+#[instrument]
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
+    info!("Asynchronously connecting to instrument");
     let interface: Box<dyn Interface> = match t {
         ConnectionType::Lan(addr) => Box::new(AsyncStream::try_from(Arc::new(TcpStream::connect(
             addr,
@@ -316,86 +421,225 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
             as Arc<dyn Interface + Send + Sync>)?),
     };
 
+    trace!("Asynchronously connected to interface");
+
+    trace!("Converting interface to instrument");
     let instrument: Box<dyn Instrument> = interface.try_into()?;
+    trace!("Converted interface to instrument");
+    info!("Successfully connected to instrument");
     Ok(instrument)
 }
 
+#[instrument(skip(inst))]
 fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
+    info!("Configuring instrument for usage.");
+    debug!("Checking login");
     match inst.as_mut().check_login()? {
-        instrument::State::Needed => inst.as_mut().login()?,
-        instrument::State::LogoutNeeded => return Err(KicError::InstrumentLogoutRequired.into()),
-        instrument::State::NotNeeded => {}
+        tsp_toolkit_kic_lib::instrument::State::Needed => {
+            trace!("Login required");
+            inst.as_mut().login()?;
+            debug!("Login complete");
+        }
+        tsp_toolkit_kic_lib::instrument::State::LogoutNeeded => {
+            return Err(KicError::InstrumentLogoutRequired.into());
+        }
+        tsp_toolkit_kic_lib::instrument::State::NotNeeded => {
+            debug!("Login not required");
+        }
     };
+    debug!("Checking instrument language");
     match inst.as_mut().get_language()? {
-        instrument::CmdLanguage::Scpi => {
+        tsp_toolkit_kic_lib::instrument::CmdLanguage::Scpi => {
+            warn!("Instrument language set to SCPI, only TSP is supported. Prompting user...");
             eprintln!("Instrument command-set is not set to TSP. Would you like to change the command-set to TSP and reboot? (Y/n)");
 
             let mut buf = String::new();
             stdin().read_line(&mut buf)?;
             let buf = buf.trim();
             if buf.is_empty() || buf.contains(['Y', 'y']) {
+                debug!("User accepted language change on the instrument.");
+                info!("Changing instrument language to TSP.");
                 inst.as_mut()
-                    .change_language(instrument::CmdLanguage::Tsp)?;
+                    .change_language(tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp)?;
+                info!("Instrument language changed to TSP.");
+                warn!("Instrument rebooting.");
                 inst.write_all(b"ki.reboot()\n")?;
                 eprintln!("Instrument rebooting, please reconnect after reboot completes.");
                 thread::sleep(Duration::from_millis(1500));
+                info!("Exiting after instrument reboot");
                 exit(0);
             }
         }
-        instrument::CmdLanguage::Tsp => {}
+        tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp => {
+            debug!("Instrument language already set to TSP, no change necessary.");
+        }
     }
+
+    info!("Instrument configured for usage");
 
     Ok(())
 }
+
+#[instrument(skip(args))]
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Connecting to instrument");
+    trace!("args: {args:?}");
     eprintln!(
         "\nKeithley TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to async instrument: {e}");
+            return Err(e);
+        }
+    };
 
-    get_instrument_access(&mut instrument)?;
+    if let Err(e) = get_instrument_access(&mut instrument) {
+        error!("Error setting up instrument: {e}");
+        return Err(e);
+    }
 
-    eprintln!("{}", instrument.info()?);
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+    info!("IDN: {info}");
+    eprintln!("{info}");
+
     let mut repl = repl::Repl::new(instrument);
-    Ok(repl.start()?)
+
+    info!("Starting instrument REPL");
+    if let Err(e) = repl.start() {
+        error!("Error in REPL: {e}")
+    }
+
+    Ok(())
 }
 
+#[instrument(skip(args))]
 fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Upgrading instrument");
+    trace!("args: {args:?}");
     eprintln!("\nKeithley TSP Shell\n");
-    let lan = ConnectionType::try_from_arg_matches(args)?;
+
+    let lan = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
     };
-    let mut instrument: Box<dyn Instrument> = connect_sync_instrument(lan)?;
-    get_instrument_access(&mut instrument)?;
-    eprintln!("{}", instrument.info()?);
+
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(lan) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
+
+    if let Err(e) = get_instrument_access(&mut instrument) {
+        error!("Error setting up instrument: {e}");
+        return Err(e);
+    }
+
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+    info!("IDN: {info}");
+    eprintln!("{info}");
+
     let slot: Option<u16> = args.get_one::<u16>("slot").copied();
     let Some(file) = args.get_one::<PathBuf>("file").cloned() else {
-        return Err(KicError::ArgParseError {
+        let e = KicError::ArgParseError {
             details: "firmware file path was not provided".to_string(),
-        }
-        .into());
+        };
+        error!("{e}");
+        return Err(e.into());
     };
 
     let mut image: Vec<u8> = Vec::new();
 
-    let mut file = std::fs::File::open(file)?;
-    file.read_to_end(&mut image)?;
+    let mut file = match std::fs::File::open(file) {
+        Ok(file) => file,
+        Err(e) => {
+            error!("Error opening firmware file: {e}");
+            return Err(e.into());
+        }
+    };
+
+    if let Err(e) = file.read_to_end(&mut image) {
+        error!("Error reading firmware file: {e}");
+        return Err(e.into());
+    }
 
     eprintln!("Flashing instrument firmware. Please do NOT power off or disconnect.");
-    instrument.flash_firmware(&image, slot)?;
+    if let Err(e) = instrument.flash_firmware(&image, slot) {
+        error!("Error upgrading instrument: {e}");
+        return Err(e.into());
+    }
     eprintln!("Flashing instrument firmware completed. Instrument will restart.");
+    info!("Instrument upgrade complete");
     Ok(())
 }
 
 fn script(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Loading script to instrument");
+    trace!("args: {args:?}");
+
     eprintln!("\nKeithley TSP Shell\n");
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
-    get_instrument_access(&mut instrument)?;
-    eprintln!("{}", instrument.info()?);
+
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
+
+    if let Err(e) = get_instrument_access(&mut instrument) {
+        error!("Error setting up instrument: {e}");
+        return Err(e);
+    }
+
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+    info!("IDN: {info}");
+    eprintln!("{info}");
+
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
     };
@@ -403,19 +647,24 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     let run: bool = *args.get_one::<bool>("run").unwrap_or(&true);
     let save: bool = *args.get_one::<bool>("save").unwrap_or(&false);
 
-    let Some(path) = args.get_one::<PathBuf>("file") as Option<&PathBuf> else {
-        return Err(KicError::ArgParseError {
-            details: "firmware file path was not provided".to_string(),
-        }
-        .into());
+    let Some(path) = args.get_one::<PathBuf>("file").cloned() else {
+        let e = KicError::ArgParseError {
+            details: "script file path was not provided".to_string(),
+        };
+        error!("{e}");
+        return Err(e.into());
     };
 
-    let stem = path
-        .file_stem()
-        .context(KicError::ArgParseError {
+    let Some(stem) = path.file_stem() else {
+        let e = KicError::ArgParseError {
             details: "unable to get file stem".to_string(),
-        })?
-        .to_string_lossy();
+        };
+
+        error!("{e}");
+        return Err(e.into());
+    };
+
+    let stem = stem.to_string_lossy();
 
     let re = Regex::new(r"[^A-Za-z\d_]");
 
@@ -427,12 +676,22 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
             let mut script_content: Vec<u8> = Vec::new();
 
-            let mut file = std::fs::File::open(path)?;
-            file.read_to_end(&mut script_content)?;
+            let mut file = match std::fs::File::open(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("Error opening script file: {e}");
+                    return Err(e.into());
+                }
+            };
+            if let Err(e) = file.read_to_end(&mut script_content) {
+                error!("Error reading script file: {e}");
+                return Err(e.into());
+            }
 
             eprintln!("Loading script to instrument.");
             instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
             eprintln!("Script loading completed.");
+            info!("Script loading completed.");
         }
         Err(err_msg) => {
             unreachable!("Issue with regex creation: {}", err_msg.to_string());
@@ -442,9 +701,23 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[instrument(skip(args))]
 fn info(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut instrument: Box<dyn Instrument> =
-        connect_async_instrument(ConnectionType::try_from_arg_matches(args)?)?;
+    info!("Getting instrument info");
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
 
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
@@ -452,28 +725,60 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 
-    let info = instrument.info()?;
+    let info = match instrument.info() {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error getting instrument info: {e}");
+            return Err(e.into());
+        }
+    };
+
+    trace!("print as json?: {json:?}");
+
     let info: String = if json {
         serde_json::to_string(&info)?
     } else {
         info.to_string()
     };
 
+    info!("Information to print: {info}");
     println!("{info}");
 
     Ok(())
 }
 
+#[instrument(skip(args))]
 fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Terminating existing operations");
+    trace!("args: {args:?}");
     eprintln!("\nKeithley TSP Shell\n");
-    let connection = ConnectionType::try_from_arg_matches(args)?;
+
+    let connection = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
     match connection {
         ConnectionType::Lan(socket) => {
-            let mut connection = TcpStream::connect(socket)?;
-            connection.write_all(b"ABORT\n")?;
+            let mut connection = match TcpStream::connect(socket) {
+                Ok(c) => c,
+                Err(e) => {
+                    error!("{e}");
+                    return Err(e.into());
+                }
+            };
+
+            if let Err(e) = connection.write_all(b"ABORT\n") {
+                error!("Unable to write 'ABORT': {e}");
+                return Err(e.into());
+            }
         }
         ConnectionType::Usb(_) => {}
     }
+
+    info!("Operations terminated");
 
     Ok(())
 }
