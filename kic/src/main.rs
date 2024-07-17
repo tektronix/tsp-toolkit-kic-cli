@@ -170,7 +170,7 @@ fn cmds() -> Command {
                         .long("slot")
                         .help("[VersaTest only] Update a module in given slot number instead of the VersaTest mainframe")
                         .required(false)
-                        .value_parser(value_parser!(u16).range(1..3)),
+                        .value_parser(value_parser!(u16).range(1..=3)),
             ])
         })
         .subcommand({
