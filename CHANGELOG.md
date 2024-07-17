@@ -16,7 +16,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-## [0.16.3]
+## [0.17.0]
 
 ### Fixed
 - Fixed an indexing issue for uploading modules (TSP-761)
