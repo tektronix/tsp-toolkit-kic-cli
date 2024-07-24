@@ -26,7 +26,7 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
     process::exit,
-    sync::Arc,
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -115,16 +115,25 @@ fn cmds() -> Command {
             .short('l')
             .long("log-file")
             .required(false)
-            .help("Log to the given log file path. If not set, logging will not occur unless `--verbose` is set.")
+            .help("Log to the given log file path. Can be used in conjunction with `--log-socket` and `--verbose`.")
             .global(true)
             .value_parser(PathBufValueParser::new()),
+        )
+        .arg(
+            Arg::new("log-socket")
+            .short('s')
+            .long("log-socket")
+            .required(false)
+            .help("Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.")
+            .global(true)
+            .value_parser(clap::value_parser!(SocketAddr)),
         )
         .arg(
             Arg::new("verbose")
             .short('v')
             .long("verbose")
             .required(false)
-            .help("Enable logging to stderr. When used with `--log-file`, logs will be written to both stderr and the given log file.")
+            .help("Enable logging to stderr. Can be used in conjunction with `--log-file` and `--verbose`.")
             .global(true)
             .action(ArgAction::SetTrue),
         )
@@ -228,9 +237,37 @@ fn main() -> anyhow::Result<()> {
 
     let verbose: bool = matches.get_flag("verbose");
     let log_file: Option<&PathBuf> = matches.get_one("log-file");
+    let log_socket: Option<&SocketAddr> = matches.get_one("log-socket");
 
-    match (verbose, log_file) {
-        (true, Some(l)) => {
+    match (verbose, log_file, log_socket) {
+        (true, Some(l), Some(s)) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr)
+                .with_filter(LevelFilter::INFO);
+
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let sock = TcpStream::connect(s)?;
+            let sock = tracing_subscriber::fmt::layer()
+                .with_writer(Mutex::new(sock))
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(err)
+                .with(log)
+                .with(sock);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (true, Some(l), None) => {
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr)
@@ -250,7 +287,27 @@ fn main() -> anyhow::Result<()> {
 
             tracing::subscriber::set_global_default(logger)?;
         }
-        (false, Some(l)) => {
+        (false, Some(l), Some(s)) => {
+            let log = OpenOptions::new().append(true).create(true).open(l)?;
+
+            let log = tracing_subscriber::fmt::layer()
+                .with_writer(log)
+                .with_ansi(false);
+
+            let sock = TcpStream::connect(s)?;
+            let sock = tracing_subscriber::fmt::layer()
+                .with_writer(Mutex::new(sock))
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(log)
+                .with(sock);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, Some(l), None) => {
             let log = OpenOptions::new().append(true).create(true).open(l)?;
 
             let log = tracing_subscriber::fmt::layer()
@@ -261,7 +318,25 @@ fn main() -> anyhow::Result<()> {
 
             tracing::subscriber::set_global_default(logger)?;
         }
-        (true, None) => {
+        (true, None, Some(s)) => {
+            let err = tracing_subscriber::fmt::layer()
+                .with_ansi(true)
+                .with_writer(std::io::stderr);
+
+            let sock = TcpStream::connect(s)?;
+            let sock = tracing_subscriber::fmt::layer()
+                .with_writer(Mutex::new(sock))
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default()
+                .with(LevelFilter::TRACE)
+                .with(err)
+                .with(sock);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (true, None, None) => {
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr);
@@ -270,7 +345,18 @@ fn main() -> anyhow::Result<()> {
 
             tracing::subscriber::set_global_default(logger)?;
         }
-        (false, None) => {}
+        (false, None, Some(s)) => {
+            let sock = TcpStream::connect(s)?;
+            let sock = tracing_subscriber::fmt::layer()
+                .with_writer(Mutex::new(sock))
+                .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
+                .with_ansi(false);
+
+            let logger = Registry::default().with(LevelFilter::TRACE).with(sock);
+
+            tracing::subscriber::set_global_default(logger)?;
+        }
+        (false, None, None) => {}
     }
 
     info!("Application started");
@@ -318,6 +404,11 @@ fn main() -> anyhow::Result<()> {
                 if let Some(log_file) = log_file {
                     args.push("--log-file".to_string());
                     args.push(log_file.to_str().unwrap().to_string())
+                }
+
+                if let Some(log_socket) = log_socket {
+                    args.push("--log-socket".to_string());
+                    args.push(log_socket.to_string());
                 }
 
                 debug!("Replacing this executable with '{path:?}' args: {args:?}");
