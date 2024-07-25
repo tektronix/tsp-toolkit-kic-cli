@@ -18,6 +18,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.17.0]
 
+### Added
+
+- Add reset subcommand to enable quick instrument resetting (TSP-730)
+
 ### Fixed
 - Fixed an indexing issue for uploading modules (TSP-761) *Open Source Contribution: c3charvat, amcooper181*
 
