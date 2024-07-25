@@ -257,7 +257,7 @@ fn main() -> anyhow::Result<()> {
             let sock = tracing_subscriber::fmt::layer()
                 .with_writer(Mutex::new(sock))
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
-                .with_ansi(false);
+                .json();
 
             let logger = Registry::default()
                 .with(LevelFilter::TRACE)
@@ -298,7 +298,7 @@ fn main() -> anyhow::Result<()> {
             let sock = tracing_subscriber::fmt::layer()
                 .with_writer(Mutex::new(sock))
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
-                .with_ansi(false);
+                .json();
 
             let logger = Registry::default()
                 .with(LevelFilter::TRACE)
@@ -327,7 +327,7 @@ fn main() -> anyhow::Result<()> {
             let sock = tracing_subscriber::fmt::layer()
                 .with_writer(Mutex::new(sock))
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
-                .with_ansi(false);
+                .json();
 
             let logger = Registry::default()
                 .with(LevelFilter::TRACE)
@@ -350,7 +350,7 @@ fn main() -> anyhow::Result<()> {
             let sock = tracing_subscriber::fmt::layer()
                 .with_writer(Mutex::new(sock))
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
-                .with_ansi(false);
+                .json();
 
             let logger = Registry::default().with(LevelFilter::TRACE).with(sock);
 
