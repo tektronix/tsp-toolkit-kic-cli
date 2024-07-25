@@ -18,8 +18,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.17.0]
 
+### Added
+- Added logging infrastructure over socket, in files, and to stderr in `kic` and `kic-discover`.
+
 ### Fixed
-- Fixed an indexing issue for uploading modules (TSP-761) *Open Source Contribution: c3charvat, amcooper181*
+- Fixed an indexing issue for upgrading module firmware (TSP-761) *Open Source Contribution: c3charvat, amcooper181*
 
 ## [0.16.2]
 
