@@ -145,6 +145,11 @@ fn cmds() -> Command {
             add_connection_subcommands(cmd, [])
         })
         .subcommand({
+            let cmd = Command::new("reset")
+                .about("Connect to an instrument, cancel any ongoing jobs, send *RST then exit.");
+            add_connection_subcommands(cmd, [])
+        })
+        .subcommand({
             let cmd = Command::new("info")
                 .about("Get the IDN information about an instrument.");
             add_connection_subcommands(cmd, [
@@ -286,6 +291,9 @@ fn main() -> anyhow::Result<()> {
         }
         Some(("connect", sub_matches)) => {
             return connect(sub_matches);
+        }
+        Some(("reset", sub_matches)) => {
+            return reset(sub_matches);
         }
         Some(("upgrade", sub_matches)) => {
             return upgrade(sub_matches);
@@ -697,6 +705,46 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
             unreachable!("Issue with regex creation: {}", err_msg.to_string());
         }
     }
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn reset(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Resetting instrument");
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
+
+    match instrument.write_all(b"abort\n") {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Error sending abort to instrument: {e}");
+            return Err(e.into());
+        }
+    }
+
+    match instrument.write_all(b"*RST\n") {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Error sending *RST to instrument: {e}");
+            return Err(e.into());
+        }
+
+    }
+
+    info!("Instrument reset");
 
     Ok(())
 }
