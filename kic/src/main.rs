@@ -741,7 +741,6 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
             error!("Error sending *RST to instrument: {e}");
             return Err(e.into());
         }
-
     }
 
     info!("Instrument reset");
