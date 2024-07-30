@@ -87,21 +87,21 @@ fn add_connection_subcommands(
                 .value_parser(value_parser!(IpAddr)),
         );
 
-    let mut usb = Command::new("usb")
-        .about("Perform the given action over a USBTMC connection")
-        .arg(
-            Arg::new("addr")
-                .help("The instrument address in the form of, for example, `05e6:2461:012345`, where the first part is the vendor id, the second part is the product id, and the third part is the serial number.")
-                .required(true)
-                .value_parser(value_parser!(UsbtmcAddr)),
-        );
+    //TODO(Fix async USB): let mut usb = Command::new("usb")
+    //    .about("Perform the given action over a USBTMC connection")
+    //    .arg(
+    //        Arg::new("addr")
+    //            .help("The instrument address in the form of, for example, `USB:2461:012345` where the second part is the product id, and the third part is the serial number.")
+    //            .required(true)
+    //            .value_parser(value_parser!(UsbtmcAddr)),
+    //    );
 
     for arg in additional_args {
         lan = lan.arg(arg.clone());
-        usb = usb.arg(arg.clone());
+        //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan).subcommand(usb)
+    command.subcommand(lan)//TODO(Fix async USB): .subcommand(usb)
 }
 
 #[must_use]
@@ -468,13 +468,12 @@ impl ConnectionType {
                 Ok(Self::Lan(socket_addr))
             }
             Some(("usb", sub_matches)) => {
-                let addr: String = sub_matches
-                    .get_one::<String>("addr")
+                let usb_addr: UsbtmcAddr = sub_matches
+                    .get_one::<UsbtmcAddr>("addr")
                     .ok_or(KicError::ArgParseError {
                         details: "no USB address provided".to_string(),
                     })?
                     .clone();
-                let usb_addr: UsbtmcAddr = addr.parse()?;
 
                 Ok(Self::Usb(usb_addr))
             }
@@ -810,7 +809,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
             return Err(e);
         }
     };
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+    let instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -818,21 +817,8 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
         }
     };
 
-    match instrument.write_all(b"abort\n") {
-        Ok(_) => {}
-        Err(e) => {
-            error!("Error sending abort to instrument: {e}");
-            return Err(e.into());
-        }
-    }
-
-    match instrument.write_all(b"*RST\n") {
-        Ok(_) => {}
-        Err(e) => {
-            error!("Error sending *RST to instrument: {e}");
-            return Err(e.into());
-        }
-    }
+    // dropping the instrument will reset it appropriately.
+    drop(instrument);
 
     info!("Instrument reset");
 
