@@ -71,7 +71,7 @@ pub(crate) struct DiscoverCmd {
 
     /// The number of seconds to wait for instrument to be discovered.
     /// If not specified, run continuously until the application is signalled.
-    #[clap(name = "seconds", long = "timeout", short)]
+    #[clap(name = "seconds", long = "timeout", short = 't')]
     timeout_secs: Option<usize>,
 
     /// This parameter specifies whether we need to wait for a few seconds before closing the json rpc connection.
