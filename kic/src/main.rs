@@ -101,7 +101,7 @@ fn add_connection_subcommands(
         //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan)//TODO(Fix async USB): .subcommand(usb)
+    command.subcommand(lan) //TODO(Fix async USB): .subcommand(usb)
 }
 
 #[must_use]
