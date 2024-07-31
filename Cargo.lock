@@ -2586,6 +2586,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "tsp-toolkit-kic-lib"
 version = "0.17.0"
+source = "git+https://github.com/tektronix/tsp-toolkit-kic-lib.git?tag=v0.17.0-0#20eda1be9df9ca9ce3b8a9b0a1f3e4e16b9894b7"
 dependencies = [
  "bytes",
  "chrono",
