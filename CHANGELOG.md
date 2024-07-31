@@ -19,6 +19,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.17.0]
 
 ### Added
+- Add reset subcommand to enable quick instrument resetting (TSP-730)
 - Added logging infrastructure over socket, in files, and to stderr in `kic` and `kic-discover`.
 
 ### Fixed

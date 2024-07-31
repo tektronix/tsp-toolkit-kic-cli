@@ -87,21 +87,21 @@ fn add_connection_subcommands(
                 .value_parser(value_parser!(IpAddr)),
         );
 
-    let mut usb = Command::new("usb")
-        .about("Perform the given action over a USBTMC connection")
-        .arg(
-            Arg::new("addr")
-                .help("The instrument address in the form of, for example, `05e6:2461:012345`, where the first part is the vendor id, the second part is the product id, and the third part is the serial number.")
-                .required(true)
-                .value_parser(value_parser!(UsbtmcAddr)),
-        );
+    //TODO(Fix async USB): let mut usb = Command::new("usb")
+    //    .about("Perform the given action over a USBTMC connection")
+    //    .arg(
+    //        Arg::new("addr")
+    //            .help("The instrument address in the form of, for example, `USB:2461:012345` where the second part is the product id, and the third part is the serial number.")
+    //            .required(true)
+    //            .value_parser(value_parser!(UsbtmcAddr)),
+    //    );
 
     for arg in additional_args {
         lan = lan.arg(arg.clone());
-        usb = usb.arg(arg.clone());
+        //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan).subcommand(usb)
+    command.subcommand(lan) //TODO(Fix async USB): .subcommand(usb)
 }
 
 #[must_use]
@@ -154,6 +154,11 @@ fn cmds() -> Command {
             add_connection_subcommands(cmd, [])
         })
         .subcommand({
+            let cmd = Command::new("reset")
+                .about("Connect to an instrument, cancel any ongoing jobs, send *RST then exit.");
+            add_connection_subcommands(cmd, [])
+        })
+        .subcommand({
             let cmd = Command::new("info")
                 .about("Get the IDN information about an instrument.");
             add_connection_subcommands(cmd, [
@@ -175,7 +180,7 @@ fn cmds() -> Command {
                         .value_parser(PathBufValueParser::new()),
 
                     Arg::new("slot")
-                        .short('s')
+                        .short('m')
                         .long("slot")
                         .help("[VersaTest only] Update a module in given slot number instead of the VersaTest mainframe")
                         .required(false)
@@ -373,6 +378,9 @@ fn main() -> anyhow::Result<()> {
         Some(("connect", sub_matches)) => {
             return connect(sub_matches);
         }
+        Some(("reset", sub_matches)) => {
+            return reset(sub_matches);
+        }
         Some(("upgrade", sub_matches)) => {
             return upgrade(sub_matches);
         }
@@ -460,13 +468,12 @@ impl ConnectionType {
                 Ok(Self::Lan(socket_addr))
             }
             Some(("usb", sub_matches)) => {
-                let addr: String = sub_matches
-                    .get_one::<String>("addr")
+                let usb_addr: UsbtmcAddr = sub_matches
+                    .get_one::<UsbtmcAddr>("addr")
                     .ok_or(KicError::ArgParseError {
                         details: "no USB address provided".to_string(),
                     })?
                     .clone();
-                let usb_addr: UsbtmcAddr = addr.parse()?;
 
                 Ok(Self::Usb(usb_addr))
             }
@@ -788,6 +795,32 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
             unreachable!("Issue with regex creation: {}", err_msg.to_string());
         }
     }
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn reset(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Resetting instrument");
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+    let instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e);
+        }
+    };
+
+    // dropping the instrument will reset it appropriately.
+    drop(instrument);
+
+    info!("Instrument reset");
 
     Ok(())
 }
