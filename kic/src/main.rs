@@ -180,7 +180,7 @@ fn cmds() -> Command {
                         .value_parser(PathBufValueParser::new()),
 
                     Arg::new("slot")
-                        .short('s')
+                        .short('m')
                         .long("slot")
                         .help("[VersaTest only] Update a module in given slot number instead of the VersaTest mainframe")
                         .required(false)
