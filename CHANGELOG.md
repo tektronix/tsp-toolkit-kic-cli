@@ -120,7 +120,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 <!--Version Comparison Links-->
 [Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.17.0...HEAD
 [0.17.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.17.0
-[0.16.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.1
+[0.16.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.2
 [0.16.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.1
 [0.16.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.0
 [0.15.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.15.3
