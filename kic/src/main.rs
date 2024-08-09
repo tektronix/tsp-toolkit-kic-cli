@@ -36,6 +36,7 @@ use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::{
     instrument::Instrument,
     interface::async_stream::AsyncStream,
+    protocol::Protocol,
     usbtmc::{self, UsbtmcAddr},
     Interface,
 };
@@ -87,6 +88,14 @@ fn add_connection_subcommands(
                 .value_parser(value_parser!(IpAddr)),
         );
 
+    let mut visa = Command::new("visa")
+        .about("Perform the given action over the installed VISA driver")
+        .arg(
+            Arg::new("visa_resource_string")
+                .help("The VISA Resource String used to find the desired resource")
+                .required(true),
+        );
+
     //TODO(Fix async USB): let mut usb = Command::new("usb")
     //    .about("Perform the given action over a USBTMC connection")
     //    .arg(
@@ -98,10 +107,11 @@ fn add_connection_subcommands(
 
     for arg in additional_args {
         lan = lan.arg(arg.clone());
+        visa = visa.arg(arg.clone());
         //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan) //TODO(Fix async USB): .subcommand(usb)
+    command.subcommand(lan).subcommand(visa) //TODO(Fix async USB): .subcommand(usb)
 }
 
 #[must_use]
@@ -449,6 +459,7 @@ fn main() -> anyhow::Result<()> {
 enum ConnectionType {
     Lan(SocketAddr),
     Usb(UsbtmcAddr),
+    Visa(String),
 }
 
 impl ConnectionType {
@@ -466,6 +477,16 @@ impl ConnectionType {
 
                 let socket_addr = SocketAddr::new(ip_addr, port);
                 Ok(Self::Lan(socket_addr))
+            }
+            Some(("visa", sub_matches)) => {
+                let visa_string: String = sub_matches
+                    .get_one::<String>("visa_resource_string")
+                    .ok_or(KicError::ArgParseError {
+                        details: "no VISA resource string provided".to_string(),
+                    })?
+                    .clone();
+
+                Ok(Self::Visa(visa_string))
             }
             Some(("usb", sub_matches)) => {
                 let usb_addr: UsbtmcAddr = sub_matches
@@ -492,9 +513,14 @@ impl ConnectionType {
 #[instrument]
 fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     info!("Synchronously connecting to instrument");
-    let interface: Box<dyn Interface> = match t {
-        ConnectionType::Lan(addr) => Box::new(TcpStream::connect(addr)?),
-        ConnectionType::Usb(addr) => Box::new(usbtmc::Stream::try_from(addr)?),
+    let interface: Protocol = match t {
+        ConnectionType::Lan(addr) => {
+            (Box::new(TcpStream::connect(addr)?) as Box<dyn Interface>).into()
+        }
+        ConnectionType::Usb(addr) => {
+            (Box::new(usbtmc::Stream::try_from(addr)?) as Box<dyn Interface>).into()
+        }
+        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
     };
     trace!("Synchronously connected to interface");
 
@@ -508,15 +534,17 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
 #[instrument]
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     info!("Asynchronously connecting to instrument");
-    let interface: Box<dyn Interface> = match t {
-        ConnectionType::Lan(addr) => Box::new(AsyncStream::try_from(Arc::new(TcpStream::connect(
-            addr,
-        )?)
-            as Arc<dyn Interface + Send + Sync>)?),
-        ConnectionType::Usb(addr) => Box::new(AsyncStream::try_from(Arc::new(
-            usbtmc::Stream::try_from(addr)?,
+    let interface: Protocol = match t {
+        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new(
+            TcpStream::connect(addr)?,
         )
-            as Arc<dyn Interface + Send + Sync>)?),
+            as Arc<dyn Interface + Send + Sync>)?)),
+        ConnectionType::Usb(addr) => {
+            tsp_toolkit_kic_lib::protocol::Protocol::Raw(Box::new(AsyncStream::try_from(
+                Arc::new(usbtmc::Stream::try_from(addr)?) as Arc<dyn Interface + Send + Sync>,
+            )?))
+        }
+        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
     };
 
     trace!("Asynchronously connected to interface");
@@ -900,6 +928,7 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
             }
         }
         ConnectionType::Usb(_) => {}
+        ConnectionType::Visa(_) => {}
     }
 
     info!("Operations terminated");
