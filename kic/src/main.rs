@@ -467,11 +467,11 @@ impl ConnectionType {
         match args.subcommand() {
             Some(("lan", sub_matches)) => {
                 let ip_addr: IpAddr =
-                    *sub_matches
-                        .get_one::<IpAddr>("ip_addr")
-                        .ok_or(KicError::ArgParseError {
+                    *sub_matches.get_one::<IpAddr>("ip_addr").ok_or_else(|| {
+                        KicError::ArgParseError {
                             details: "no IP address provided".to_string(),
-                        })?;
+                        }
+                    })?;
 
                 let port: u16 = *sub_matches.get_one::<u16>("port").unwrap_or(&5025);
 
@@ -481,7 +481,7 @@ impl ConnectionType {
             Some(("visa", sub_matches)) => {
                 let visa_string: String = sub_matches
                     .get_one::<String>("visa_resource_string")
-                    .ok_or(KicError::ArgParseError {
+                    .ok_or_else(|| KicError::ArgParseError {
                         details: "no VISA resource string provided".to_string(),
                     })?
                     .clone();
@@ -491,7 +491,7 @@ impl ConnectionType {
             Some(("usb", sub_matches)) => {
                 let usb_addr: UsbtmcAddr = sub_matches
                     .get_one::<UsbtmcAddr>("addr")
-                    .ok_or(KicError::ArgParseError {
+                    .ok_or_else(|| KicError::ArgParseError {
                         details: "no USB address provided".to_string(),
                     })?
                     .clone();
@@ -648,7 +648,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
 
     info!("Starting instrument REPL");
     if let Err(e) = repl.start() {
-        error!("Error in REPL: {e}")
+        error!("Error in REPL: {e}");
     }
 
     Ok(())
