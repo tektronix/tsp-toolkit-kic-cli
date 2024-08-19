@@ -104,7 +104,7 @@ jobs:
           owner: tektronix
           repo: libvisa-stub
       - name: List Directory
-        run: ls -R
+        run: ls -R /etc/*releases
       - name: Prebuild
         run: |
           git config --global credential.helper store
