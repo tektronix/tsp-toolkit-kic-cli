@@ -295,7 +295,7 @@ jobs:
         run: clamscan -v bin/*
       - name: npm Package
         run: |
-          npm pkg set name="$(npm pkg get name)-${{matrix.vscode-platform}}" --verbose
+          npm pkg set "name=$(npm pkg get name)-${{matrix.vscode-platform}}" --verbose
           npm pkg set "os[0]=$(node -e 'console.log(process.platform)')" --verbose
           npm pkg set "cpu[0]=$(node -e 'console.log(process.arch)')" --verbose
           cat package.json
