@@ -24,7 +24,7 @@ jobs:
       - name: Tool Versions
         run: cargo fmt --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Check Style
         run: |
           git config --global credential.helper store
@@ -43,7 +43,7 @@ jobs:
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Lint
         run: |
           git config --global credential.helper store
@@ -60,7 +60,7 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Tools
         run: |
           npm ci --devDependencies
@@ -72,7 +72,7 @@ jobs:
       - name: Generate NPM BOM
         run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: software-bom
           path: |
@@ -97,7 +97,7 @@ jobs:
           cargo --version
           grcov --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Get Latest Release
         uses: pozetroninc/github-action-get-latest-release@v0.8.0
         with:
@@ -121,7 +121,7 @@ jobs:
           cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
           grcov ${{env.TEST_DIR}} --binary-path target/debug -s . -o "${{env.TEST_DIR}}" --ignore-not-existing --ignore '.cargo/*' --output-types cobertura
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{always()}}
         with:
           name: unit-test-report
@@ -134,7 +134,7 @@ jobs:
     needs: test
     steps:
       - name: Download Test Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: unit-test-report
           path: test-results
@@ -167,43 +167,52 @@ jobs:
     name: Build
     strategy:
       matrix:
-        target_triple:
-          - x86_64-pc-windows-gnu
-          - x86_64-unknown-linux-gnu
+        include:
+          - runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            vscode-platform: linux-x64
+          - runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+            vscode-platform: win32-x64
+          # - runner: macos-latest
+          #   triple: x86_64-apple-darwin
+          #   vscode-platform: darwin-arm64
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Tool Versions
         run: rustc --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.target_triple}}" --release
+          cargo build --target "${{matrix.triple}}" --release
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: executable
+          name: ${{matrix.vscode-platform}}-executable
           path: |
-            target/${{matrix.target_triple}}/release/kic*
-            !target/${{matrix.target_triple}}/**/*.d
-            !target/${{matrix.target_triple}}/**/*.rlib
+            target/${{matrix.triple}}/release/kic*
+            !target/${{matrix.triple}}/**/*.d
+            !target/${{matrix.triple}}/**/*.rlib
 
   package:
     name: Package
     runs-on: ubuntu-latest
     needs: build
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            vscode-platform: linux-x64
+          - runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+            vscode-platform: win32-x64
+          # - runner: macos-latest
+          #   triple: x86_64-apple-darwin
+          #   vscode-platform: darwin-arm64
     steps:
       - name: Update ClamAV
         run: freshclam
@@ -212,15 +221,15 @@ jobs:
           npm --version
           clamscan -V
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           #set-safe-directory: "${{github.workspace}}"
           fetch-depth: 0
           fetch-tags: true
       - name: Get Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: executable
+          name: ${{matrix.vscode-platform}}-executable
           path: target/
       - name: Get Tagged Version
         id: lasttag
@@ -267,9 +276,15 @@ jobs:
       - name: Run ClamAV
         run: clamscan -v bin/*
       - name: npm Package
-        run: npm pack
+        run: |
+          npm pkg set name="$(npm pkg get name)-${{matrix.vscode-platform}}" --verbose
+          npm pkg set "os[0]=$(node -e 'console.log(process.platform)')" --verbose
+          npm pkg set "cpu[0]=$(node -e 'console.log(process.arch)')" --verbose
+          cat package.json
+          npm pack
+
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: package
           path: ./*.tgz
@@ -296,15 +311,15 @@ jobs:
     steps:
       - name: Tool Versions
         run: npm --version
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@tektronix'
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Get Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: package
       - name: publish package
@@ -331,7 +346,7 @@ jobs:
     if: ${{ endsWith(github.base_ref, 'main') && (contains(github.head_ref, 'release/') || github.event.pull_request.merged) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -375,12 +390,12 @@ jobs:
 
       - run: 'git tag --list ${V}*'
       - name: Get Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: executable
           path: target
       - name: Get SBOM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: software-bom
           path: sbom
