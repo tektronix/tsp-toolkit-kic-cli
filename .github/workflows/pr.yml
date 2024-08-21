@@ -311,6 +311,8 @@ jobs:
           elif [ "${{matrix.os}}" = "darwin" ]; then
             cp *.dylib bin/ || true
           fi
+
+          rm -f bin/*.pdb
       - name: Run ClamAV
         run: clamscan -v bin/*
       - name: npm Package
