@@ -212,6 +212,11 @@ jobs:
   package:
     name: Package
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
+      credentials:
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
     needs: build
     strategy:
       matrix:
