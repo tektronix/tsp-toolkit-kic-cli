@@ -89,6 +89,7 @@ jobs:
     env:
       CARGO_HOME: ".cargo"
       RUSTFLAGS: "-Cinstrument-coverage -L ./"
+      LIB_VISA_PATH: "${{github.workflow}}"
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
@@ -178,11 +179,24 @@ jobs:
           #   triple: x86_64-apple-darwin
           #   vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
+    env:
+      RUSTFLAGS: "-L ${{github.workspace}}"
+      LIB_VISA_PATH: "${{github.workflow}}"
     steps:
+      - name: Tool Setup
+        run: rustup update nightly && rustup default nightly
+      - name: Ensure Correct Target is Installed
+        run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
         run: rustc --version
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Get Latest VISA Stub Release
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
       - name: Build
         run: |
           git config --global credential.helper store
