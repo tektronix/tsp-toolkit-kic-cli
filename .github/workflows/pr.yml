@@ -225,9 +225,13 @@ jobs:
           - runner: ubuntu-latest
             triple: x86_64-unknown-linux-gnu
             vscode-platform: linux-x64
+            os: linux
+            arch: x64
           - runner: windows-latest
             triple: x86_64-pc-windows-msvc
             vscode-platform: win32-x64
+            os: win32
+            arch: x64
           # - runner: macos-latest
           #   triple: x86_64-apple-darwin
           #   vscode-platform: darwin-arm64
@@ -296,15 +300,15 @@ jobs:
       - name: npm Package
         run: |
           npm pkg set "name=$(npm pkg get name | tr -d '"')-${{matrix.vscode-platform}}" --verbose
-          npm pkg set "os[0]=$(node -e 'console.log(process.platform)')" --verbose
-          npm pkg set "cpu[0]=$(node -e 'console.log(process.arch)')" --verbose
+          npm pkg set "os[0]=${{matrix.os}}" --verbose
+          npm pkg set "cpu[0]=${{matrix.arch}}" --verbose
           cat package.json
           npm pack
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: package
+          name: package-${{matrix.vscode-platform}}
           path: ./*.tgz
 
   publish:
@@ -339,7 +343,8 @@ jobs:
       - name: Get Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: package
+          pattern: package-*
+          merge-multiple: true
       - name: publish package
         run: |
           npm publish *.tgz
