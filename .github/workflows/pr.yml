@@ -177,7 +177,7 @@ jobs:
           # - runner: macos-latest
           #   triple: x86_64-apple-darwin
           #   vscode-platform: darwin-arm64
-    runs-on: ubuntu-latest
+    runs-on: ${{matrix.runner}}
     steps:
       - name: Tool Versions
         run: rustc --version
