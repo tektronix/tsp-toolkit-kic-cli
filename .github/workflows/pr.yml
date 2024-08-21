@@ -99,11 +99,12 @@ jobs:
           grcov --version
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Get Latest Release
-        uses: pozetroninc/github-action-get-latest-release@v0.8.0
+      - name: Get Latest VISA Stub Release
+        uses: robinraju/release-downloader@v1
         with:
-          owner: tektronix
-          repo: libvisa-stub
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
       - name: Prebuild
         run: |
           git config --global credential.helper store
