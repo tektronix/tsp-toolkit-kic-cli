@@ -2635,7 +2635,8 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tsp-toolkit-kic-lib"
-version = "0.17.1"
+version = "0.17.0"
+source = "git+https://github.com/tektronix/tsp-toolkit-kic-lib.git?branch=task/implement-visa#b5667c2753039c291d576ba45d02e7b3588c1388"
 dependencies = [
  "bytes",
  "chrono",
