@@ -1,6 +1,6 @@
 {
     "name": "@tektronix/kic-cli",
-    "version": "0.17.0",
+    "version": "0.17.1",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
@@ -26,7 +26,7 @@
     "devDependencies": {
         "@cyclonedx/cyclonedx-npm": "^1.10.0",
         "@istanbuljs/nyc-config-typescript": "^1.0.2",
-        "@types/chai": "^4.3.12",
+        "@types/chai": "^4.3.17",
         "@types/mocha": "^10.0.6",
         "@types/node": "20.11.24",
         "@types/node-fetch": "^2.6.11",
