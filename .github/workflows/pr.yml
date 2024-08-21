@@ -347,7 +347,9 @@ jobs:
           merge-multiple: true
       - name: publish package
         run: |
-          npm publish *.tgz
+          for f in *.tgz; do
+            npm publish "$f"
+          done
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
@@ -415,8 +417,9 @@ jobs:
       - name: Get Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: executable
+          pattern: "*-executable"
           path: target
+          merge-multiple: true
       - name: Get SBOM
         uses: actions/download-artifact@v4
         with:
