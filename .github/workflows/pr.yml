@@ -291,26 +291,10 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
           npm version --no-git-tag-version "${V}" || true
-      - name: Get Latest VISA Stub Release
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: tektronix/libvisa-stub
-          latest: true
-          fileName: '*'
       - name: Move Packages
         run: |
           mkdir -p bin
           for f in target/*; do cp "$f" bin; done;
-
-          if [ "${{matrix.os}}" = "win32" ]; then
-            cp *.dll bin/ || true
-            cp *.exp bin/ || true
-            cp *.lib bin/ || true
-          elif [ "${{matrix.os}}" = "linux" ]; then
-            cp *.so bin/ || true
-          elif [ "${{matrix.os}}" = "darwin" ]; then
-            cp *.dylib bin/ || true
-          fi
 
           rm -f bin/*.pdb
       - name: Run ClamAV
