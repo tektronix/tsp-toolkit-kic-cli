@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "kic",
+    "kic-visa",
     "kic-discover",
     "instrument-repl",
 ]
@@ -44,6 +45,9 @@ tracing = { version = "0.1.40", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
 tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", branch = "task/implement-visa" }
 
+[workspace.features]
+visa = ["tsp-toolkit-kic-lib/visa"]
+
 [workspace.lints.rust]
 warnings = "deny"
 
@@ -56,3 +60,6 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+
+[patch."https://github.com/tektronix/tsp-toolkit-kic-lib.git"]
+tsp-toolkit-kic-lib = { path="../tsp-toolkit-kic-lib" }

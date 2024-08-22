@@ -633,16 +633,7 @@ impl Repl {
                         });
                     };
                     let file = file.clone();
-                    let Ok(file) = file.parse::<PathBuf>() else {
-                        return Ok(Request::Usage(
-                            InstrumentReplError::CommandError {
-                                details: format!(
-                                    "expected file path, but unable to parse from \"{file}\""
-                                ),
-                            }
-                            .to_string(),
-                        ));
-                    };
+                    let file = file.parse::<PathBuf>().unwrap(); //PathBuf::parse is infallible so unwrapping is OK here.
 
                     if !file.is_file() {
                         return Ok(Request::Usage(

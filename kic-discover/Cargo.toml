@@ -33,3 +33,5 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tsp-toolkit-kic-lib = { workspace = true }
 
+[features]
+visa=["tsp-toolkit-kic-lib/visa"]
