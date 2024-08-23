@@ -221,7 +221,6 @@ fn cmds() -> Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    eprintln!("args: {:?}", std::env::args().skip(1));
     let parent_dir: Option<PathBuf> = std::env::current_exe().map_or(None, |path| {
         path.canonicalize()
             .expect("should have canonicalized path")
