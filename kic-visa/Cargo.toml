@@ -1,0 +1,26 @@
+[package]
+name = "kic-visa"
+description = "Keithley Instruments TSP® communications commandline application with VISA support."
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+colored = { workspace = true }
+instrument-repl = { workspace = true }
+rpassword = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tsp-toolkit-kic-lib = { workspace = true, features=["visa"] }
+regex = "1.10.3"
+windows-sys = { version = "0.52.0", features = [
+    "Win32_System_Console",
+    "Win32_Foundation",
+] }
+

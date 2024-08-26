@@ -7,9 +7,11 @@
 //! interactively connected to an instrument, with a REPL
 
 mod error;
-mod process;
 use crate::error::KicError;
+
+mod process;
 use crate::process::Process;
+
 use anyhow::Context;
 use clap::{
     arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Args,
@@ -88,6 +90,14 @@ fn add_connection_subcommands(
                 .value_parser(value_parser!(IpAddr)),
         );
 
+    let mut visa = Command::new("visa")
+        .about("Perform the given action over the installed VISA driver")
+        .arg(
+            Arg::new("visa_resource_string")
+                .help("The VISA Resource String used to find the desired resource")
+                .required(true),
+        );
+
     //TODO(Fix async USB): let mut usb = Command::new("usb")
     //    .about("Perform the given action over a USBTMC connection")
     //    .arg(
@@ -99,10 +109,12 @@ fn add_connection_subcommands(
 
     for arg in additional_args {
         lan = lan.arg(arg.clone());
+
+        visa = visa.arg(arg.clone());
         //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan) //TODO(Fix async USB): .subcommand(usb)
+    command.subcommand(lan).subcommand(visa) //TODO(Fix async USB): .subcommand(usb)
 }
 
 #[must_use]
@@ -227,26 +239,6 @@ fn main() -> anyhow::Result<()> {
             .parent()
             .map(std::convert::Into::into)
     });
-
-    if tsp_toolkit_kic_lib::is_visa_installed() {
-        #[cfg(target_os = "windows")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
-
-        #[cfg(target_family = "unix")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
-
-        if let Some(kv) = kic_visa_exe {
-            if kv.exists() {
-                Process::new(kv.clone(), std::env::args().skip(1))
-                    .exec_replace()
-                    .context(format!(
-                        "{} should have been launched because VISA was detected",
-                        kv.display(),
-                    ))?;
-                return Ok(());
-            }
-        }
-    }
     let cmd = cmds();
 
     let Ok((external_cmd_lut, mut cmd)) = find_subcommands_from_path(&parent_dir, cmd) else {
@@ -470,6 +462,7 @@ fn main() -> anyhow::Result<()> {
 enum ConnectionType {
     Lan(SocketAddr),
     Usb(UsbtmcAddr),
+    Visa(String),
 }
 
 impl ConnectionType {
@@ -488,7 +481,16 @@ impl ConnectionType {
                 let socket_addr = SocketAddr::new(ip_addr, port);
                 Ok(Self::Lan(socket_addr))
             }
+            Some(("visa", sub_matches)) => {
+                let visa_string: String = sub_matches
+                    .get_one::<String>("visa_resource_string")
+                    .ok_or_else(|| KicError::ArgParseError {
+                        details: "no VISA resource string provided".to_string(),
+                    })?
+                    .clone();
 
+                Ok(Self::Visa(visa_string))
+            }
             Some(("usb", sub_matches)) => {
                 let usb_addr: UsbtmcAddr = sub_matches
                     .get_one::<UsbtmcAddr>("addr")
@@ -521,6 +523,7 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
         ConnectionType::Usb(addr) => {
             (Box::new(usbtmc::Stream::try_from(addr)?) as Box<dyn Interface>).into()
         }
+        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
     };
     trace!("Synchronously connected to interface");
 
@@ -544,6 +547,7 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
                 Arc::new(usbtmc::Stream::try_from(addr)?) as Arc<dyn Interface + Send + Sync>,
             )?))
         }
+        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
     };
 
     trace!("Asynchronously connected to interface");
@@ -927,6 +931,7 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
             }
         }
         ConnectionType::Usb(_) => {}
+        ConnectionType::Visa(_) => {}
     }
 
     info!("Operations terminated");
@@ -950,7 +955,7 @@ fn find_subcommands_from_path(
                 .unwrap_or_default()
                 .to_str()
                 .unwrap_or_default();
-            if path.is_file() && filename.contains("kic-") {
+            if path.is_file() && filename.contains("kic-") && !filename.contains("visa") {
                 let cmd_name = filename
                     .split("kic-")
                     .last()
