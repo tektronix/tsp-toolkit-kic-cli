@@ -1304,6 +1304,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "kic-discover-visa"
+version = "0.17.2"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "async-trait",
+ "clap",
+ "colored",
+ "futures",
+ "futures-util",
+ "jsonrpsee",
+ "lazy_static",
+ "local-ip-address",
+ "mdns",
+ "minidom",
+ "reqwest",
+ "rpassword",
+ "rusb",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tmc",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "tsp-toolkit-kic-lib",
+]
+
+[[package]]
 name = "kic-visa"
 version = "0.17.2"
 dependencies = [

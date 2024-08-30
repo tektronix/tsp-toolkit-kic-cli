@@ -3,6 +3,7 @@ members = [
     "kic",
     "kic-visa",
     "kic-discover",
+    "kic-discover-visa",
     "instrument-repl",
 ]
 resolver = "2"
