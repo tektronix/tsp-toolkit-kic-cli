@@ -4,3 +4,6 @@
 
 # Tell GitLab that tsp files should be highlighted as Lua
 *.tsp gitlab-language=lua
+
+# Tell Github that tsp files should be highlighted as Lua
+*.tsp linguist-language=Lua
