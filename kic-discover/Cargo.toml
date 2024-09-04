@@ -32,4 +32,8 @@ tokio = { version = "1.36.0", features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tsp-toolkit-kic-lib = { workspace = true }
+windows-sys = { version = "0.52.0", features = [
+    "Win32_System_Console",
+    "Win32_Foundation",
+] }
 

@@ -1301,6 +1301,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tsp-toolkit-kic-lib",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

@@ -22,6 +22,9 @@ use clap::{command, Args, Command, FromArgMatches, Parser, Subcommand};
 
 use kic_discover::DISC_INSTRUMENTS;
 
+mod process;
+use crate::process::Process;
+
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -216,6 +219,32 @@ fn start_logger(
 #[tokio::main]
 #[instrument]
 async fn main() -> anyhow::Result<()> {
+    let parent_dir: Option<std::path::PathBuf> = std::env::current_exe().map_or(None, |path| {
+        path.canonicalize()
+            .expect("should have canonicalized path")
+            .parent()
+            .map(std::convert::Into::into)
+    });
+
+    if tsp_toolkit_kic_lib::is_visa_installed() {
+        #[cfg(target_os = "windows")]
+        let kic_discover_visa_exe: Option<std::path::PathBuf> = parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
+
+        #[cfg(target_family = "unix")]
+        let kic_discover_visa_exe: Option<std::path::PathBuf> = parent_dir.clone().map(|d| d.join("kic-discover-visa"));
+
+        if let Some(kv) = kic_discover_visa_exe {
+            if kv.exists() {
+                Process::new(kv.clone(), std::env::args().skip(1))
+                    .exec_replace()
+                    .context(format!(
+                        "{} should have been launched because VISA was detected",
+                        kv.display(),
+                    ))?;
+                return Ok(());
+            }
+        }
+    }
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)
