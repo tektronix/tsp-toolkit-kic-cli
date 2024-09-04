@@ -49,7 +49,7 @@ enum SubCli {
     /// Look for all devices connected on LAN
     Lan(DiscoverCmd),
     /// Look for all devices connected on USB
-    Usb(DiscoverCmd),
+    //Usb(DiscoverCmd),
     /// Look for all devices on all interface types.
     All(DiscoverCmd),
 }
@@ -273,12 +273,12 @@ async fn main() -> anyhow::Result<()> {
 
     let is_exit_timer = require_exit_timer(&sub);
 
-    match sub {
+    let instruments: HashSet<InstrumentInfo> = match &sub {
         SubCli::Lan(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = match discover_lan(args).await {
+            let lan_instruments = match discover_lan(args.clone()).await {
                 Ok(i) => i,
                 Err(e) => {
                     error!("Error in LAN discovery: {e}");
@@ -289,50 +289,48 @@ async fn main() -> anyhow::Result<()> {
             trace!("Discovered {} LAN instruments", lan_instruments.len());
             println!("Discovered {} LAN instruments", lan_instruments.len());
             trace!("Discovered instruments: {lan_instruments:?}");
-            for instrument in lan_instruments {
-                println!("{instrument}");
-            }
+            lan_instruments
         }
-        SubCli::Usb(args) => {
-            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
-            info!("Discovering USB instruments");
-            #[allow(clippy::mutable_key_type)]
-            let usb_instruments = match discover_usb().await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in USB discovery: {e}");
-                    return Err(e);
-                }
-            };
-            info!("USB Discovery complete");
-            trace!("Discovered {} USB instruments", usb_instruments.len());
-            trace!("Discovered instruments: {usb_instruments:?}");
-            for instrument in usb_instruments {
-                println!("{instrument}");
-            }
-        }
+        //SubCli::Usb(args) => {
+        //    start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+        //    info!("Discovering USB instruments");
+        //    #[allow(clippy::mutable_key_type)]
+        //    let usb_instruments = match discover_usb().await {
+        //        Ok(i) => i,
+        //        Err(e) => {
+        //            error!("Error in USB discovery: {e}");
+        //            return Err(e);
+        //        }
+        //    };
+        //    info!("USB Discovery complete");
+        //    trace!("Discovered {} USB instruments", usb_instruments.len());
+        //    trace!("Discovered instruments: {usb_instruments:?}");
+        //    for instrument in usb_instruments {
+        //        println!("{instrument}");
+        //    }
+        //}
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
-            info!("Discovering USB instruments");
-            #[allow(clippy::mutable_key_type)]
-            let usb_instruments = match discover_usb().await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in USB discovery: {e}");
-                    return Err(e);
-                }
-            };
-            info!("USB Discovery complete");
-            trace!("Discovered {} USB instruments", usb_instruments.len());
-            println!("Discovered {} USB instruments", usb_instruments.len());
-            trace!("Discovered USB instruments: {usb_instruments:?}");
-            for instrument in usb_instruments {
-                println!("{instrument}");
-            }
+            //info!("Discovering USB instruments");
+            //#[allow(clippy::mutable_key_type)]
+            //let usb_instruments = match discover_usb().await {
+            //    Ok(i) => i,
+            //    Err(e) => {
+            //        error!("Error in USB discovery: {e}");
+            //        return Err(e);
+            //    }
+            //};
+            //info!("USB Discovery complete");
+            //trace!("Discovered {} USB instruments", usb_instruments.len());
+            //println!("Discovered {} USB instruments", usb_instruments.len());
+            //trace!("Discovered USB instruments: {usb_instruments:?}");
+            //for instrument in usb_instruments {
+            //    println!("{instrument}");
+            //}
 
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = match discover_lan(args).await {
+            let lan_instruments = match discover_lan(args.clone()).await {
                 Ok(i) => i,
                 Err(e) => {
                     error!("Error in LAN discovery: {e}");
@@ -343,10 +341,26 @@ async fn main() -> anyhow::Result<()> {
             trace!("Discovered {} LAN instruments", lan_instruments.len());
             println!("Discovered {} LAN instruments", lan_instruments.len());
             trace!("Discovered LAN instruments: {lan_instruments:?}");
-            for instrument in lan_instruments {
+            for instrument in &lan_instruments {
                 println!("{instrument}");
             }
+            lan_instruments
         }
+    };
+
+    for i in instruments {
+        println!(
+            "{}",
+            match sub {
+                SubCli::Lan(ref args) | SubCli::All(ref args) => {
+                    if args.json {
+                        serde_json::to_string(&i)?
+                    } else {
+                        i.to_string()
+                    }
+                }
+            }
+        );
     }
 
     if is_exit_timer {
@@ -401,10 +415,10 @@ async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInf
     Ok(instruments)
 }
 
-async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
-    let dur = Duration::from_secs(5); //Not used in USB
-    let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.usb_discover().await?;
-
-    Ok(instruments)
-}
+//async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
+//    let dur = Duration::from_secs(5); //Not used in USB
+//    let discover_instance = InstrumentDiscovery::new(dur);
+//    let instruments = discover_instance.usb_discover().await?;
+//
+//    Ok(instruments)
+//}
