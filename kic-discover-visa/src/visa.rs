@@ -1,7 +1,7 @@
 use std::{collections::HashSet, ffi::CString, time::Duration};
 
 use tracing::trace;
-use tsp_toolkit_kic_lib::instrument::info::{get_info, InstrumentInfo, ConnectionAddr};
+use tsp_toolkit_kic_lib::instrument::info::{get_info, ConnectionAddr, InstrumentInfo};
 use visa_rs::{flags::AccessMode, AsResourceManager};
 
 #[tracing::instrument]
