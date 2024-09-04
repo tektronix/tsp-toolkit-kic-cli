@@ -24,13 +24,9 @@ clap = { version = "4.5.9", features = ["derive", "cargo", "string"] }
 colored = "2.1.0"
 exitcode = "1.1.2"
 instrument-repl = { path = "instrument-repl" }
-jsonrpsee = { version = "0.22.3", features = [
-    "tokio",
-    "tracing",
-    "server",
-] }
+jsonrpsee = { version = "0.22.3", features = ["tokio", "tracing", "server"] }
 local-ip-address = "0.6.1"
-mdns = { git = "https://github.com/jaime-sense/mdns", rev = "498cf7cceaf7e2683a2e352b7e8a15dfc1c29037" } # until https://github.com/dylanmckay/mdns/pull/27 is closed
+mdns = { git = "https://github.com/jaime-sense/mdns", rev = "498cf7cceaf7e2683a2e352b7e8a15dfc1c29037" }  # until https://github.com/dylanmckay/mdns/pull/27 is closed
 minidom = "0.15.2"
 mockall = { version = "0.12.1", features = ["nightly"] }
 phf = { version = "0.11.2", features = ["macros"] }
@@ -44,7 +40,7 @@ thiserror = "1.0.58"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1.40", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
-tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", tag = "v0.17.2-0" }
+tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", branch = "task/discover-visa" }
 
 
 [workspace.lints.rust]
@@ -59,4 +55,3 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
-

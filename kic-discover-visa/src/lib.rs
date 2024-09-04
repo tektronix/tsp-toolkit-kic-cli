@@ -3,6 +3,7 @@ use std::{collections::HashSet, hash::Hash, io::Error, sync::Mutex};
 pub mod ethernet;
 pub mod instrument_discovery;
 pub mod usbtmc;
+pub mod visa;
 
 #[macro_use]
 extern crate lazy_static;
