@@ -228,10 +228,12 @@ async fn main() -> anyhow::Result<()> {
 
     if tsp_toolkit_kic_lib::is_visa_installed() {
         #[cfg(target_os = "windows")]
-        let kic_discover_visa_exe: Option<std::path::PathBuf> = parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
+        let kic_discover_visa_exe: Option<std::path::PathBuf> =
+            parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
 
         #[cfg(target_family = "unix")]
-        let kic_discover_visa_exe: Option<std::path::PathBuf> = parent_dir.clone().map(|d| d.join("kic-discover-visa"));
+        let kic_discover_visa_exe: Option<std::path::PathBuf> =
+            parent_dir.clone().map(|d| d.join("kic-discover-visa"));
 
         if let Some(kv) = kic_discover_visa_exe {
             if kv.exists() {
