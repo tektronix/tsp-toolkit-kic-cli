@@ -66,6 +66,7 @@ local models = {
     ["VERSATEST-600"] = VERSATEST,
     ["TSPop"] = VERSATEST,
     ["TSP"] = VERSATEST,
+    ["MP5103"] = VERSATEST,
 }
 
 _KIC["is_tti"] = function() return models[localnode.model] == TTI end
