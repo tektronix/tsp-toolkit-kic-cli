@@ -129,4 +129,5 @@ pub fn insert_disc_device(device: &str) -> Result<(), Error> {
 enum IoType {
     Lan,
     Usb,
+    Visa,
 }
