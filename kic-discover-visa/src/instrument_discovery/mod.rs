@@ -7,6 +7,7 @@ use tsp_toolkit_kic_lib::{
 
 use crate::ethernet::{LxiDeviceInfo, COMM_PORT};
 use crate::usbtmc::Usbtmc;
+use crate::visa::visa_discover;
 
 #[derive(Debug)]
 pub struct InstrumentDiscovery {
@@ -80,6 +81,10 @@ impl InstrumentDiscovery {
             }
         }
         Ok(discovery_results)
+    }
+
+    pub async fn visa_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
+        visa_discover(self.timeout).await
     }
 }
 

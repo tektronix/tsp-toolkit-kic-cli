@@ -1,5 +1,5 @@
 [package]
-name = "kic-discover"
+name = "kic-discover-visa"
 description = "A tool to discover the instruments that are connect to your computer or are on your network"
 version = { workspace = true }
 authors = { workspace = true }
@@ -31,9 +31,6 @@ tmc = { workspace = true }
 tokio = { version = "1.36.0", features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tsp-toolkit-kic-lib = { workspace = true }
-windows-sys = { version = "0.52.0", features = [
-    "Win32_System_Console",
-    "Win32_Foundation",
-] }
+tsp-toolkit-kic-lib = { workspace = true, features = ["visa"] }
+visa-rs = "0.6.2"
 

@@ -4,7 +4,7 @@ use jsonrpsee::{
     server::{Server, ServerHandle},
     RpcModule,
 };
-use kic_discover::instrument_discovery::InstrumentDiscovery;
+use kic_discover_visa::instrument_discovery::InstrumentDiscovery;
 use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
@@ -20,10 +20,7 @@ use std::{
 
 use clap::{command, Args, Command, FromArgMatches, Parser, Subcommand};
 
-use kic_discover::DISC_INSTRUMENTS;
-
-mod process;
-use crate::process::Process;
+use kic_discover_visa::DISC_INSTRUMENTS;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -48,8 +45,12 @@ struct Cli {
 enum SubCli {
     /// Look for all devices connected on LAN
     Lan(DiscoverCmd),
+
     /// Look for all devices connected on USB
     //Usb(DiscoverCmd),
+
+    /// Look for all devices that can be connected to via the installed VISA driver
+    Visa(DiscoverCmd),
     /// Look for all devices on all interface types.
     All(DiscoverCmd),
 }
@@ -219,34 +220,6 @@ fn start_logger(
 #[tokio::main]
 #[instrument]
 async fn main() -> anyhow::Result<()> {
-    let parent_dir: Option<std::path::PathBuf> = std::env::current_exe().map_or(None, |path| {
-        path.canonicalize()
-            .expect("should have canonicalized path")
-            .parent()
-            .map(std::convert::Into::into)
-    });
-
-    if tsp_toolkit_kic_lib::is_visa_installed() {
-        #[cfg(target_os = "windows")]
-        let kic_discover_visa_exe: Option<std::path::PathBuf> =
-            parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
-
-        #[cfg(target_family = "unix")]
-        let kic_discover_visa_exe: Option<std::path::PathBuf> =
-            parent_dir.clone().map(|d| d.join("kic-discover-visa"));
-
-        if let Some(kv) = kic_discover_visa_exe {
-            if kv.exists() {
-                Process::new(kv.clone(), std::env::args().skip(1))
-                    .exec_replace()
-                    .context(format!(
-                        "{} should have been launched because VISA was detected",
-                        kv.display(),
-                    ))?;
-                return Ok(());
-            }
-        }
-    }
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)
@@ -273,7 +246,7 @@ async fn main() -> anyhow::Result<()> {
 
     let is_exit_timer = require_exit_timer(&sub);
 
-    let instruments: HashSet<InstrumentInfo> = match &sub {
+    let instruments = match &sub {
         SubCli::Lan(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             info!("Discovering LAN instruments");
@@ -309,6 +282,22 @@ async fn main() -> anyhow::Result<()> {
         //        println!("{instrument}");
         //    }
         //}
+        SubCli::Visa(args) => {
+            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+            info!("Discovering VISA instruments");
+            #[allow(clippy::mutable_key_type)]
+            let visa_instruments = match discover_visa(args.clone()).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in VISA discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("VISA Discovery complete");
+            trace!("Discovered {} VISA instruments", visa_instruments.len());
+            trace!("Discovered instruments: {visa_instruments:?}");
+            visa_instruments
+        }
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             //info!("Discovering USB instruments");
@@ -328,9 +317,23 @@ async fn main() -> anyhow::Result<()> {
             //    println!("{instrument}");
             //}
 
+            info!("Discovering VISA instruments");
+            #[allow(clippy::mutable_key_type)]
+            let visa_instruments = match discover_visa(args.clone()).await {
+                Ok(i) => i,
+                Err(e) => {
+                    error!("Error in VISA discovery: {e}");
+                    return Err(e);
+                }
+            };
+            info!("VISA Discovery complete");
+            trace!("Discovered {} VISA instruments", visa_instruments.len());
+            println!("Discovered {} VISA instruments", visa_instruments.len());
+            trace!("Discovered VISA instruments: {visa_instruments:?}");
+
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = match discover_lan(args.clone()).await {
+            let mut lan_instruments = match discover_lan(args.clone()).await {
                 Ok(i) => i,
                 Err(e) => {
                     error!("Error in LAN discovery: {e}");
@@ -341,9 +344,8 @@ async fn main() -> anyhow::Result<()> {
             trace!("Discovered {} LAN instruments", lan_instruments.len());
             println!("Discovered {} LAN instruments", lan_instruments.len());
             trace!("Discovered LAN instruments: {lan_instruments:?}");
-            for instrument in &lan_instruments {
-                println!("{instrument}");
-            }
+
+            lan_instruments.extend(visa_instruments);
             lan_instruments
         }
     };
@@ -352,7 +354,7 @@ async fn main() -> anyhow::Result<()> {
         println!(
             "{}",
             match sub {
-                SubCli::Lan(ref args) | SubCli::All(ref args) => {
+                SubCli::Lan(ref args) | SubCli::Visa(ref args) | SubCli::All(ref args) => {
                     if args.json {
                         serde_json::to_string(&i)?
                     } else {
@@ -411,6 +413,14 @@ async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInf
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     let instruments = discover_instance.lan_discover().await?;
+
+    Ok(instruments)
+}
+
+async fn discover_visa(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
+    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
+    let discover_instance = InstrumentDiscovery::new(dur);
+    let instruments = discover_instance.visa_discover().await?;
 
     Ok(instruments)
 }
