@@ -23,6 +23,7 @@ pub enum Request {
         slot: Option<u16>,
     },
     Exit,
+    Reset,
     Help {
         sub_cmd: Option<String>,
     },

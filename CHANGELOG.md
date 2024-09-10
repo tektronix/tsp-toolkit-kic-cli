@@ -21,6 +21,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 
 - VISA Support
+- Added .reset command to Cancel any ongoing jobs and send *RST.
 
 ## [0.17.0]
 
