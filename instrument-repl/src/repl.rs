@@ -298,6 +298,10 @@ impl Repl {
                             info!("Exiting...");
                             break 'user_loop;
                         }
+                        Request::Reset => {
+                            self.inst.as_mut().reset()?;
+                            prompt = true;
+                        }
                         Request::Help { sub_cmd } => {
                             prompt = true;
                             if let Some(sub_cmd) = sub_cmd {
@@ -522,6 +526,15 @@ impl Repl {
                     Arg::new("path").required_unless_present("help")
                 )
         )
+        .subcommand(
+            Command::new(".reset")
+                .help_template(SUBCMD_TEMPLATE)
+                .about("Cancel any ongoing jobs and send *RST.")
+                .disable_help_flag(true)
+                .arg(
+                    Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
+                ),
+        )
         .disable_help_flag(true)
     }
 
@@ -606,6 +619,12 @@ impl Repl {
                     }
                     Request::Script { file }
                 }
+            },
+            Some((".reset", flags)) => match flags.get_one::<bool>("help") {
+                Some(help) if *help => Request::Help {
+                    sub_cmd: Some(".reset".to_string()),
+                },
+                _ => Request::Reset,
             },
             Some((".nodes", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
