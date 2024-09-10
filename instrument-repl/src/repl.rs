@@ -624,7 +624,7 @@ impl Repl {
                 Some(help) if *help => Request::Help {
                     sub_cmd: Some(".reset".to_string()),
                 },
-                _ => Request::Reset
+                _ => Request::Reset,
             },
             Some((".nodes", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
