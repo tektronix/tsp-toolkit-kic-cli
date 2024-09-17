@@ -229,6 +229,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     if tsp_toolkit_kic_lib::is_visa_installed() {
+        eprintln!("visa detected, looking for kic-visa");
         #[cfg(target_os = "windows")]
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
 
@@ -236,6 +237,7 @@ fn main() -> anyhow::Result<()> {
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
 
         if let Some(kv) = kic_visa_exe {
+            eprintln!("found kic-visa");
             if kv.exists() {
                 Process::new(kv.clone(), std::env::args().skip(1))
                     .exec_replace()
@@ -965,15 +967,17 @@ fn find_subcommands_from_path(
                     continue;
                 };
                 let result = String::from_utf8_lossy(&result.stdout).trim().to_string();
-                lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
+                if !result.is_empty() {
+                    lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
 
-                cmd = cmd.subcommand(
+                    cmd = cmd.subcommand(
                         Command::new(cmd_name.clone())
                             .about(result)
                             .allow_external_subcommands(true)
                             .arg(arg!(<options> ...).trailing_var_arg(true))
                             .override_help(format!("For help on this command, run `{0} {1} help` or `{0} {1} --help` instead.", "kic", cmd_name))
                     );
+                }
             }
         }
     }
