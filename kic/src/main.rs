@@ -229,7 +229,6 @@ fn main() -> anyhow::Result<()> {
     });
 
     if tsp_toolkit_kic_lib::is_visa_installed() {
-        eprintln!("visa detected, looking for kic-visa");
         #[cfg(target_os = "windows")]
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
 
@@ -237,7 +236,6 @@ fn main() -> anyhow::Result<()> {
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
 
         if let Some(kv) = kic_visa_exe {
-            eprintln!("found kic-visa");
             if kv.exists() {
                 Process::new(kv.clone(), std::env::args().skip(1))
                     .exec_replace()
