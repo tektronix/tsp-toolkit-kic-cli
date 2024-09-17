@@ -965,15 +965,17 @@ fn find_subcommands_from_path(
                     continue;
                 };
                 let result = String::from_utf8_lossy(&result.stdout).trim().to_string();
-                lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
+                if !result.is_empty() {
+                    lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
 
-                cmd = cmd.subcommand(
+                    cmd = cmd.subcommand(
                         Command::new(cmd_name.clone())
                             .about(result)
                             .allow_external_subcommands(true)
                             .arg(arg!(<options> ...).trailing_var_arg(true))
                             .override_help(format!("For help on this command, run `{0} {1} help` or `{0} {1} --help` instead.", "kic", cmd_name))
                     );
+                }
             }
         }
     }

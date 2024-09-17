@@ -56,3 +56,4 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+
