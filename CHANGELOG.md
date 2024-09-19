@@ -16,7 +16,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-## [0.17.2]
+## [0.18.0]
 
 ### Added
 
@@ -125,8 +125,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.17.2...HEAD
-[0.17.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.17.2
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.0
 [0.17.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.17.0
 [0.16.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.2
 [0.16.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.1
