@@ -15,7 +15,13 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
 
     let rm = visa_rs::DefaultRM::new()?;
-    let instruments = rm.find_res_list(&CString::new("?*")?.into())?;
+    let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
+        Ok(x) => x,
+        Err(e) => {
+            trace!("No VISA instruments found: {e}");
+            return Ok(discovered_instruments);
+        }
+    };
     trace!("discovered: {instruments:?}");
 
     for i in instruments {
