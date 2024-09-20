@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.18.0"
+version = "0.18.1"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
@@ -40,9 +40,7 @@ thiserror = "1.0.58"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1.40", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
-tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", tag = "v0.18.0" }
-
-
+tsp-toolkit-kic-lib = { git = "https://github.com/tektronix/tsp-toolkit-kic-lib.git", tag = "v0.18.1" }
 
 [workspace.lints.rust]
 warnings = "deny"
@@ -56,4 +54,3 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
-
