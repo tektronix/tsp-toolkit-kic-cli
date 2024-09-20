@@ -18,7 +18,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.18.1]
 
-## Fixed
+### Fixed
+
 - **tsp-toolkit-kic-lib** Fix issue where versatest instrument fw flash would be aborted by drop
 
 ## [0.18.0]
