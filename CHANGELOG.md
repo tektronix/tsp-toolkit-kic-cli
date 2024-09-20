@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.18.1]
+
+## Fixed
+- **tsp-toolkit-kic-lib** Fix issue where versatest instrument fw flash would be aborted by drop
+
 ## [0.18.0]
 
 ### Added
@@ -125,7 +130,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.1
 [0.18.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.0
 [0.17.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.17.0
 [0.16.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.16.2
