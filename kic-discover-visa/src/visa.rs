@@ -1,5 +1,6 @@
 use std::{collections::HashSet, ffi::CString, time::Duration};
 
+use async_std::fs::write;
 use serde::{Deserialize, Serialize};
 use tracing::trace;
 use tsp_toolkit_kic_lib::{
@@ -39,7 +40,14 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
         };
 
         trace!("Getting info from {connected:?}");
-        let mut info = get_info(&mut connected)?;
+        let mut info = match get_info(&mut connected) {
+            Ok(i) => i,
+            Err(_) => {
+                trace!("Unable to write to {i}, skipping");
+                drop(connected);
+                continue;
+            }
+        };
         info.address = Some(ConnectionAddr::Visa(i.clone()));
         trace!("Got info: {info:?}");
         let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
