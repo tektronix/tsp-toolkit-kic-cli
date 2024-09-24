@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.18.2]
+
+### Fixed
+
+- Fix issue in discovering instruments when VISA errors
+
 ## [0.18.1]
 
 ### Fixed

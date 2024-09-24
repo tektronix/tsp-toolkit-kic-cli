@@ -15,7 +15,13 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
 
     let rm = visa_rs::DefaultRM::new()?;
-    let instruments = rm.find_res_list(&CString::new("?*")?.into())?;
+    let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
+        Ok(x) => x,
+        Err(e) => {
+            trace!("No VISA instruments found: {e}");
+            return Ok(discovered_instruments);
+        }
+    };
     trace!("discovered: {instruments:?}");
 
     for i in instruments {
@@ -24,7 +30,14 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
             continue;
         }
         trace!("Connecting to {i:?} to get info");
-        let mut connected = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE)?;
+        let mut connected = match rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE) {
+            Ok(c) => c,
+            Err(_) => {
+                trace!("Resource {i} no longer available, skipping.");
+                continue;
+            }
+        };
+
         trace!("Getting info from {connected:?}");
         let mut info = get_info(&mut connected)?;
         info.address = Some(ConnectionAddr::Visa(i.clone()));
