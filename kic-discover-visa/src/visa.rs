@@ -1,7 +1,8 @@
 use std::{collections::HashSet, ffi::CString, time::Duration};
 
+use async_std::fs::write;
 use serde::{Deserialize, Serialize};
-use tracing::trace;
+use tracing::{error, trace};
 use tsp_toolkit_kic_lib::{
     instrument::info::{get_info, InstrumentInfo},
     interface::connection_addr::ConnectionAddr,
@@ -14,19 +15,38 @@ use crate::{insert_disc_device, model_check, IoType};
 pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<InstrumentInfo>> {
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
 
-    let rm = visa_rs::DefaultRM::new()?;
-    let instruments = rm.find_res_list(&CString::new("?*")?.into())?;
+    let Ok(rm) = visa_rs::DefaultRM::new() else {
+        error!("Unable to get VISA Default Resource Manager");
+        return Ok(discovered_instruments);
+    };
+    let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
+        Ok(x) => x,
+        Err(e) => {
+            trace!("No VISA instruments found: {e}");
+            return Ok(discovered_instruments);
+        }
+    };
     trace!("discovered: {instruments:?}");
 
     for i in instruments {
-        let i = i?;
-        if i.to_string().contains("SOCKET") {
+        let Ok(i) = i else {
+            continue;
+        };
+        if i.to_string().contains("SOCKET") || i.to_string().contains("INTFC") {
             continue;
         }
         trace!("Connecting to {i:?} to get info");
-        let mut connected = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE)?;
+        let Ok(mut connected) = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE) else {
+            trace!("Resource {i} no longer available, skipping.");
+            continue;
+        };
+
         trace!("Getting info from {connected:?}");
-        let mut info = get_info(&mut connected)?;
+        let Ok(mut info) = get_info(&mut connected) else {
+            trace!("Unable to write to {i}, skipping");
+            drop(connected);
+            continue;
+        };
         info.address = Some(ConnectionAddr::Visa(i.clone()));
         trace!("Got info: {info:?}");
         let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
