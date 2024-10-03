@@ -36,12 +36,90 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument,
-    interface::async_stream::AsyncStream,
-    protocol::Protocol,
-    usbtmc::{self, UsbtmcAddr},
-    Interface,
+    instrument::Instrument, interface::async_stream::AsyncStream, protocol::Protocol, usbtmc::{self, UsbtmcAddr}, ConnectionAddr, Interface
 };
+
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// Enable logging to stderr. Can be used in conjunction with `--log-file` and `--verbose`.
+    #[arg(global = true, short = "v", long = "verbose")]
+    verbose: bool,
+
+    /// Log to the given log file path. Can be used in conjunction with `--log-socket` and `--verbose`.
+    #[arg(name = "log-file", global = true, short = 'l', long = "log-file")]
+    log_file: Option<PathBuf>,
+
+    /// Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.
+    #[arg(name = "log-socket", global = true, short = 's', long = "log-socket")]
+    log_socket: Option<SocketAddr>,
+
+    /// Turn off ANSI color and formatting codes
+    #[arg(global = true, short = None, action = ArgAction=SetTrue)]
+    no_color: bool,
+
+    #[command(subcommand)]
+    conn: SubCli,
+}
+
+#[derive(Debug, Subcommand)]
+enum SubCli {
+    #[command(hide = true)]
+    PrintDescription,
+    Connect{
+        conn: ConnectionArgs
+    },
+    Reset{
+        conn: ConnectionArgs
+    },
+
+    #[command(flatten_help = true)]
+    Upgrade{
+        #[command(flatten)]
+        conn: ConnectionArgs,
+
+        /// The file path of the firmware image
+        file: PathBuf,
+
+        /// [Modular platform only] Update a module in the given slot number
+        #[arg(short = 'm', long = "slot")]
+        slot: Option<u16>,
+    },
+
+    #[command(flatten_help = true)]
+    Script{
+        #[command(flatten)]
+        conn: ConnectionArgs,
+
+        /// The file path of the TSP script
+        file: PathBuf,
+
+        /// Run the script immediately after loading.
+        #[arg(default_missing_value = true, default_value = true, action = ArgAction::Set)]
+        run: bool,
+
+        /// Save the script to the non-volatile memory of the instrument
+        #[arg(action = ArgAction::SetTrue)]
+        save: bool,
+    },
+    Info{
+        #[command(flatten)]
+        conn: ConnectionArgs,
+
+        /// Print the instrument information in JSON format
+        #[arg(action = ArgAction::SetTrue)]
+        json: bool,
+    },
+}
+
+#[derive(Debug, Args)]
+struct ConnectionArgs {
+    /// The IP address (v4 or v6) with optional port number OR the visa resource string
+    #[arg(name = "address")]
+    addr: ConnectionAddr,
+}
+
+
 
 #[derive(Debug, Subcommand)]
 enum TerminateType {

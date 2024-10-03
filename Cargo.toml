@@ -54,3 +54,6 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+
+[patch."https://github.com/tektronix/tsp-toolkit-kic-lib.git"]
+tsp-toolkit-kic-lib = { path = "../tsp-toolkit-kic-lib" }
