@@ -465,14 +465,16 @@ impl Repl {
         .subcommand_required(false)
         .help_template(CMD_TEMPLATE)
         .subcommand(
-            Command::new(".script").about("Send a script to the connected instrument")
+            Command::new(".script").about("Send a TSP script to the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
                 )
                 .arg(
-                    Arg::new("path").required_unless_present("help")
+                    Arg::new("path")
+                        .required_unless_present("help")
+                        .help("Path to the TSP script file to be sent to the instrument")
                 )
         )
         .subcommand(
@@ -486,7 +488,9 @@ impl Repl {
                     arg!(-s --slot <SLOT_NUM> "Collect information of a specific slot (if applicable) instead of the mainframe").value_parser(value_parser!(u16))
                 )
                 .arg(
-                    Arg::new("path").required_unless_present("help")
+                    Arg::new("path")
+                        .required_unless_present("help")
+                        .help("Path to the firmware file to be sent to the instrument")
                 )
         )
         .subcommand(
@@ -498,7 +502,7 @@ impl Repl {
         .subcommand(
             Command::new(".exit")
                 .alias(".quit").help_template(SUBCMD_TEMPLATE)
-                .about("Exit the application")
+                .about("Disconnect from instrument and close terminal")
                 .disable_help_flag(true)
                 .arg(
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
