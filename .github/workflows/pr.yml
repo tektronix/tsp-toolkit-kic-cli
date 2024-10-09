@@ -185,7 +185,7 @@ jobs:
       - name: Tool Setup
         # rustc regression: https://github.com/rust-lang/rust/issues/130769
         # Change to "update nightly" after resolved
-        run: rustup install nightly-2024-09-23 && rustup default nightly-2024-09-23
+        run: rustup install nightly && rustup default nightly
       - name: Ensure Correct Target is Installed
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
