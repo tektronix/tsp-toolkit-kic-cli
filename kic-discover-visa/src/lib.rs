@@ -2,7 +2,6 @@ use std::{collections::HashSet, hash::Hash, io::Error, sync::Mutex};
 
 pub mod ethernet;
 pub mod instrument_discovery;
-pub mod usbtmc;
 pub mod visa;
 
 #[macro_use]
@@ -128,6 +127,6 @@ pub fn insert_disc_device(device: &str) -> Result<(), Error> {
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 enum IoType {
     Lan,
-    Usb,
     Visa,
+    Usb,
 }

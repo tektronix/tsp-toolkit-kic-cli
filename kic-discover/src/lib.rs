@@ -2,7 +2,6 @@ use std::{collections::HashSet, hash::Hash, io::Error, sync::Mutex};
 
 pub mod ethernet;
 pub mod instrument_discovery;
-pub mod usbtmc;
 
 #[macro_use]
 extern crate lazy_static;
@@ -127,5 +126,4 @@ pub fn insert_disc_device(device: &str) -> Result<(), Error> {
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 enum IoType {
     Lan,
-    Usb,
 }

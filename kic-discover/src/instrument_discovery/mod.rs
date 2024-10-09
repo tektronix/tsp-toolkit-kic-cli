@@ -6,7 +6,6 @@ use tsp_toolkit_kic_lib::{
 };
 
 use crate::ethernet::{LxiDeviceInfo, COMM_PORT};
-use crate::usbtmc::Usbtmc;
 
 #[derive(Debug)]
 pub struct InstrumentDiscovery {
@@ -20,25 +19,6 @@ impl InstrumentDiscovery {
             timeout: Some(timeout),
         }
     }
-
-    // pub async fn discover<T>(&self) -> anyhow::Result<HashSet<DiscoveryInfo>>
-    // where
-    //     T: Discover,
-    // {
-    //     let mut discovery_results: HashSet<DiscoveryInfo> = HashSet::new();
-    //     match T::discover(self.timeout).await {
-    //         Ok(instrs) => {
-    //             for inst in instrs {
-    //                 discovery_results.insert(inst);
-    //             }
-    //         }
-    //         Err(e) => {
-    //             eprintln!("Unable to discover LXI devices: {e}"); //TODO add color
-    //             return Err(e);
-    //         }
-    //     };
-    //     Ok(discovery_results)
-    // }
 
     /// Discover instruments on the network.
     ///
@@ -58,27 +38,6 @@ impl InstrumentDiscovery {
                 return Err(e);
             }
         };
-        Ok(discovery_results)
-    }
-
-    /// Discover instruments over USB
-    ///
-    /// # Errors
-    /// If [`Usbtmc::usb_discover`] fails, and error will be returned.
-    pub async fn usb_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
-        let mut discovery_results: HashSet<InstrumentInfo> = HashSet::new();
-
-        match Usbtmc::usb_discover(self.timeout).await {
-            Ok(instrs) => {
-                for inst in instrs {
-                    discovery_results.insert(inst);
-                }
-            }
-            Err(e) => {
-                eprintln!("Unable to discover USB devices: {e}"); //TODO add color
-                return Err(e);
-            }
-        }
         Ok(discovery_results)
     }
 }

@@ -66,7 +66,6 @@ export enum TrebInstrumentModel {
 }
 
 export enum ConnectionType {
-    USB = "USB",
     LAN = "LAN",
     VISA = "VISA",
 }
