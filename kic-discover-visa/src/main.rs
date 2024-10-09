@@ -45,10 +45,6 @@ struct Cli {
 enum SubCli {
     /// Look for all devices connected on LAN
     Lan(DiscoverCmd),
-
-    /// Look for all devices connected on USB
-    //Usb(DiscoverCmd),
-
     /// Look for all devices that can be connected to via the installed VISA driver
     Visa(DiscoverCmd),
     /// Look for all devices on all interface types.
@@ -264,24 +260,6 @@ async fn main() -> anyhow::Result<()> {
             trace!("Discovered instruments: {lan_instruments:?}");
             lan_instruments
         }
-        //SubCli::Usb(args) => {
-        //    start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
-        //    info!("Discovering USB instruments");
-        //    #[allow(clippy::mutable_key_type)]
-        //    let usb_instruments = match discover_usb().await {
-        //        Ok(i) => i,
-        //        Err(e) => {
-        //            error!("Error in USB discovery: {e}");
-        //            return Err(e);
-        //        }
-        //    };
-        //    info!("USB Discovery complete");
-        //    trace!("Discovered {} USB instruments", usb_instruments.len());
-        //    trace!("Discovered instruments: {usb_instruments:?}");
-        //    for instrument in usb_instruments {
-        //        println!("{instrument}");
-        //    }
-        //}
         SubCli::Visa(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             info!("Discovering VISA instruments");
@@ -300,22 +278,6 @@ async fn main() -> anyhow::Result<()> {
         }
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
-            //info!("Discovering USB instruments");
-            //#[allow(clippy::mutable_key_type)]
-            //let usb_instruments = match discover_usb().await {
-            //    Ok(i) => i,
-            //    Err(e) => {
-            //        error!("Error in USB discovery: {e}");
-            //        return Err(e);
-            //    }
-            //};
-            //info!("USB Discovery complete");
-            //trace!("Discovered {} USB instruments", usb_instruments.len());
-            //println!("Discovered {} USB instruments", usb_instruments.len());
-            //trace!("Discovered USB instruments: {usb_instruments:?}");
-            //for instrument in usb_instruments {
-            //    println!("{instrument}");
-            //}
 
             info!("Discovering VISA instruments");
             #[allow(clippy::mutable_key_type)]
@@ -424,11 +386,3 @@ async fn discover_visa(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentIn
 
     Ok(instruments)
 }
-
-//async fn discover_usb() -> anyhow::Result<HashSet<InstrumentInfo>> {
-//    let dur = Duration::from_secs(5); //Not used in USB
-//    let discover_instance = InstrumentDiscovery::new(dur);
-//    let instruments = discover_instance.usb_discover().await?;
-//
-//    Ok(instruments)
-//}

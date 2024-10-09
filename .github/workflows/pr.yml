@@ -174,9 +174,9 @@ jobs:
           - runner: windows-latest
             triple: x86_64-pc-windows-msvc
             vscode-platform: win32-x64
-          # - runner: macos-latest
-          #   triple: x86_64-apple-darwin
-          #   vscode-platform: darwin-arm64
+          - runner: macos-latest
+            triple: aarch64-apple-darwin
+            vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
     env:
       RUSTFLAGS: "-L ${{github.workspace}}"
@@ -185,7 +185,7 @@ jobs:
       - name: Tool Setup
         # rustc regression: https://github.com/rust-lang/rust/issues/130769
         # Change to "update nightly" after resolved
-        run: rustup install nightly-2024-09-23 && rustup default nightly-2024-09-23
+        run: rustup install nightly && rustup default nightly
       - name: Ensure Correct Target is Installed
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
@@ -198,11 +198,16 @@ jobs:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: '*'
-      - name: Build
+      - name: Build LAN-only
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover
+      - name: Build VISA
+        if: ${{ matrix.runner != 'macos-latest' }}
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           cargo build --target "${{matrix.triple}}" --release --package kic-visa --package kic-discover-visa
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -235,9 +240,11 @@ jobs:
             vscode-platform: win32-x64
             os: win32
             arch: x64
-          # - runner: macos-latest
-          #   triple: x86_64-apple-darwin
-          #   vscode-platform: darwin-arm64
+          - runner: macos-latest
+            triple: aarch64-apple-darwin
+            vscode-platform: darwin-arm64
+            os: darwin
+            arch: arm64
     steps:
       - name: Update ClamAV
         run: freshclam

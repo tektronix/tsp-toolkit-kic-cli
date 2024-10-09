@@ -34,11 +34,7 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument,
-    interface::async_stream::AsyncStream,
-    protocol::Protocol,
-    usbtmc::{self, UsbtmcAddr},
-    Interface,
+    instrument::Instrument, interface::async_stream::AsyncStream, protocol::Protocol, Interface,
 };
 
 #[derive(Debug, Subcommand)]
@@ -88,21 +84,11 @@ fn add_connection_subcommands(
                 .value_parser(value_parser!(IpAddr)),
         );
 
-    //TODO(Fix async USB): let mut usb = Command::new("usb")
-    //    .about("Perform the given action over a USBTMC connection")
-    //    .arg(
-    //        Arg::new("addr")
-    //            .help("The instrument address in the form of, for example, `USB:2461:012345` where the second part is the product id, and the third part is the serial number.")
-    //            .required(true)
-    //            .value_parser(value_parser!(UsbtmcAddr)),
-    //    );
-
     for arg in additional_args {
         lan = lan.arg(arg.clone());
-        //TODO(Fix async USB): usb = usb.arg(arg.clone());
     }
 
-    command.subcommand(lan) //TODO(Fix async USB): .subcommand(usb)
+    command.subcommand(lan)
 }
 
 #[must_use]
@@ -469,7 +455,6 @@ fn main() -> anyhow::Result<()> {
 #[derive(Debug)]
 enum ConnectionType {
     Lan(SocketAddr),
-    Usb(UsbtmcAddr),
 }
 
 impl ConnectionType {
@@ -489,16 +474,6 @@ impl ConnectionType {
                 Ok(Self::Lan(socket_addr))
             }
 
-            Some(("usb", sub_matches)) => {
-                let usb_addr: UsbtmcAddr = sub_matches
-                    .get_one::<UsbtmcAddr>("addr")
-                    .ok_or_else(|| KicError::ArgParseError {
-                        details: "no USB address provided".to_string(),
-                    })?
-                    .clone();
-
-                Ok(Self::Usb(usb_addr))
-            }
             Some((ct, _sub_matches)) => {
                 println!();
                 Err(KicError::ArgParseError {
@@ -518,9 +493,6 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
         ConnectionType::Lan(addr) => {
             (Box::new(TcpStream::connect(addr)?) as Box<dyn Interface>).into()
         }
-        ConnectionType::Usb(addr) => {
-            (Box::new(usbtmc::Stream::try_from(addr)?) as Box<dyn Interface>).into()
-        }
     };
     trace!("Synchronously connected to interface");
 
@@ -539,11 +511,6 @@ fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrum
             TcpStream::connect(addr)?,
         )
             as Arc<dyn Interface + Send + Sync>)?)),
-        ConnectionType::Usb(addr) => {
-            tsp_toolkit_kic_lib::protocol::Protocol::Raw(Box::new(AsyncStream::try_from(
-                Arc::new(usbtmc::Stream::try_from(addr)?) as Arc<dyn Interface + Send + Sync>,
-            )?))
-        }
     };
 
     trace!("Asynchronously connected to interface");
@@ -926,7 +893,6 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
                 return Err(e.into());
             }
         }
-        ConnectionType::Usb(_) => {}
     }
 
     info!("Operations terminated");

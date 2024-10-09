@@ -18,6 +18,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.18.3]
 
+### Added
+
+- Add support for macOS (LAN only)
+
 ### Changed
 
 - .script , .upgrade and .exit commands descriptions updated
