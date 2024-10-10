@@ -615,6 +615,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Starting instrument REPL");
     if let Err(e) = repl.start() {
         error!("Error in REPL: {e}");
+        eprintln!("{}", format!("{e}\nClosing...").red());
     }
 
     Ok(())

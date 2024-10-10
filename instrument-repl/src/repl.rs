@@ -17,7 +17,7 @@ use std::{
     path::PathBuf,
     sync::mpsc::{channel, SendError, Sender, TryRecvError},
     thread::JoinHandle,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -205,17 +205,23 @@ impl Repl {
         }
 
         let mut prompt = true;
+        let mut command_written = true;
+        let mut last_read = Instant::now();
         debug!("Starting user loop");
         'user_loop: loop {
             self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
-            let mut read_buf: Vec<u8> = vec![0; 1024];
-            let read_size = self.inst.read(&mut read_buf)?;
-            let read_buf: Vec<u8> = read_buf[..read_size].into();
-            prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
+            if command_written || last_read.elapsed() >= Duration::from_secs(3) {
+                let mut read_buf: Vec<u8> = vec![0; 1024];
+                let read_size = self.inst.read(&mut read_buf)?;
+                let read_buf: Vec<u8> = read_buf[..read_size].into();
+                prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
+                last_read = Instant::now();
+            }
 
             if prompt {
                 prompt = false;
+                command_written = false;
                 Self::print_flush(&"\nTSP> ".blue())?;
             }
             match loop_in.try_recv() {
@@ -224,6 +230,7 @@ impl Repl {
                     match msg {
                         Request::Tsp(tsp) => {
                             self.inst.write_all(format!("{tsp}\n").as_bytes())?;
+                            command_written = true;
                             prev_state = None;
                         }
                         Request::GetError => {
@@ -268,6 +275,7 @@ impl Repl {
                                 }
                             }
                             prompt = false;
+                            command_written = true;
                         }
                         Request::TspLinkNodes { json_file } => {
                             self.set_lang_config_path(json_file.to_string_lossy().to_string());
@@ -293,6 +301,7 @@ impl Repl {
                             // lose runtime state, so we can't save the previous
                             // setting, so we just hardcode it to enabled here.
                             self.inst.write_all(b"localnode.prompts=1\n")?;
+                            command_written = true;
                         }
                         Request::Exit => {
                             info!("Exiting...");
@@ -301,6 +310,7 @@ impl Repl {
                         Request::Reset => {
                             self.inst.as_mut().reset()?;
                             prompt = true;
+                            command_written = true;
                         }
                         Request::Help { sub_cmd } => {
                             prompt = true;
