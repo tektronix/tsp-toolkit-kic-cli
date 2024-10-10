@@ -25,6 +25,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Changed
 
 - .script , .upgrade and .exit commands descriptions updated
+- When using VISA, only call ReadSTB after writing commands to the instrument
+  (or every 3 seconds for a heartbeat)
 
 ## [0.18.2]
 
