@@ -572,6 +572,15 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn pause_exit_on_error() {
+    eprintln!(
+        "\n\n{}",
+        "An error occured. Press Enter to close this program.".yellow()
+    );
+    let mut buf = String::new();
+    let _ = std::io::stdin().read_line(&mut buf);
+}
+
 #[instrument(skip(args))]
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
@@ -584,6 +593,11 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         Ok(c) => c,
         Err(e) => {
             error!("Unable to parse connection information: {e}");
+            eprintln!(
+                "{}",
+                format!("\nUnable to parse connection information: {e}\n\nUnrecoverable error. Closing.").red()
+            );
+            pause_exit_on_error();
             return Err(e);
         }
     };
@@ -591,12 +605,25 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to async instrument: {e}");
+            eprintln!(
+                "{}",
+                format!(
+                    "\nError connecting to async instrument: {e}\n\nUnrecoverable error. Closing."
+                )
+                .red()
+            );
+            pause_exit_on_error();
             return Err(e);
         }
     };
 
     if let Err(e) = get_instrument_access(&mut instrument) {
         error!("Error setting up instrument: {e}");
+        eprintln!(
+            "{}",
+            format!("\nError setting up instrument: {e}\n\nUnrecoverable error. Closing.").red()
+        );
+        pause_exit_on_error();
         return Err(e);
     }
 
@@ -604,6 +631,12 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         Ok(i) => i,
         Err(e) => {
             error!("Error getting instrument info: {e}");
+            eprintln!(
+                "{}",
+                format!("\nError getting instrument info: {e}\n\nUnrecoverable error. Closing.")
+                    .red()
+            );
+            pause_exit_on_error();
             return Err(e.into());
         }
     };
@@ -615,7 +648,12 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Starting instrument REPL");
     if let Err(e) = repl.start() {
         error!("Error in REPL: {e}");
-        eprintln!("{}", format!("{e}\nClosing...").red());
+        eprintln!(
+            "{}",
+            format!("\n{e}\n\nClosing instrument connection...").red()
+        );
+        drop(repl);
+        pause_exit_on_error();
     }
 
     Ok(())

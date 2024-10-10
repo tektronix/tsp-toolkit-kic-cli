@@ -27,6 +27,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - .script , .upgrade and .exit commands descriptions updated
 - When using VISA, only call ReadSTB after writing commands to the instrument
   (or every 3 seconds for a heartbeat)
+- Pause when an error occurs so users can see the errors
 
 ## [0.18.2]
 

@@ -15,7 +15,8 @@ use std::{
     fs::{self, File},
     io::{self, Read, Write},
     path::PathBuf,
-    sync::mpsc::{channel, SendError, Sender, TryRecvError},
+    process::exit,
+    sync::mpsc::{channel, Sender, TryRecvError},
     thread::JoinHandle,
     time::{Duration, Instant},
 };
@@ -724,9 +725,9 @@ impl Repl {
                         let mut input = String::new();
                         let _ = std::io::stdin().read_line(&mut input)?;
                         let req = Self::parse_user_commands(&input)?;
-                        match out.send(req.clone()) {
-                            Ok(()) => {}
-                            Err(SendError(_)) => break 'input_loop,
+                        if out.send(req.clone()).is_err() {
+                            error!("User input thread could not send to Receiver. Closing!");
+                            exit(1);
                         }
                         // This `if` statement seeks to fix the NOTE above about not exiting.
                         // It feels a little awkward, but should be effective.
