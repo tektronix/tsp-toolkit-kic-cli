@@ -14,21 +14,20 @@ use crate::process::Process;
 
 use anyhow::Context;
 use clap::{
-    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Args,
-    Command, Subcommand,
+    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Command,
 };
 use colored::Colorize;
-use instrument_repl::repl::{self};
+use instrument_repl::new::repl::Repl;
 use regex::Regex;
 use std::{
     collections::HashMap,
     env::set_var,
     fs::OpenOptions,
     io::{stdin, Read, Write},
-    net::{IpAddr, SocketAddr, TcpStream},
+    net::{SocketAddr, TcpStream},
     path::PathBuf,
     process::exit,
-    sync::{Arc, Mutex},
+    sync::Mutex,
     thread,
     time::Duration,
 };
@@ -36,107 +35,10 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument, interface::async_stream::AsyncStream, protocol::Protocol, usbtmc::{self, UsbtmcAddr}, ConnectionAddr, Interface
+    instrument::{Language, Login},
+    new::{self, protocol::ReadStb, Flash, Info, Script},
+    ConnectionAddr,
 };
-
-#[derive(Debug, Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// Enable logging to stderr. Can be used in conjunction with `--log-file` and `--verbose`.
-    #[arg(global = true, short = "v", long = "verbose")]
-    verbose: bool,
-
-    /// Log to the given log file path. Can be used in conjunction with `--log-socket` and `--verbose`.
-    #[arg(name = "log-file", global = true, short = 'l', long = "log-file")]
-    log_file: Option<PathBuf>,
-
-    /// Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.
-    #[arg(name = "log-socket", global = true, short = 's', long = "log-socket")]
-    log_socket: Option<SocketAddr>,
-
-    /// Turn off ANSI color and formatting codes
-    #[arg(global = true, short = None, action = ArgAction=SetTrue)]
-    no_color: bool,
-
-    #[command(subcommand)]
-    conn: SubCli,
-}
-
-#[derive(Debug, Subcommand)]
-enum SubCli {
-    #[command(hide = true)]
-    PrintDescription,
-    Connect{
-        conn: ConnectionArgs
-    },
-    Reset{
-        conn: ConnectionArgs
-    },
-
-    #[command(flatten_help = true)]
-    Upgrade{
-        #[command(flatten)]
-        conn: ConnectionArgs,
-
-        /// The file path of the firmware image
-        file: PathBuf,
-
-        /// [Modular platform only] Update a module in the given slot number
-        #[arg(short = 'm', long = "slot")]
-        slot: Option<u16>,
-    },
-
-    #[command(flatten_help = true)]
-    Script{
-        #[command(flatten)]
-        conn: ConnectionArgs,
-
-        /// The file path of the TSP script
-        file: PathBuf,
-
-        /// Run the script immediately after loading.
-        #[arg(default_missing_value = true, default_value = true, action = ArgAction::Set)]
-        run: bool,
-
-        /// Save the script to the non-volatile memory of the instrument
-        #[arg(action = ArgAction::SetTrue)]
-        save: bool,
-    },
-    Info{
-        #[command(flatten)]
-        conn: ConnectionArgs,
-
-        /// Print the instrument information in JSON format
-        #[arg(action = ArgAction::SetTrue)]
-        json: bool,
-    },
-}
-
-#[derive(Debug, Args)]
-struct ConnectionArgs {
-    /// The IP address (v4 or v6) with optional port number OR the visa resource string
-    #[arg(name = "address")]
-    addr: ConnectionAddr,
-}
-
-
-
-#[derive(Debug, Subcommand)]
-enum TerminateType {
-    /// Perform the given action over a LAN connection.
-    Lan(LanTerminateArgs),
-}
-
-#[derive(Debug, Args)]
-struct LanTerminateArgs {
-    /// The port to which to connect in order to terminate all other connections to the
-    /// instrument
-    #[arg(long, short = 'p', default_value = "5030")]
-    port: Option<u16>,
-
-    /// The IP address of the instrument to connect to.
-    ip_addr: IpAddr,
-}
 
 // hack to make sure we rebuild if either Cargo.toml changes, since `clap` gets
 // information from there.
@@ -145,54 +47,15 @@ const _: &str = include_str!("../Cargo.toml");
 #[cfg(not(debug_assertions))]
 const _: &str = include_str!("../../Cargo.toml");
 
-fn add_connection_subcommands(
-    command: impl Into<Command>,
-    additional_args: impl IntoIterator<Item = Arg>,
-) -> Command {
+fn add_connection_addr(command: impl Into<Command>) -> Command {
     let command: Command = command.into();
 
-    let mut lan = Command::new("lan")
-        .about("Perform the given action over a LAN connection")
-        .arg(
-            Arg::new("port")
-                .help("The port on which to connect to the instrument")
-                .short('p')
-                .long("port")
-                .value_parser(value_parser!(u16))
-                .default_value("5025"),
-        )
-        .arg(
-            Arg::new("ip_addr")
-                .help("The IP address of the instrument to connect to")
-                .required(true)
-                .value_parser(value_parser!(IpAddr)),
-        );
-
-    let mut visa = Command::new("visa")
-        .about("Perform the given action over the installed VISA driver")
-        .arg(
-            Arg::new("visa_resource_string")
-                .help("The VISA Resource String used to find the desired resource")
-                .required(true),
-        );
-
-    //TODO(Fix async USB): let mut usb = Command::new("usb")
-    //    .about("Perform the given action over a USBTMC connection")
-    //    .arg(
-    //        Arg::new("addr")
-    //            .help("The instrument address in the form of, for example, `USB:2461:012345` where the second part is the product id, and the third part is the serial number.")
-    //            .required(true)
-    //            .value_parser(value_parser!(UsbtmcAddr)),
-    //    );
-
-    for arg in additional_args {
-        lan = lan.arg(arg.clone());
-
-        visa = visa.arg(arg.clone());
-        //TODO(Fix async USB): usb = usb.arg(arg.clone());
-    }
-
-    command.subcommand(lan).subcommand(visa) //TODO(Fix async USB): .subcommand(usb)
+    command.arg(
+        Arg::new("address")
+            .help("The IP address with optional port number (example: 203.0.113.3:5025 or 203.0.113.3) or VISA Resource String")
+            .value_parser(value_parser!(ConnectionAddr))
+            .required(true)
+    )
 }
 
 #[must_use]
@@ -212,7 +75,6 @@ fn cmds() -> Command {
         )
         .arg(
             Arg::new("log-socket")
-            .short('s')
             .long("log-socket")
             .required(false)
             .help("Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.")
@@ -242,51 +104,54 @@ fn cmds() -> Command {
         .subcommand({
             let cmd = Command::new("connect")
                 .about("Connect to an instrument over one of the provided interfaces");
-            add_connection_subcommands(cmd, [])
+            add_connection_addr(cmd)
         })
         .subcommand({
             let cmd = Command::new("reset")
                 .about("Connect to an instrument, cancel any ongoing jobs, send *RST then exit.");
-            add_connection_subcommands(cmd, [])
+            add_connection_addr(cmd)
         })
         .subcommand({
             let cmd = Command::new("info")
                 .about("Get the IDN information about an instrument.");
-            add_connection_subcommands(cmd, [
+            add_connection_addr(cmd).arg(
                 Arg::new("json")
                     .help("Print the instrument information in JSON format.")
                     .long("json")
                     .short('j')
                     .action(ArgAction::SetTrue)
-            ])
+                )
         })
         .subcommand({
             let cmd = Command::new("upgrade")
                 .about("Upgrade the firmware of an instrument or module.");
 
-            add_connection_subcommands(cmd, [
+            add_connection_addr(cmd)
+                .arg(
                     Arg::new("file")
                         .help("The file path of the firmware image.")
                         .required(true)
-                        .value_parser(PathBufValueParser::new()),
-
+                        .value_parser(PathBufValueParser::new()))
+                .arg(
                     Arg::new("slot")
                         .short('m')
                         .long("slot")
-                        .help("[VersaTest only] Update a module in given slot number instead of the VersaTest mainframe")
+                        .help(
+                            "[VersaTest only] Update a module in given slot number instead of the VersaTest mainframe"
+                        )
                         .required(false)
-                        .value_parser(value_parser!(u16).range(1..=3)),
-            ])
+                        .value_parser(value_parser!(u16).range(1..=3)))
         })
         .subcommand({
             let cmd = Command::new("script")
                 .about("Load the script onto the selected instrument");
-            add_connection_subcommands(cmd, [
+            add_connection_addr(cmd)
+                .arg(
                     Arg::new("file")
                         .required(true)
                         .help("The file path of the firmware image")
-                        .value_parser(PathBufValueParser::new()),
-
+                        .value_parser(PathBufValueParser::new()))
+                .arg(
                     Arg::new("run")
                         .short('r')
                         .long("run")
@@ -294,19 +159,14 @@ fn cmds() -> Command {
                         .default_value("true")
                         .default_missing_value("true")
                         .action(ArgAction::Set)
-                        .help("Run the script immediately after loading. "),
-
+                        .help("Run the script immediately after loading. "))
+                .arg(
                     Arg::new("save")
                         .short('s')
                         .long("save")
                         .action(ArgAction::SetTrue)
                         .help("Save the script to the non-volatile memory of the instrument"),
-            ])
-        })
-        .subcommand({
-            let cmd = Command::new("terminate")
-                .about("Terminate all the connections on the given instrument. Only supports LAN");
-            TerminateType::augment_subcommands(cmd)
+                )
         })
 }
 
@@ -475,9 +335,6 @@ fn main() -> anyhow::Result<()> {
         Some(("upgrade", sub_matches)) => {
             return upgrade(sub_matches);
         }
-        Some(("terminate", sub_matches)) => {
-            return terminate(sub_matches);
-        }
         Some(("script", sub_matches)) => {
             return script(sub_matches);
         }
@@ -536,115 +393,30 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
-enum ConnectionType {
-    Lan(SocketAddr),
-    Usb(UsbtmcAddr),
-    Visa(String),
-}
-
-impl ConnectionType {
-    fn try_from_arg_matches(args: &ArgMatches) -> anyhow::Result<Self> {
-        match args.subcommand() {
-            Some(("lan", sub_matches)) => {
-                let ip_addr: IpAddr =
-                    *sub_matches.get_one::<IpAddr>("ip_addr").ok_or_else(|| {
-                        KicError::ArgParseError {
-                            details: "no IP address provided".to_string(),
-                        }
-                    })?;
-
-                let port: u16 = *sub_matches.get_one::<u16>("port").unwrap_or(&5025);
-
-                let socket_addr = SocketAddr::new(ip_addr, port);
-                Ok(Self::Lan(socket_addr))
-            }
-            Some(("visa", sub_matches)) => {
-                let visa_string: String = sub_matches
-                    .get_one::<String>("visa_resource_string")
-                    .ok_or_else(|| KicError::ArgParseError {
-                        details: "no VISA resource string provided".to_string(),
-                    })?
-                    .clone();
-
-                Ok(Self::Visa(visa_string))
-            }
-            Some(("usb", sub_matches)) => {
-                let usb_addr: UsbtmcAddr = sub_matches
-                    .get_one::<UsbtmcAddr>("addr")
-                    .ok_or_else(|| KicError::ArgParseError {
-                        details: "no USB address provided".to_string(),
-                    })?
-                    .clone();
-
-                Ok(Self::Usb(usb_addr))
-            }
-            Some((ct, _sub_matches)) => {
-                println!();
-                Err(KicError::ArgParseError {
-                    details: format!("unknown connection type: \"{ct}\""),
-                }
-                .into())
-            }
-            None => unreachable!("connection type not specified"),
-        }
-    }
-}
-
 #[instrument]
-fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
+fn connect_sync_instrument(t: ConnectionAddr) -> anyhow::Result<new::instrument::Instrument> {
     info!("Synchronously connecting to instrument");
-    let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => {
-            (Box::new(TcpStream::connect(addr)?) as Box<dyn Interface>).into()
-        }
-        ConnectionType::Usb(addr) => {
-            (Box::new(usbtmc::Stream::try_from(addr)?) as Box<dyn Interface>).into()
-        }
-        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
-    };
-    trace!("Synchronously connected to interface");
-
-    trace!("Converting interface to instrument");
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-    trace!("Converted interface to instrument");
+    let instrument: new::instrument::Instrument = t.try_into()?;
     info!("Successfully connected to instrument");
     Ok(instrument)
 }
 
 #[instrument]
-fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
+fn connect_async_instrument(t: ConnectionAddr) -> anyhow::Result<new::instrument::Instrument> {
     info!("Asynchronously connecting to instrument");
-    let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new(
-            TcpStream::connect(addr)?,
-        )
-            as Arc<dyn Interface + Send + Sync>)?)),
-        ConnectionType::Usb(addr) => {
-            tsp_toolkit_kic_lib::protocol::Protocol::Raw(Box::new(AsyncStream::try_from(
-                Arc::new(usbtmc::Stream::try_from(addr)?) as Arc<dyn Interface + Send + Sync>,
-            )?))
-        }
-        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
-    };
-
-    trace!("Asynchronously connected to interface");
-
-    trace!("Converting interface to instrument");
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-    trace!("Converted interface to instrument");
+    let instrument: new::instrument::Instrument = t.try_into()?;
     info!("Successfully connected to instrument");
     Ok(instrument)
 }
 
 #[instrument(skip(inst))]
-fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
+fn get_instrument_access(inst: &mut new::instrument::Instrument) -> anyhow::Result<()> {
     info!("Configuring instrument for usage.");
     debug!("Checking login");
-    match inst.as_mut().check_login()? {
+    match inst.check_login()? {
         tsp_toolkit_kic_lib::instrument::State::Needed => {
             trace!("Login required");
-            inst.as_mut().login()?;
+            inst.login()?;
             debug!("Login complete");
         }
         tsp_toolkit_kic_lib::instrument::State::LogoutNeeded => {
@@ -655,7 +427,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
         }
     };
     debug!("Checking instrument language");
-    match inst.as_mut().get_language()? {
+    match inst.get_language()? {
         tsp_toolkit_kic_lib::instrument::CmdLanguage::Scpi => {
             warn!("Instrument language set to SCPI, only TSP is supported. Prompting user...");
             eprintln!("Instrument command-set is not set to TSP. Would you like to change the command-set to TSP and reboot? (Y/n)");
@@ -666,8 +438,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
             if buf.is_empty() || buf.contains(['Y', 'y']) {
                 debug!("User accepted language change on the instrument.");
                 info!("Changing instrument language to TSP.");
-                inst.as_mut()
-                    .change_language(tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp)?;
+                inst.change_language(tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp)?;
                 info!("Instrument language changed to TSP.");
                 warn!("Instrument rebooting.");
                 inst.write_all(b"ki.reboot()\n")?;
@@ -695,14 +466,19 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         "\nKeithley TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
-    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn) {
+    let conn =
+        args.get_one::<ConnectionAddr>("address")
+            .ok_or_else(|| KicError::ArgParseError {
+                details: "no valid instrument address provided".to_string(),
+            })?;
+    //let conn = match ConnectionType::try_from_arg_matches(args) {
+    //    Ok(c) => c,
+    //    Err(e) => {
+    //        error!("Unable to parse connection information: {e}");
+    //        return Err(e);
+    //    }
+    //};
+    let mut instrument: new::instrument::Instrument = match connect_async_instrument(conn.clone()) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to async instrument: {e}");
@@ -725,7 +501,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("IDN: {info}");
     eprintln!("{info}");
 
-    let mut repl = repl::Repl::new(instrument);
+    let mut repl = Repl::new(instrument)?;
 
     info!("Starting instrument REPL");
     if let Err(e) = repl.start() {
@@ -741,19 +517,13 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
     trace!("args: {args:?}");
     eprintln!("\nKeithley TSP Shell\n");
 
-    let lan = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
+    let conn =
+        args.get_one::<ConnectionAddr>("address")
+            .ok_or_else(|| KicError::ArgParseError {
+                details: "no valid instrument address provided".to_string(),
+            })?;
 
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
-
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(lan) {
+    let mut instrument: new::instrument::Instrument = match connect_sync_instrument(conn.clone()) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -801,9 +571,19 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     eprintln!("Flashing instrument firmware. Please do NOT power off or disconnect.");
-    if let Err(e) = instrument.flash_firmware(&image, slot) {
-        error!("Error upgrading instrument: {e}");
-        return Err(e.into());
+    match slot {
+        Some(s) => {
+            if let Err(e) = instrument.flash_module(s, &image) {
+                error!("Error upgrading instrument slot {s}: {e}");
+                return Err(e.into());
+            }
+        }
+        None => {
+            if let Err(e) = instrument.flash_firmware(&image) {
+                error!("Error upgrading instrument: {e}");
+                return Err(e.into());
+            }
+        }
     }
     eprintln!("Flashing instrument firmware completed. Instrument will restart.");
     info!("Instrument upgrade complete");
@@ -816,15 +596,13 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
     eprintln!("\nKeithley TSP Shell\n");
 
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
+    let conn =
+        args.get_one::<ConnectionAddr>("address")
+            .ok_or_else(|| KicError::ArgParseError {
+                details: "no valid instrument address provided".to_string(),
+            })?;
 
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+    let mut instrument: new::instrument::Instrument = match connect_sync_instrument(conn.clone()) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -846,10 +624,6 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     };
     info!("IDN: {info}");
     eprintln!("{info}");
-
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
 
     let run: bool = *args.get_one::<bool>("run").unwrap_or(&true);
     let save: bool = *args.get_one::<bool>("save").unwrap_or(&false);
@@ -895,9 +669,31 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
                 return Err(e.into());
             }
 
-            eprintln!("Loading script to instrument.");
             instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
-            eprintln!("Script loading completed.");
+            instrument.write_all(b"print('TSP>\\n')\n")?;
+            loop {
+                if instrument.read_stb()?.mav()? {
+                    break;
+                }
+            }
+
+            loop {
+                if instrument.read_stb()?.mav()? {
+                    let mut buf = vec![0u8; 1024];
+                    instrument.read(&mut buf)?;
+                    let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
+                    let buf = &buf[..first_null];
+                    let s = String::from_utf8_lossy(buf).to_string();
+                    debug!("Received: {s}");
+                    let mut s = s.split("TSP>");
+                    let len = s.clone().count();
+                    print!("{}", s.nth(0).unwrap_or(""));
+                    if len > 1 {
+                        break;
+                    }
+                }
+            }
+
             info!("Script loading completed.");
         }
         Err(err_msg) => {
@@ -911,14 +707,13 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 #[instrument(skip(args))]
 fn reset(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Resetting instrument");
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
-    let instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+    let conn =
+        args.get_one::<ConnectionAddr>("address")
+            .ok_or_else(|| KicError::ArgParseError {
+                details: "no valid instrument address provided".to_string(),
+            })?;
+
+    let instrument: new::instrument::Instrument = match connect_sync_instrument(conn.clone()) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -937,23 +732,18 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
 #[instrument(skip(args))]
 fn info(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Getting instrument info");
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+    let conn =
+        args.get_one::<ConnectionAddr>("address")
+            .ok_or_else(|| KicError::ArgParseError {
+                details: "no valid instrument address provided".to_string(),
+            })?;
+
+    let mut instrument: new::instrument::Instrument = match connect_sync_instrument(conn.clone()) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
             return Err(e);
         }
-    };
-
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
     };
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
@@ -976,43 +766,6 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
 
     info!("Information to print: {info}");
     println!("{info}");
-
-    Ok(())
-}
-
-#[instrument(skip(args))]
-fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
-    info!("Terminating existing operations");
-    trace!("args: {args:?}");
-    eprintln!("\nKeithley TSP Shell\n");
-
-    let connection = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
-        }
-    };
-    match connection {
-        ConnectionType::Lan(socket) => {
-            let mut connection = match TcpStream::connect(socket) {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("{e}");
-                    return Err(e.into());
-                }
-            };
-
-            if let Err(e) = connection.write_all(b"ABORT\n") {
-                error!("Unable to write 'ABORT': {e}");
-                return Err(e.into());
-            }
-        }
-        ConnectionType::Usb(_) => {}
-        ConnectionType::Visa(_) => {}
-    }
-
-    info!("Operations terminated");
 
     Ok(())
 }
