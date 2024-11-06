@@ -30,16 +30,13 @@ use std::{
     process::exit,
     sync::{Arc, Mutex},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument,
-    interface::{async_stream::AsyncStream, NonBlock},
-    protocol::Protocol,
-    Interface,
+    instrument::Instrument, interface::async_stream::AsyncStream, protocol::Protocol, Interface,
 };
 
 #[derive(Debug, Subcommand)]

@@ -209,6 +209,7 @@ impl Repl {
         let mut command_written = true;
         let mut last_read = Instant::now();
         debug!("Starting user loop");
+        let re = Regex::new(r"[^A-Za-z\d_]");
         'user_loop: loop {
             self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
@@ -254,9 +255,8 @@ impl Repl {
                                 unreachable!("Could not convert OsStr to &str");
                             };
 
-                            let re = Regex::new(r"[^A-Za-z\d_]");
                             match re {
-                                Ok(re_res) => {
+                                Ok(ref re_res) => {
                                     let result = re_res.replace_all(name, "_");
 
                                     let script_name = format!("kic_{result}");

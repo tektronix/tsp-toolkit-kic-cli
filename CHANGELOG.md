@@ -15,6 +15,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.19.0]
+
+### Added
+
+- Added the `dump` subcommand to connect to an instrument and dump out the contents
+  of the output queue.
+- Added new `--dump-output` arg to `connect` subcommand to support printing the
+  `dump` subcommand details to the terminal
 
 ## [0.18.4]
 
