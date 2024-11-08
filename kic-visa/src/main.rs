@@ -654,12 +654,14 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
             let mut contents = String::new();
             match dump_file.read_to_string(&mut contents) {
                 Ok(_) => {
-                    trace!("Printing dump-output:");
-                    eprintln!(
-                        "{}",
-                        "Data left on output queue of instrument before connecting:".blue()
-                    );
-                    println!("{}", contents.bright_black());
+                    if !contents.trim().is_empty() {
+                        trace!("Printing dump-output:");
+                        eprintln!(
+                            "{}",
+                            "Data left on output queue of instrument before connecting:".blue()
+                        );
+                        println!("{}", contents.bright_black());
+                    }
                 }
                 Err(e) => error!("{e}"),
             }

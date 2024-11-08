@@ -164,7 +164,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.18.4...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.0
 [0.18.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.4
 [0.18.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.3
 [0.18.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.2

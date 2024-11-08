@@ -645,12 +645,18 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     if let Some(dump_path) = args.get_one::<PathBuf>("dump-output") {
         if let Ok(mut dump_file) = std::fs::File::open(dump_path) {
             let mut contents = String::new();
-            if dump_file.read_to_string(&mut contents).is_ok() {
-                eprintln!(
-                    "{}",
-                    "Data left on output queue of instrument before connecting:".blue()
-                );
-                println!("{}", contents.bright_black());
+            match dump_file.read_to_string(&mut contents) {
+                Ok(_) => {
+                    if !contents.trim().is_empty() {
+                        trace!("Printing dump-output:");
+                        eprintln!(
+                            "{}",
+                            "Data left on output queue of instrument before connecting:".blue()
+                        );
+                        println!("{}", contents.bright_black());
+                    }
+                }
+                Err(e) => error!("{e}"),
             }
         }
     }
