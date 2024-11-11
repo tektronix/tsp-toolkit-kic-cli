@@ -120,7 +120,7 @@ fn cmds() -> Command {
         )
         .arg(
             Arg::new("log-socket")
-            .short('s')
+            .short('t')
             .long("log-socket")
             .required(false)
             .help("Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.")
@@ -138,7 +138,7 @@ fn cmds() -> Command {
         )
         .arg(
             Arg::new("no-color")
-                .short('c')
+                .short('n')
                 .long("no-color")
                 .help("Turn off ANSI color and formatting codes")
                 .global(true)
@@ -150,7 +150,15 @@ fn cmds() -> Command {
         .subcommand({
             let cmd = Command::new("connect")
                 .about("Connect to an instrument over one of the provided interfaces");
-            add_connection_subcommands(cmd, [])
+            add_connection_subcommands(cmd, [
+                Arg::new("dump-output")
+                    .short('o')
+                    .long("dump-output")
+                    .help("Display the contents of the file before the first prompt")
+                    .hide(true)
+                    .hide_long_help(true)
+                    .value_parser(PathBufValueParser::new()),
+            ])
         })
         .subcommand({
             let cmd = Command::new("reset")
@@ -166,6 +174,19 @@ fn cmds() -> Command {
                     .long("json")
                     .short('j')
                     .action(ArgAction::SetTrue)
+            ])
+        })
+        .subcommand({
+            let cmd = Command::new("dump")
+                .about("Dump the contents of the instrument output and error queue without any initial setup.");
+
+            add_connection_subcommands(cmd, [
+                    Arg::new("output")
+                        .short('o')
+                        .long("output")
+                        .help("The file to which the contents of the instrument output queue should be written (defaults to stdout)")
+                        .required(false)
+                        .value_parser(PathBufValueParser::new()),
             ])
         })
         .subcommand({
@@ -380,6 +401,9 @@ fn main() -> anyhow::Result<()> {
         Some(("reset", sub_matches)) => {
             return reset(sub_matches);
         }
+        Some(("dump", sub_matches)) => {
+            return dump(sub_matches);
+        }
         Some(("upgrade", sub_matches)) => {
             return upgrade(sub_matches);
         }
@@ -489,8 +513,8 @@ impl ConnectionType {
 }
 
 #[instrument]
-fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
-    info!("Synchronously connecting to instrument");
+fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
+    info!("Synchronously connecting to interface");
     let interface: Protocol = match t {
         ConnectionType::Lan(addr) => {
             (Box::new(TcpStream::connect(addr)?) as Box<dyn Interface>).into()
@@ -498,8 +522,29 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
         ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
     };
     trace!("Synchronously connected to interface");
+    Ok(interface)
+}
 
+#[instrument]
+fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
+    info!("Asynchronously connecting to interface");
+    let interface: Protocol = match t {
+        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new({
+            let stream = TcpStream::connect(addr)?;
+            stream.set_nonblocking(true)?;
+            stream
+        })
+            as Arc<dyn Interface + Send + Sync>)?)),
+        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
+    };
+    trace!("Asynchronously connected to interface");
+    Ok(interface)
+}
+
+#[instrument]
+fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     trace!("Converting interface to instrument");
+    let interface = connect_sync_protocol(t)?;
     let instrument: Box<dyn Instrument> = interface.try_into()?;
     trace!("Converted interface to instrument");
     info!("Successfully connected to instrument");
@@ -508,16 +553,7 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
 
 #[instrument]
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
-    info!("Asynchronously connecting to instrument");
-    let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new(
-            TcpStream::connect(addr)?,
-        )
-            as Arc<dyn Interface + Send + Sync>)?)),
-        ConnectionType::Visa(r) => Protocol::try_from_visa(r)?,
-    };
-
-    trace!("Asynchronously connected to interface");
+    let interface: Protocol = connect_async_protocol(t)?;
 
     trace!("Converting interface to instrument");
     let instrument: Box<dyn Instrument> = interface.try_into()?;
@@ -593,6 +629,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         "\nKeithley TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
+
     let conn = match ConnectionType::try_from_arg_matches(args) {
         Ok(c) => c,
         Err(e) => {
@@ -605,6 +642,32 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
             return Err(e);
         }
     };
+
+    let Some((_, args)) = args.subcommand() else {
+        unreachable!("arguments didn't exist")
+    };
+
+    if let Some(dump_path) = args.get_one::<PathBuf>("dump-output") {
+        trace!("Dump output: {dump_path:?}");
+        if let Ok(mut dump_file) = std::fs::File::open(dump_path) {
+            trace!("File exists");
+            let mut contents = String::new();
+            match dump_file.read_to_string(&mut contents) {
+                Ok(_) => {
+                    if !contents.trim().is_empty() {
+                        trace!("Printing dump-output:");
+                        eprintln!(
+                            "{}",
+                            "Data left on output queue of instrument before connecting:".blue()
+                        );
+                        println!("{}", contents.bright_black());
+                    }
+                }
+                Err(e) => error!("{e}"),
+            }
+        }
+    }
+
     let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn) {
         Ok(i) => i,
         Err(e) => {
@@ -658,6 +721,57 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         );
         drop(repl);
         pause_exit_on_error();
+    }
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn dump(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Dumping contents of instrument output and error queue");
+    trace!("args: {args:?}");
+
+    let conn = match ConnectionType::try_from_arg_matches(args) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Unable to parse connection information: {e}");
+            return Err(e);
+        }
+    };
+
+    let Some((_, args)) = args.subcommand() else {
+        unreachable!("arguments didn't exist")
+    };
+
+    let mut output: Box<dyn Write> = match args.get_one::<PathBuf>("output") {
+        Some(o) => Box::new(std::fs::File::create(o)?),
+        None => Box::new(std::io::stdout()),
+    };
+
+    let mut interface = connect_sync_protocol(conn)?;
+
+    let timestamp = chrono::Utc::now().to_string();
+
+    trace!("Writing print('{timestamp}') to instrument");
+    interface.write_all(format!("print('{timestamp}')\n").as_bytes())?;
+    trace!("Write complete");
+
+    //get output
+    loop {
+        let mut buf = vec![0u8; 512];
+        let bytes = match interface.read(&mut buf) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+            Err(e) => return Err(e.into()),
+        };
+
+        let buf = &buf[0..bytes];
+
+        if String::from_utf8_lossy(buf).contains(&timestamp) {
+            break;
+        }
+
+        output.write_all(buf)?;
     }
 
     Ok(())

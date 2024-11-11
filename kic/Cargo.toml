@@ -8,6 +8,7 @@ repository = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 instrument-repl = { workspace = true }
@@ -23,4 +24,3 @@ windows-sys = { version = "0.52.0", features = [
     "Win32_Foundation",
 ] }
 regex = "1.10.3"
-
