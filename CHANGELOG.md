@@ -24,6 +24,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Added new `--dump-output` arg to `connect` subcommand to support printing the
   `dump` subcommand details to the terminal
 
+### Fixed
+
+- Fixed CI issue where macOS artifacts would overwrite linux artifacts
+
 ## [0.18.4]
 
 ### Fixed
