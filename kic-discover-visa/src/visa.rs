@@ -3,10 +3,11 @@ use std::{collections::HashSet, ffi::CString, time::Duration};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace};
 use tsp_toolkit_kic_lib::{
-    instrument::info::{get_info, InstrumentInfo},
+    instrument::{info::InstrumentInfo, Instrument},
     interface::connection_addr::ConnectionAddr,
+    protocol::Protocol,
 };
-use visa_rs::{flags::AccessMode, AsResourceManager};
+use visa_rs::AsResourceManager;
 
 use crate::{insert_disc_device, model_check, IoType};
 
@@ -35,17 +36,31 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
             continue;
         }
         trace!("Connecting to {i:?} to get info");
-        let Ok(mut connected) = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE) else {
+        let Ok(interface) = Protocol::try_from_visa(i.to_string()) else {
             trace!("Resource {i} no longer available, skipping.");
             continue;
         };
+        let mut connected: Box<dyn Instrument> = match interface.try_into() {
+            Ok(c) => c,
+            Err(_) => {
+                trace!("Resource {i} no longer available, skipping.");
+                continue;
+            }
+        };
+        //let Ok(mut connected) = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE) else {
+        //    trace!("Resource {i} no longer available, skipping.");
+        //    continue;
+        //};
 
-        trace!("Getting info from {connected:?}");
-        let Ok(mut info) = get_info(&mut connected) else {
+        trace!("Getting info from {:?}", i);
+        let Ok(mut info) = connected.info() else {
             trace!("Unable to write to {i}, skipping");
             drop(connected);
             continue;
         };
+        trace!("Dropping instrument");
+        drop(connected);
+
         info.address = Some(ConnectionAddr::Visa(i.clone()));
         trace!("Got info: {info:?}");
         let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
