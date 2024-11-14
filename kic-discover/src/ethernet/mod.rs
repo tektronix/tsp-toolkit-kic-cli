@@ -13,10 +13,11 @@ use crate::{insert_disc_device, model_check, IoType};
 
 pub const COMM_PORT: u16 = 5025;
 pub const DST_PORT: u16 = 5030;
-pub const SERVICE_NAMES: [&str; 3] = [
+pub const SERVICE_NAMES: [&str; 4] = [
     "_scpi-raw._tcp.local",
     "_lxi._tcp.local",
     "_vxi-11._tcp.local",
+    "_hislip._tcp.local",
     //"_scpi-telnet._tcp.local",
 ];
 
