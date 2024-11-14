@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ffi::CString, time::Duration};
+use std::{collections::HashSet, ffi::CString, net::IpAddr, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace};
@@ -9,7 +9,19 @@ use tsp_toolkit_kic_lib::{
 };
 use visa_rs::AsResourceManager;
 
-use crate::{insert_disc_device, model_check, IoType};
+use crate::{ethernet::LxiDeviceInfo, insert_disc_device, model_check, IoType};
+
+/// Extract the IP address from the resource string and then get the [`LxiDeviceInfo`]
+/// which can be converted to [`InstrumentInfo`].
+/// Returns [`None`] in all error cases
+pub async fn visa_tcpip_info(rsc: String) -> Option<InstrumentInfo> {
+    let [_, ip_addr, ..] = rsc.split("::").collect::<Vec<&str>>()[..] else {
+        return None;
+    };
+    let instr_addr: IpAddr = ip_addr.parse().ok()?;
+    let lxi_xml = LxiDeviceInfo::query_lxi_xml(instr_addr).await?;
+    Some(LxiDeviceInfo::parse_lxi_xml(&lxi_xml, instr_addr)?.into())
+}
 
 #[tracing::instrument]
 pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<InstrumentInfo>> {
@@ -32,53 +44,52 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
         let Ok(i) = i else {
             continue;
         };
+
         if i.to_string().contains("SOCKET") || i.to_string().contains("INTFC") {
             continue;
         }
-        trace!("Connecting to {i:?} to get info");
-        let Ok(interface) = Protocol::try_from_visa(i.to_string()) else {
-            trace!("Resource {i} no longer available, skipping.");
-            continue;
-        };
-        let mut connected: Box<dyn Instrument> = match interface.try_into() {
-            Ok(c) => c,
-            Err(_) => {
+
+        let info = if i.to_string().starts_with("TCPIP") {
+            trace!("Getting info from LXI page");
+            visa_tcpip_info(i.to_string()).await
+        } else {
+            trace!("Connecting to {i:?} to get info");
+            let Ok(interface) = Protocol::try_from_visa(i.to_string()) else {
                 trace!("Resource {i} no longer available, skipping.");
                 continue;
-            }
-        };
-        //let Ok(mut connected) = rm.open(&i, AccessMode::NO_LOCK, visa_rs::TIMEOUT_IMMEDIATE) else {
-        //    trace!("Resource {i} no longer available, skipping.");
-        //    continue;
-        //};
+            };
+            let mut connected: Box<dyn Instrument> = match interface.try_into() {
+                Ok(c) => c,
+                Err(_) => {
+                    trace!("Resource {i} no longer available, skipping.");
+                    continue;
+                }
+            };
 
-        trace!("Getting info from {:?}", i);
-        let Ok(mut info) = connected.info() else {
-            trace!("Unable to write to {i}, skipping");
-            drop(connected);
-            continue;
+            trace!("Getting info from {:?}", i);
+            connected.info().ok()
         };
-        trace!("Dropping instrument");
-        drop(connected);
 
-        info.address = Some(ConnectionAddr::Visa(i.clone()));
-        trace!("Got info: {info:?}");
-        let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
-        if res.0 {
-            if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
-                io_type: IoType::Visa,
-                instr_address: i.to_string(),
-                manufacturer: "Keithley Instruments".to_string(),
-                model: info.clone().model.unwrap_or("UNKNOWN".to_string()),
-                serial_number: info.clone().serial_number.unwrap_or("UNKNOWN".to_string()),
-                firmware_revision: info.clone().firmware_rev.unwrap_or("UNKNOWN".to_string()),
-                instr_categ: model_check(info.clone().model.unwrap_or("".to_string()).as_str())
-                    .1
-                    .to_string(),
-            }) {
-                insert_disc_device(out_str.as_str())?;
+        if let Some(mut info) = info {
+            info.address = Some(ConnectionAddr::Visa(i.clone()));
+            trace!("Got info: {info:?}");
+            let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
+            if res.0 {
+                if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
+                    io_type: IoType::Visa,
+                    instr_address: i.to_string(),
+                    manufacturer: "Keithley Instruments".to_string(),
+                    model: info.clone().model.unwrap_or("UNKNOWN".to_string()),
+                    serial_number: info.clone().serial_number.unwrap_or("UNKNOWN".to_string()),
+                    firmware_revision: info.clone().firmware_rev.unwrap_or("UNKNOWN".to_string()),
+                    instr_categ: model_check(info.clone().model.unwrap_or("".to_string()).as_str())
+                        .1
+                        .to_string(),
+                }) {
+                    insert_disc_device(out_str.as_str())?;
+                }
+                discovered_instruments.insert(info);
             }
-            discovered_instruments.insert(info);
         }
     }
     Ok(discovered_instruments)
