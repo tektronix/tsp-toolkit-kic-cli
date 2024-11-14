@@ -27,6 +27,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 
 - Fixed CI issue where macOS artifacts would overwrite linux artifacts
+- VISA discovery now properly cleans up instrument after getting info
 
 ## [0.18.4]
 
