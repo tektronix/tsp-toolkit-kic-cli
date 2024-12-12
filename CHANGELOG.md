@@ -15,6 +15,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+
+## [0.19.1]
+
+### Changed
+
+- Determining supported instruments now depends on `kic-lib` implementation, not
+  a local re-implementation.
+
 ## [0.19.0]
 
 ### Added
@@ -169,7 +177,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.1
 [0.19.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.0
 [0.18.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.4
 [0.18.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.3
