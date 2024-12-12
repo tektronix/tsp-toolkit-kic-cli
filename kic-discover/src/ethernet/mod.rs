@@ -8,8 +8,9 @@ use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use std::{collections::HashSet, time::Duration};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tsp_toolkit_kic_lib::model::is_supported;
 
-use crate::{insert_disc_device, model_check, IoType};
+use crate::{insert_disc_device, model_category, IoType};
 
 pub const COMM_PORT: u16 = 5025;
 pub const DST_PORT: u16 = 5030;
@@ -112,19 +113,16 @@ impl LxiDeviceInfo {
                     port_split[port_split.len().saturating_sub(1)].to_string()
                 };
 
-                //ToDo: test versatest when it's discoverable
-                let res = model_check(model.as_str());
-
-                if manufacturer.to_ascii_lowercase().contains("keithley") && res.0 {
+                if manufacturer.to_ascii_lowercase().contains("keithley") && is_supported(&model) {
                     let device = Self {
                         io_type: IoType::Lan,
                         instr_address: instr_addr,
                         manufacturer,
-                        model,
+                        model: model.clone(),
                         serial_number,
                         firmware_revision,
                         socket_port,
-                        instr_categ: res.1.to_string(),
+                        instr_categ: model_category(&model).to_string(),
                     };
                     //println!("{:?}", device);
                     return Some(device);
