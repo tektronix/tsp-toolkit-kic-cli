@@ -34,7 +34,7 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::Instrument, interface::async_stream::AsyncStream, protocol::Protocol, Interface,
+    instrument::{CmdLanguage, Instrument}, interface::async_stream::AsyncStream, protocol::Protocol, Interface,
 };
 
 #[derive(Debug, Subcommand)]
@@ -986,6 +986,15 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
     let Some((_, args)) = args.subcommand() else {
         unreachable!("arguments didn't exist")
     };
+
+    match instrument.get_language() {
+        Ok(CmdLanguage::Tsp) => {},
+        Ok(_) => match instrument.change_language(CmdLanguage::Tsp) {
+            Ok(_) => {}
+            Err(e) => error!("Error setting instrument language to TSP: {e}"),
+        },
+        Err(e) => error!("Unable to determine instrument language: {e}"),
+    }
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 

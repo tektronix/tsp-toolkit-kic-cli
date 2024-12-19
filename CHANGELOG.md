@@ -17,6 +17,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.19.0]
 
+### Changed
+
+- For instruments that support both SCPI and TSP command languages, force the
+  command language to TSP when doing `kic info`
+
 ### Added
 
 - Added the `dump` subcommand to connect to an instrument and dump out the contents
