@@ -36,7 +36,10 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::{CmdLanguage, Instrument}, interface::async_stream::AsyncStream, protocol::Protocol, Interface,
+    instrument::{CmdLanguage, Instrument},
+    interface::async_stream::AsyncStream,
+    protocol::Protocol,
+    Interface,
 };
 
 #[derive(Debug, Subcommand)]
@@ -999,7 +1002,7 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
     };
 
     match instrument.get_language() {
-        Ok(CmdLanguage::Tsp) => {},
+        Ok(CmdLanguage::Tsp) => {}
         Ok(_) => match instrument.change_language(CmdLanguage::Tsp) {
             Ok(_) => {}
             Err(e) => error!("Error setting instrument language to TSP: {e}"),
