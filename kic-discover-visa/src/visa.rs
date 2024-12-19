@@ -5,11 +5,12 @@ use tracing::{error, trace};
 use tsp_toolkit_kic_lib::{
     instrument::{info::InstrumentInfo, Instrument},
     interface::connection_addr::ConnectionAddr,
+    model::is_supported,
     protocol::Protocol,
 };
 use visa_rs::AsResourceManager;
 
-use crate::{ethernet::LxiDeviceInfo, insert_disc_device, model_check, IoType};
+use crate::{ethernet::LxiDeviceInfo, insert_disc_device, model_category, IoType};
 
 /// Extract the IP address from the resource string and then get the [`LxiDeviceInfo`]
 /// which can be converted to [`InstrumentInfo`].
@@ -73,8 +74,7 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
         if let Some(mut info) = info {
             info.address = Some(ConnectionAddr::Visa(i.clone()));
             trace!("Got info: {info:?}");
-            let res = model_check(info.clone().model.unwrap_or("".to_string()).as_str());
-            if res.0 {
+            if is_supported(info.clone().model.unwrap_or_default()) {
                 if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
                     io_type: IoType::Visa,
                     instr_address: i.to_string(),
@@ -82,8 +82,7 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
                     model: info.clone().model.unwrap_or("UNKNOWN".to_string()),
                     serial_number: info.clone().serial_number.unwrap_or("UNKNOWN".to_string()),
                     firmware_revision: info.clone().firmware_rev.unwrap_or("UNKNOWN".to_string()),
-                    instr_categ: model_check(info.clone().model.unwrap_or("".to_string()).as_str())
-                        .1
+                    instr_categ: model_category(&info.clone().model.unwrap_or("".to_string()))
                         .to_string(),
                 }) {
                     insert_disc_device(out_str.as_str())?;
