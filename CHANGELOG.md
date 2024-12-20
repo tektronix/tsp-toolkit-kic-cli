@@ -22,8 +22,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Determining supported instruments now depends on `kic-lib` implementation, not
   a local re-implementation.
+- Change instrument language during an `info` command.
 
 ## [0.19.0]
+
+### Changed
+
+- For instruments that support both SCPI and TSP command languages, force the
+  command language to TSP when doing `kic info`
 
 ### Added
 
