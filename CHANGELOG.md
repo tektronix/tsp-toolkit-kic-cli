@@ -72,7 +72,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
-- **tsp-toolkit-kic-lib** Fix issue where versatest instrument fw flash would be aborted by drop
+- **tsp-toolkit-kic-lib** Fix issue where versatest instrument fw flash would be
+  aborted by drop
 
 ## [0.18.0]
 
@@ -85,7 +86,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - Add reset subcommand to enable quick instrument resetting (TSP-730)
-- Added logging infrastructure over socket, in files, and to stderr in `kic` and `kic-discover`.
+- Added logging infrastructure over socket, in files, and to stderr in `kic` and
+  `kic-discover`.
 
 ### Fixed
 - Fixed an indexing issue for upgrading module firmware (TSP-761) *Open Source Contribution: c3charvat, amcooper181*
