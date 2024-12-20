@@ -22,6 +22,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Determining supported instruments now depends on `kic-lib` implementation, not
   a local re-implementation.
+- Change instrument language during an `info` command.
 
 ## [0.19.0]
 
