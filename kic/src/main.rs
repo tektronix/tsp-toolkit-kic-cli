@@ -529,11 +529,9 @@ fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
 fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     info!("Asynchronously connecting to interface");
     let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new({
-            let stream = TcpStream::connect(addr)?;
-            stream.set_nonblocking(true)?;
-            stream
-        })
+        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new(
+            TcpStream::connect(addr)?,
+        )
             as Arc<dyn Interface + Send + Sync>)?)),
     };
     trace!("Asynchronously connected to interface");
