@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.2]
+
+### Fixed
+
+- Unable to connect over LAN, while accessing instrument remotely
+
 ## [0.19.1]
 
 ### Changed
@@ -185,7 +191,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.2...HEAD
+[0.19.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.2
 [0.19.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.1
 [0.19.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.0
 [0.18.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.18.4
