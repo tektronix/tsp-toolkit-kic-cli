@@ -293,11 +293,32 @@ impl Repl {
                             Self::println_flush(&self.inst.info()?.to_string().normal())?;
                             prompt = true;
                         }
-                        Request::Update { file, slot } => {
+                        Request::Upgrade { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
-                            Self::print_flush(&"Flash update is in progress.\nClose the terminal and reconnect again once the instrument has restarted.".bright_yellow())?;
+                            if slot.is_some_and(|s| s > 0) {
+                                // Upgrading Module
+                                Self::println_flush(
+                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (2-5 minutes)..."
+                                        .bright_yellow(),
+                                )?;
+                            } else {
+                                Self::println_flush(
+                                    &"Sending firmware file to mainframe. Please wait..."
+                                        .bright_yellow(),
+                                )?;
+                            }
                             self.inst.flash_firmware(contents.as_ref(), slot)?;
+                            if slot.is_some_and(|s| s > 0) {
+                                // Upgrading Module
+                                Self::println_flush(&"Module upgrade complete.".bright_yellow())?;
+                            } else {
+                                Self::println_flush(
+                                    &"Firmware file download complete.".bright_yellow(),
+                                )?;
+                                // Upgrading Mainframe
+                                Self::println_flush(&"Close the terminal (.exit) and reconnect after the instrument has restarted.".bright_yellow())?;
+                            }
                             // Flashing FW disables prompts before flashing but might
                             // lose runtime state, so we can't save the previous
                             // setting, so we just hardcode it to enabled here.
@@ -680,7 +701,7 @@ impl Repl {
                     }
 
                     let slot = flags.get_one::<u16>("slot").copied();
-                    Request::Update { file, slot }
+                    Request::Upgrade { file, slot }
                 }
             },
             _ => Request::Tsp(input.trim().to_string()),

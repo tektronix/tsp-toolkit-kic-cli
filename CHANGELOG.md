@@ -16,11 +16,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+
 ## [0.19.2]
 
 ### Fixed
 
 - Unable to connect over LAN, while accessing instrument remotely
+- Fix upgrade procedure for trebuchet
 
 ## [0.19.1]
 

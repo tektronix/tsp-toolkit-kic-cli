@@ -18,7 +18,7 @@ pub enum Request {
     Info {
         slot: Option<usize>,
     },
-    Update {
+    Upgrade {
         file: PathBuf,
         slot: Option<u16>,
     },
