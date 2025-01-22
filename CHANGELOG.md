@@ -24,6 +24,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.19.2]
 
+### Added
+
+- Added connection support for 5881-SRU and 5880-SRU
+
+## [0.19.2]
+
 ### Fixed
 
 - Unable to connect over LAN, while accessing instrument remotely
