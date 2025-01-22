@@ -1,7 +1,7 @@
 use std::{collections::HashSet, ffi::CString, net::IpAddr, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 use tsp_toolkit_kic_lib::{
     instrument::{info::InstrumentInfo, Instrument},
     interface::connection_addr::ConnectionAddr,
@@ -35,11 +35,11 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
     let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
         Ok(x) => x,
         Err(e) => {
-            trace!("No VISA instruments found: {e}");
+            debug!("No VISA instruments found: {e}");
             return Ok(discovered_instruments);
         }
     };
-    trace!("discovered: {instruments:?}");
+    debug!("discovered: {instruments:?}");
 
     for i in instruments {
         let Ok(i) = i else {

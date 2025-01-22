@@ -275,12 +275,19 @@ fn main() -> anyhow::Result<()> {
     let log_file: Option<&PathBuf> = matches.get_one("log-file");
     let log_socket: Option<&SocketAddr> = matches.get_one("log-socket");
 
+    #[cfg(debug_assertions)]
+    const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
+    #[cfg(not(debug_assertions))]
+    const LOGFILE_LEVEL: LevelFilter = LevelFilter::DEBUG;
+
+    const STDERR_LEVEL: LevelFilter = LevelFilter::INFO;
+
     match (verbose, log_file, log_socket) {
         (true, Some(l), Some(s)) => {
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr)
-                .with_filter(LevelFilter::INFO);
+                .with_filter(STDERR_LEVEL);
 
             let log = OpenOptions::new().append(true).create(true).open(l)?;
 
@@ -296,7 +303,7 @@ fn main() -> anyhow::Result<()> {
                 .json();
 
             let logger = Registry::default()
-                .with(LevelFilter::TRACE)
+                .with(LOGFILE_LEVEL)
                 .with(err)
                 .with(log)
                 .with(sock);
@@ -307,7 +314,7 @@ fn main() -> anyhow::Result<()> {
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr)
-                .with_filter(LevelFilter::INFO);
+                .with_filter(STDERR_LEVEL);
 
             let log = OpenOptions::new().append(true).create(true).open(l)?;
 
@@ -316,10 +323,7 @@ fn main() -> anyhow::Result<()> {
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .with_ansi(false);
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(err)
-                .with(log);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err).with(log);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -336,10 +340,7 @@ fn main() -> anyhow::Result<()> {
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(log)
-                .with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(log).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -350,7 +351,7 @@ fn main() -> anyhow::Result<()> {
                 .with_writer(log)
                 .with_ansi(false);
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(log);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(log);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -365,10 +366,7 @@ fn main() -> anyhow::Result<()> {
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(err)
-                .with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -377,7 +375,7 @@ fn main() -> anyhow::Result<()> {
                 .with_ansi(true)
                 .with_writer(std::io::stderr);
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(err);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -388,7 +386,7 @@ fn main() -> anyhow::Result<()> {
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -396,7 +394,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-    trace!(
+    debug!(
         "Application starting with the following args: {:?}",
         std::env::args()
     );
