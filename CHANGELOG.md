@@ -18,7 +18,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.19.3]
 
-## Changed
+### Changed
 
 - Reduce amount of default logging
 
