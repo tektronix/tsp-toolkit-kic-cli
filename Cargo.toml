@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.19.2"
+version = "0.19.3"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
@@ -53,3 +53,6 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+
+[patch."https://github.com/tektronix/tsp-toolkit-kic-lib.git"]
+tsp-toolkit-kic-lib = { path = "../tsp-toolkit-kic-lib" }
