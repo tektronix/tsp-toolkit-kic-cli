@@ -5,7 +5,7 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover_visa::instrument_discovery::InstrumentDiscovery;
-use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
+use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
@@ -85,12 +85,19 @@ fn start_logger(
     log_file: &Option<PathBuf>,
     log_socket: &Option<SocketAddr>,
 ) -> anyhow::Result<()> {
+    #[cfg(debug_assertions)]
+    const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
+    #[cfg(not(debug_assertions))]
+    const LOGFILE_LEVEL: LevelFilter = LevelFilter::DEBUG;
+
+    const STDERR_LEVEL: LevelFilter = LevelFilter::INFO;
+
     match (verbose, log_file, log_socket) {
         (true, Some(l), Some(s)) => {
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr)
-                .with_filter(LevelFilter::INFO);
+                .with_filter(STDERR_LEVEL);
 
             let log = OpenOptions::new().append(true).create(true).open(l)?;
 
@@ -106,7 +113,7 @@ fn start_logger(
                 .json();
 
             let logger = Registry::default()
-                .with(LevelFilter::TRACE)
+                .with(LOGFILE_LEVEL)
                 .with(err)
                 .with(log)
                 .with(sock);
@@ -117,7 +124,7 @@ fn start_logger(
             let err = tracing_subscriber::fmt::layer()
                 .with_ansi(true)
                 .with_writer(std::io::stderr)
-                .with_filter(LevelFilter::INFO);
+                .with_filter(STDERR_LEVEL);
 
             let log = OpenOptions::new().append(true).create(true).open(l)?;
 
@@ -126,10 +133,7 @@ fn start_logger(
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .with_ansi(false);
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(err)
-                .with(log);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err).with(log);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -146,10 +150,7 @@ fn start_logger(
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(log)
-                .with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(log).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -160,7 +161,7 @@ fn start_logger(
                 .with_writer(log)
                 .with_ansi(false);
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(log);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(log);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -175,10 +176,7 @@ fn start_logger(
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default()
-                .with(LevelFilter::TRACE)
-                .with(err)
-                .with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -187,7 +185,7 @@ fn start_logger(
                 .with_ansi(true)
                 .with_writer(std::io::stderr);
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(err);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(err);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -198,7 +196,7 @@ fn start_logger(
                 .fmt_fields(tracing_subscriber::fmt::format::DefaultFields::new())
                 .json();
 
-            let logger = Registry::default().with(LevelFilter::TRACE).with(sock);
+            let logger = Registry::default().with(LOGFILE_LEVEL).with(sock);
 
             tracing::subscriber::set_global_default(logger)?;
         }
@@ -206,7 +204,7 @@ fn start_logger(
     }
 
     info!("Application started");
-    trace!(
+    debug!(
         "Application starting with the following args: {:?}",
         std::env::args()
     );

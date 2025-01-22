@@ -855,7 +855,7 @@ impl Repl {
 impl Drop for Repl {
     #[instrument(skip(self))]
     fn drop(&mut self) {
-        trace!("Calling Repl::drop()");
+        debug!("Calling Repl::drop()");
         let _ = self
             .inst
             .write_all(b"if (_KIC ~= nil and _KIC['cleanup'] ~= nil) then _KIC.cleanup() end\n");
