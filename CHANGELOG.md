@@ -22,8 +22,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Reduce amount of default logging
 
-## [0.19.2]
-
 ### Added
 
 - Added connection support for 5881-SRU and 5880-SRU
