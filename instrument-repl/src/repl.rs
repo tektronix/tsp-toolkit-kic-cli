@@ -22,7 +22,7 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use tsp_toolkit_kic_lib::instrument::Instrument;
+use tsp_toolkit_kic_lib::{instrument::Instrument, InstrumentError};
 
 use crate::{
     command::Request,
@@ -299,7 +299,7 @@ impl Repl {
                             if slot.is_some_and(|s| s > 0) {
                                 // Upgrading Module
                                 Self::println_flush(
-                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (2-5 minutes)..."
+                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 10 minutes)..."
                                         .bright_yellow(),
                                 )?;
                             } else {
@@ -308,16 +308,26 @@ impl Repl {
                                         .bright_yellow(),
                                 )?;
                             }
-                            self.inst.flash_firmware(contents.as_ref(), slot)?;
-                            if slot.is_some_and(|s| s > 0) {
-                                // Upgrading Module
-                                Self::println_flush(&"Module upgrade complete.".bright_yellow())?;
-                            } else {
-                                Self::println_flush(
-                                    &"Firmware file download complete.".bright_yellow(),
-                                )?;
-                                // Upgrading Mainframe
-                                Self::println_flush(&"Close the terminal (.exit) and reconnect after the instrument has restarted.".bright_yellow())?;
+                            match self.inst.flash_firmware(contents.as_ref(), slot) {
+                                Ok(()) => {
+                                    if slot.is_some_and(|s| s > 0) {
+                                        // Upgrading Module
+                                        Self::println_flush(
+                                            &"Module upgrade complete.".bright_yellow(),
+                                        )?;
+                                    } else {
+                                        Self::println_flush(
+                                            &"Firmware file download complete.".bright_yellow(),
+                                        )?;
+                                        // Upgrading Mainframe
+                                        Self::println_flush(&"Close the terminal (.exit) and reconnect after the instrument has restarted.".bright_yellow())?;
+                                    }
+                                }
+                                Err(InstrumentError::FwUpgradeFailure(msg)) => {
+                                    error!("{msg}");
+                                    Self::println_flush(&msg.red())?;
+                                }
+                                Err(e) => return Err(e.into()),
                             }
                             // Flashing FW disables prompts before flashing but might
                             // lose runtime state, so we can't save the previous

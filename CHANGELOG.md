@@ -21,6 +21,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Changed
 
 - Reduce amount of default logging
+- Use new `firmware.valid` attribute to gate firmware update
 
 ### Added
 
