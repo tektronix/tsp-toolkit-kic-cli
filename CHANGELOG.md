@@ -25,7 +25,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
-- Added connection support for 5881-SRU and 5880-SRU
+- Added connection support for missing instrument models
 
 ## [0.19.2]
 
