@@ -16,6 +16,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.4]
+
+- Make the `script` subcommand print output and close after completion
+
 ## [0.19.3]
 
 ### Changed

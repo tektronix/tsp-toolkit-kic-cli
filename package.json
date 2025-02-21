@@ -1,6 +1,6 @@
 {
     "name": "@tektronix/kic-cli",
-    "version": "0.19.3",
+    "version": "0.19.4",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
@@ -24,7 +24,6 @@
         "test": "mocha --config .mocharc.yml"
     },
     "devDependencies": {
-        "@cyclonedx/cyclonedx-npm": "^1.10.0",
         "@istanbuljs/nyc-config-typescript": "^1.0.2",
         "@types/chai": "^4.3.17",
         "@types/mocha": "^10.0.6",
