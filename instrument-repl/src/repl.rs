@@ -3,8 +3,8 @@
 //! 1. stdin processing
 //! 2. stdout printing
 //! 3. instrument read and write (handled by `ConnectAsync`)
-//!     this is done by checking the `read_into` mpsc channel receiver and then checking
-//!     the instrument communication line for data coming back from the instrument.
+//!    this is done by checking the `read_into` mpsc channel receiver and then checking
+//!    the instrument communication line for data coming back from the instrument.
 
 use chrono::Utc;
 use clap::{arg, value_parser, Arg, ArgAction, Command};
@@ -356,7 +356,7 @@ impl Repl {
                                     sub.print_help()?;
                                     continue 'user_loop;
                                 };
-                            };
+                            }
                             self.command.print_help()?;
                         }
                         Request::Usage(s) => {
@@ -371,7 +371,7 @@ impl Repl {
                         Request::None => {
                             prompt = true;
                         }
-                    };
+                    }
                 }
                 Err(TryRecvError::Disconnected) => break 'user_loop,
                 Err(TryRecvError::Empty) => {}
@@ -613,7 +613,7 @@ impl Repl {
 
         if let Err(e) = matches {
             return Ok(Request::Usage(e.to_string()));
-        };
+        }
 
         let matches = matches.unwrap();
 
