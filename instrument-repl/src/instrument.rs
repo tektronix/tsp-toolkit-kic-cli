@@ -71,7 +71,7 @@ impl ParsedResponse {
     pub fn parse_next(input: &[u8]) -> Option<(Self, Vec<u8>)> {
         if input.is_empty() || input[0] == 0u8 {
             return None;
-        };
+        }
         let s = String::from_utf8_lossy(input).trim_start().to_string();
 
         if s.starts_with("NODE>START") {

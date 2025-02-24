@@ -36,7 +36,7 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::{CmdLanguage, Instrument},
+    instrument::{read_until, CmdLanguage, Instrument},
     interface::async_stream::AsyncStream,
     protocol::Protocol,
     Interface,
@@ -937,16 +937,63 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
             }
 
             eprintln!("Loading script to instrument.");
-            instrument.write_script(script_name.as_bytes(), &script_content, save, run)?;
+
+            match instrument.write_all(b"localnode.prompts=1\n") {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("Error file: {e}");
+                    return Err(e.into());
+                }
+            }
+            if let Err(e) = read_until(
+                &mut instrument,
+                vec!["TSP>".to_string()],
+                20,
+                Duration::from_millis(50),
+            ) {
+                return Err(e.into());
+            };
+            match instrument.write_script(script_name.as_bytes(), &script_content, save, run) {
+                Ok(_) => {}
+                Err(e) => return Err(e.into()),
+            }
+
             eprintln!("Script loading completed.");
             info!("Script loading completed.");
+
+            let mut accumulate = String::new();
+            let _ = instrument.set_nonblocking(true);
+            loop {
+                let mut buf: Vec<u8> = vec![0u8; 512];
+                match instrument.read(&mut buf) {
+                    Ok(_) => {}
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(1));
+                        continue;
+                    }
+                    Err(e) => return Err(e.into()),
+                };
+                let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
+                let buf = &buf[..first_null];
+                let buf = String::from_utf8_lossy(buf);
+                if !buf.is_empty() {
+                    accumulate = format!("{accumulate}{}", &buf);
+                }
+                let buf = buf
+                    .split("TSP>")
+                    .next()
+                    .expect("should have had one element in the buffer");
+
+                print!("{buf}");
+                if accumulate.contains("TSP>\n") {
+                    return Ok(());
+                }
+            }
         }
         Err(err_msg) => {
             unreachable!("Issue with regex creation: {}", err_msg.to_string());
         }
     }
-
-    Ok(())
 }
 
 #[instrument(skip(args))]

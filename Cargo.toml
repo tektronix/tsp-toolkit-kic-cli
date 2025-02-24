@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.19.3"
+version = "0.19.4"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
