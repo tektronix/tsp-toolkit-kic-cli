@@ -1,17 +1,20 @@
 ---Create the initial JSON structure
-local lang_data = {
-  ["$schema"] = "./tspSchema.json",
-  nodes = {},
-  self = ""
-}
+local newSystem =
+  {
+    name = "",
+    localNode = "",
+    isActive = false,
+  }
+
 
 ---Function to add node details dynamically
-local function addNodeDetails(nodeName, model)
-  lang_data.nodes[nodeName] = {
-    model = model
+local function addNodeDetails(nodeId, model)
+  local newNode = {
+    nodeId = nodeId,
+    mainframe = model
   }
+  table.insert(newSystem.nodes, newNode)
 end
-
 
 
 if tsplink.initialize == nil then
@@ -21,53 +24,93 @@ else
 end
 
 if (tsplink.state == "online") then
+  newSystem.nodes = {}
+
   for i = 1, 64, 1 do
     if (node[i] ~= nil) then
-      addNodeDetails("node" .. i, node[i].model)
+      addNodeDetails("node" .."[".. i.."]", node[i].model)
     end
   end
 end
 
-lang_data.self = node[tsplink.master].model
+newSystem.localNode = node[tsplink.master].model
 
 
 
+local function tableToString(tbl, orderedKeys)
+  local str = ""
 
-
-
-local function tableToString(tbl)
-  local str = "{"
-
-  -- Check if the table is empty
-  if next(tbl) == nil then
-    return "{}"
-  end
-
-  -- Iterate over the key-value pairs
-  for key, value in pairs(tbl) do
-    -- Wrap the key with double quotes
-    str = str .. '"' .. tostring(key) .. '": '
-
-    -- Check if the value is a nested table
-    if type(value) == "table" then
-      str = str .. tableToString(value)          -- Recursive call for nested tables
-    elseif value == "" then
-      str = str .. '""'                          -- Empty string representation
-    else
-      str = str .. '"' .. tostring(value) .. '"' -- Regular string representation
+  -- Check if the table is an array (numeric keys)
+  local isArray = next(tbl) and (function()
+    for k, _ in pairs(tbl) do
+      if type(k) ~= "number" then
+        return false
+      end
     end
+    return true
+  end)()
 
-    str = str .. ", "
+  if isArray then
+    str = "["
+    for _, value in ipairs(tbl) do
+      if type(value) == "table" then
+        str = str .. tableToString(value) .. ", "
+      elseif type(value) == "boolean" then
+        str = str .. tostring(value) .. ", "
+      else
+        str = str .. '"' .. tostring(value) .. '", '
+      end
+    end
+  else
+    str = "{"
+    local processedKeys = {}
+    if orderedKeys then
+      -- Use orderedKeys if provided
+      for _, key in ipairs(orderedKeys) do
+        local value = tbl[key]
+        if value ~= nil then
+          str = str .. '"' .. tostring(key) .. '": '
+          if type(value) == "table" then
+            str = str .. tableToString(value) .. ", "
+          elseif type(value) == "boolean" then
+            str = str .. tostring(value) .. ", "
+          else
+            str = str .. '"' .. tostring(value) .. '", '
+          end
+          processedKeys[key] = true
+        end
+      end
+    end
+    -- Add remaining keys not in orderedKeys
+    for key, value in pairs(tbl) do
+      if not processedKeys[key] then
+        str = str .. '"' .. tostring(key) .. '": '
+        if type(value) == "table" then
+          str = str .. tableToString(value) .. ", "
+        elseif type(value) == "boolean" then
+          str = str .. tostring(value) .. ", "
+        else
+          str = str .. '"' .. tostring(value) .. '", '
+        end
+      end
+    end
   end
 
   -- Remove the trailing comma and space
   str = string.sub(str, 1, -3)
 
-  str = str .. "}"
+  -- Close the JSON structure
+  if isArray then
+    str = str .. "]"
+  else
+    str = str .. "}"
+  end
+
   return str
 end
 
 
 -- Call the function to convert the table to a string
-local str = tableToString(lang_data)
+local orderedKeys = { "name", "localNode", "isActive", "slots", "nodes" }
+local str = tableToString(newSystem, orderedKeys)
 print("NODE>START", str, "NODE>END")
