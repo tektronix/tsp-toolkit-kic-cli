@@ -1,19 +1,43 @@
 ---Create the initial JSON structure
 local newSystem =
-  {
-    name = "",
-    localNode = "",
-    isActive = false,
-  }
+{
+  name = "",
+  localNode = "",
+  isActive = false,
+}
+local MP5103 = "MP5103"
 
 
----Function to add node details dynamically
-local function addNodeDetails(nodeId, model)
-  local newNode = {
-    nodeId = nodeId,
-    mainframe = model
-  }
-  table.insert(newSystem.nodes, newNode)
+
+---Function to add node
+local function getNodes()
+  newSystem.nodes = {}
+  for i = 1, 64, 1 do
+    if (node[i] ~= nil) then
+      local newNode = {
+        nodeId = "node" .. "[" .. i .. "]",
+        mainframe = node[i].model
+      }
+      table.insert(newSystem.nodes, newNode)
+      if (node[i].model == MP5103) then
+        getSlots(node[i])
+      end
+    end
+  end
+end
+
+---Function to add slot
+local function getSlots(nodeTable)
+  newSystem.slots = {}
+  for i = 1, 4, 1 do
+    if (nodeTable.slot[i] ~= nil) then
+      local slot = {
+        slotId = "slot" .. "[" .. i .. "]",
+        mainframe = nodeTable.slot[i].model
+      }
+      table.insert(newSystem.slots, slot)
+    end
+  end
 end
 
 
@@ -24,16 +48,14 @@ else
 end
 
 if (tsplink.state == "online") then
-  newSystem.nodes = {}
-
-  for i = 1, 64, 1 do
-    if (node[i] ~= nil) then
-      addNodeDetails("node" .."[".. i.."]", node[i].model)
-    end
-  end
+  getNodes()
 end
 
+
 newSystem.localNode = node[tsplink.master].model
+if (node[tsplink.master].model == MP5103) then
+  getSlots(newSystem)
+end
 
 
 
