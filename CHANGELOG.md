@@ -18,7 +18,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.19.5]
 
 ### Changed
-- Josn structure updated to include module info
+- JSON structure updated to include module info
 - Write fetched configuration to setting.json file
 
 ## [0.19.4]
