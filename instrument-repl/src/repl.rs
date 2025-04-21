@@ -483,15 +483,15 @@ impl Repl {
 
             // Check if the key "tsp.tspLinkSystemConfigurations" exists
             if let Some(configurations) = json_value
-            .get_mut("tsp.tspLinkSystemConfigurations")
-            .and_then(|configs| configs.as_array_mut())
+                .get_mut("tsp.tspLinkSystemConfigurations")
+                .and_then(|configs| configs.as_array_mut())
             {
-            // Add the new object to the existing list
-            configurations.push(new_json_value);
+                // Add the new object to the existing list
+                configurations.push(new_json_value);
             } else {
-            // Create the key and initialize it with a list containing the new object
-            json_value["tsp.tspLinkSystemConfigurations"] =
-                serde_json::Value::Array(vec![new_json_value]);
+                // Create the key and initialize it with a list containing the new object
+                json_value["tsp.tspLinkSystemConfigurations"] =
+                    serde_json::Value::Array(vec![new_json_value]);
             }
 
             // Convert the updated JSON value to a pretty-printed string
