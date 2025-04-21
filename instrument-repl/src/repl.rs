@@ -470,18 +470,46 @@ impl Repl {
             fs::create_dir_all(path)?;
         }
 
-        if let Ok(mut file) = File::create(file_path) {
+        if let Ok(mut file) = File::open(&file_path) {
+            // Read the existing file content
+            let mut existing_content = String::new();
+            file.read_to_string(&mut existing_content)?;
+
+            // Parse the existing JSON content
+            let mut json_value: serde_json::Value = serde_json::from_str(&existing_content)?;
+
             // Convert the Lua string to JSON
-            let json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
+            let new_json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
 
-            // Convert the JSON value to a pretty-printed string
-            let json_string = serde_json::to_string_pretty(&json_value)?;
+            // Check if the key "tsp.tspLinkSystemConfigurations" exists
+            if let Some(configurations) = json_value
+                .get_mut("tsp.tspLinkSystemConfigurations")
+                .and_then(|configs| configs.as_array_mut())
+            {
+                // Add the new object to the existing list
+                configurations.push(new_json_value);
+            } else {
+                // Create the key and initialize it with a list containing the new object
+                json_value["tsp.tspLinkSystemConfigurations"] =
+                    serde_json::Value::Array(vec![new_json_value]);
+            }
 
-            file.write_all(json_string.as_bytes())?;
+            // Convert the updated JSON value to a pretty-printed string
+            let updated_json_string = serde_json::to_string_pretty(&json_value)?;
+
+            // Write the updated JSON back to the file
+            let mut file = File::create(file_path)?;
+            file.write_all(updated_json_string.as_bytes())?;
         } else {
-            return Err(InstrumentReplError::IOError {
-                source: std::io::Error::new(io::ErrorKind::Other, "Failed to open file."),
+            // If the file doesn't exist, create it and initialize the JSON structure
+            let new_json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
+            let json_structure = serde_json::json!({
+                "tsp.tspLinkSystemConfigurations":[new_json_value]
             });
+
+            let json_string = serde_json::to_string_pretty(&json_structure)?;
+            let mut file = File::create(file_path)?;
+            file.write_all(json_string.as_bytes())?;
         }
         Ok(())
     }
