@@ -17,9 +17,19 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.19.5]
 
+### Added
+
+- (**tsp-toolkit-kic-lib**) Progress indicators for very large scripts and firmware files
+
 ### Changed
+
 - JSON structure updated to include module info
 - Write fetched configuration to setting.json file
+- (**tsp-toolkit-kic-lib**) No longer need to call `slot.stop` and `slot.start` since that is done by firmware now
+
+### Fixed
+
+- (**tsp-toolkit-kic-lib**) Issues with firmware updates over USBTMC on some instruments
 
 ## [0.19.4]
 
