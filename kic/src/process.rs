@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, path::PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Process {
@@ -30,13 +30,10 @@ impl Process {
         if exit.success() {
             Ok(())
         } else {
-            Err(std::io::Error::new(
-                ErrorKind::Other,
-                format!(
-                    "child process did not exit successfully: {}",
-                    self.path.display()
-                ),
-            )
+            Err(std::io::Error::other(format!(
+                "child process did not exit successfully: {}",
+                self.path.display()
+            ))
             .into())
         }
     }
@@ -44,7 +41,6 @@ impl Process {
 
 #[cfg(windows)]
 mod imp {
-    use std::io::ErrorKind;
 
     use super::Process;
     use windows_sys::Win32::{
@@ -62,11 +58,9 @@ mod imp {
         //        expected to be safe.
         unsafe {
             if SetConsoleCtrlHandler(Some(ctrlc_handler), TRUE) == FALSE {
-                return Err(std::io::Error::new(
-                    ErrorKind::Other,
-                    "Unable to set Ctrl+C Handler".to_string(),
-                )
-                .into());
+                return Err(
+                    std::io::Error::other("Unable to set Ctrl+C Handler".to_string()).into(),
+                );
             }
         }
 

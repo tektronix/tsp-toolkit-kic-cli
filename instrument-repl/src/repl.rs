@@ -480,7 +480,7 @@ impl Repl {
             file.write_all(json_string.as_bytes())?;
         } else {
             return Err(InstrumentReplError::IOError {
-                source: std::io::Error::new(io::ErrorKind::Other, "Failed to open file."),
+                source: std::io::Error::other("Failed to open file."),
             });
         }
         Ok(())
