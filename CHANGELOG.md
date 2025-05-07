@@ -23,6 +23,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.19.5]
 
+### Fixed
+- (**tsp-toolkit-kic-lib**) Progress indicators for 2600, 3706, and TTI instruments
+- Recognize when socket has been terminated from device-side more quickly and close.
+
+## [0.19.5]
+
 ### Added
 
 - (**tsp-toolkit-kic-lib**) Progress indicators for very large scripts and firmware files
