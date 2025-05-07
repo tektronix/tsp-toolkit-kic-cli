@@ -13,7 +13,7 @@ use regex::Regex;
 use std::{
     fmt::Display,
     fs::{self, File},
-    io::{self, Read, Write},
+    io::{self, ErrorKind, Read, Write},
     path::PathBuf,
     process::exit,
     sync::mpsc::{channel, Sender, TryRecvError},
@@ -76,7 +76,7 @@ pub fn clear_output_queue(
         let mut buf: Vec<u8> = vec![0u8; 512];
         match inst.read(&mut buf) {
             Ok(_) => Ok(()),
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                 std::thread::sleep(delay_between_attempts);
                 continue;
             }
@@ -215,10 +215,32 @@ impl Repl {
             std::thread::sleep(Duration::from_micros(1));
             if command_written || last_read.elapsed() >= Duration::from_secs(3) {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
-                let read_size = self.inst.read(&mut read_buf)?;
+                last_read = Instant::now();
+                let read_size = match self.inst.read(&mut read_buf) {
+                    Ok(read_size) => read_size,
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                        continue;
+                    }
+                    Err(e) if e.kind() == ErrorKind::ConnectionReset => {
+                        error!("Error reading: CONNECTION RESET {e:?}");
+                        return Err(e.into());
+                    }
+                    Err(e) if e.kind() == ErrorKind::ConnectionAborted => {
+                        error!("Error reading: CONNECTION ABORTED {e:?}");
+                        break;
+                    }
+                    Err(e) if e.kind() == ErrorKind::NotConnected => {
+                        error!("Error reading: NOT CONNECTED {e:?}");
+                        break;
+                    }
+                    Err(e) => {
+                        error!("Error reading: {e:?}");
+                        continue;
+                    }
+                };
+
                 let read_buf: Vec<u8> = read_buf[..read_size].into();
                 prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
-                last_read = Instant::now();
             }
 
             if prompt {
