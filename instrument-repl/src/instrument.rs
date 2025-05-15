@@ -72,11 +72,16 @@ impl ParsedResponse {
         if input.is_empty() || input[0] == 0u8 {
             return None;
         }
+        fn num_whitespace(input: &[u8]) -> usize {
+            let s = String::from_utf8_lossy(input);
+            s.chars().take_while(|c| c.is_whitespace()).map(|c| c.len_utf8()).sum()
+        }
+
         let s = String::from_utf8_lossy(input).trim_start().to_string();
 
         if s.starts_with("NODE>START") {
             let v = if input.len() > 10 {
-                input[10..].to_vec()
+                input[num_whitespace(input) + 10..].to_vec()
             } else {
                 Vec::new()
             };
@@ -84,7 +89,7 @@ impl ParsedResponse {
         }
         if s.starts_with("NODE>END") {
             let v = if input.len() > 8 {
-                input[8..].to_vec()
+                input[num_whitespace(input) + 8..].to_vec()
             } else {
                 Vec::new()
             };
@@ -92,7 +97,7 @@ impl ParsedResponse {
         }
         if s.starts_with("TSP>") {
             let v = if input.len() > 4 {
-                input[4..].to_vec()
+                input[num_whitespace(input) + 4..].to_vec()
             } else {
                 Vec::new()
             };
@@ -100,7 +105,7 @@ impl ParsedResponse {
         }
         if s.starts_with("TSP?") {
             let v = if input.len() > 4 {
-                input[4..].to_vec()
+                input[num_whitespace(input) + 4..].to_vec()
             } else {
                 Vec::new()
             };
@@ -108,7 +113,7 @@ impl ParsedResponse {
         }
         if s.starts_with("ERM>START") {
             let v = if input.len() > 9 {
-                input[9..].to_vec()
+                input[num_whitespace(input) + 9..].to_vec()
             } else {
                 Vec::new()
             };
@@ -116,7 +121,7 @@ impl ParsedResponse {
         }
         if s.starts_with("ERM>DONE") {
             let v = if input.len() > 8 {
-                input[8..].to_vec()
+                input[num_whitespace(input) + 8..].to_vec()
             } else {
                 Vec::new()
             };
@@ -124,8 +129,8 @@ impl ParsedResponse {
         }
         if s.starts_with("ERM>") {
             let (v, r): (Vec<u8>, Vec<u8>) = if input.len() > 4 {
-                Self::find_next(&input[4..]).map_or_else(
-                    || (input[4..].to_vec(), Vec::new()),
+                Self::find_next(&input[num_whitespace(input) + 4..]).map_or_else(
+                    || (input[num_whitespace(input) + 4..].to_vec(), Vec::new()),
                     |next_token| {
                         (
                             #[allow(clippy::arithmetic_side_effects)]
@@ -144,7 +149,7 @@ impl ParsedResponse {
         }
         if s.starts_with(">>>>") {
             let v = if input.len() > 4 {
-                input[4..].to_vec()
+                input[num_whitespace(input) + 4..].to_vec()
             } else {
                 Vec::new()
             };
