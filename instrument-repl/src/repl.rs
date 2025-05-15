@@ -189,7 +189,6 @@ impl Repl {
         self.clear_output_queue(5000, Duration::from_millis(1))?;
         self.inst.set_nonblocking(false)?;
 
-
         debug!("Writing common script to instrument");
         self.inst.write_script(
             b"_kic_common",

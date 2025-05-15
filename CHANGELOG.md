@@ -15,11 +15,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+
+## [0.19.7]
+
+### Fixed
+- Recognize when socket has been terminated from device-side more quickly and close.
+
 ## [0.19.6]
 
 ### Fixed
 - (**tsp-toolkit-kic-lib**) Progress indicators for 2600, 3706, and TTI instruments
-- Recognize when socket has been terminated from device-side more quickly and close.
 
 ## [0.19.5]
 
@@ -229,7 +234,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.6...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.19.7...HEAD
+[0.19.7]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.7
 [0.19.6]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.6
 [0.19.5]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.5
 [0.19.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.19.4
