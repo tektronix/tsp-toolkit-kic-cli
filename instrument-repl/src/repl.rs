@@ -181,13 +181,13 @@ impl Repl {
         info!("Starting REPL");
         let mut prev_state: Option<ReadState> = None;
         let mut state: Option<ReadState> = None;
-        self.inst.set_nonblocking(true)?;
 
         let (user_out, loop_in) = channel();
 
         let join = Self::init_user_input(user_out)?;
 
         self.clear_output_queue(5000, Duration::from_millis(1))?;
+        self.inst.set_nonblocking(false)?;
 
         debug!("Writing common script to instrument");
         self.inst.write_script(
@@ -227,15 +227,15 @@ impl Repl {
                     }
                     Err(e) if e.kind() == ErrorKind::ConnectionAborted => {
                         error!("Error reading: CONNECTION ABORTED {e:?}");
-                        break;
+                        return Err(e.into());
                     }
                     Err(e) if e.kind() == ErrorKind::NotConnected => {
                         error!("Error reading: NOT CONNECTED {e:?}");
-                        break;
+                        return Err(e.into());
                     }
                     Err(e) => {
                         error!("Error reading: {e:?}");
-                        continue;
+                        return Err(e.into());
                     }
                 };
 
