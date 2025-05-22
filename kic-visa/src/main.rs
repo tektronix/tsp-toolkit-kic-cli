@@ -625,7 +625,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
     trace!("args: {args:?}");
     eprintln!(
-        "\nKeithley TSP Shell\nType {} for more commands.\n",
+        "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
 
@@ -780,7 +780,7 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
 fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Upgrading instrument");
     trace!("args: {args:?}");
-    eprintln!("\nKeithley TSP Shell\n");
+    eprintln!("\nTektronix TSP Shell\n");
 
     let lan = match ConnectionType::try_from_arg_matches(args) {
         Ok(c) => c,
@@ -855,7 +855,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Loading script to instrument");
     trace!("args: {args:?}");
 
-    eprintln!("\nKeithley TSP Shell\n");
+    eprintln!("\nTektronix TSP Shell\n");
 
     let conn = match ConnectionType::try_from_arg_matches(args) {
         Ok(c) => c,
@@ -1081,7 +1081,7 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
 fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Terminating existing operations");
     trace!("args: {args:?}");
-    eprintln!("\nKeithley TSP Shell\n");
+    eprintln!("\nTektronix TSP Shell\n");
 
     let connection = match ConnectionType::try_from_arg_matches(args) {
         Ok(c) => c,
