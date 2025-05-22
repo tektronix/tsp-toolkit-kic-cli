@@ -78,7 +78,10 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
                 if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
                     io_type: IoType::Visa,
                     instr_address: i.to_string(),
-                    manufacturer: info.clone().vendor.unwrap_or("Keithley Instruments".to_string()),
+                    manufacturer: info
+                        .clone()
+                        .vendor
+                        .unwrap_or("Keithley Instruments".to_string()),
                     model: info.clone().model.unwrap_or("UNKNOWN".to_string()),
                     serial_number: info.clone().serial_number.unwrap_or("UNKNOWN".to_string()),
                     firmware_revision: info.clone().firmware_rev.unwrap_or("UNKNOWN".to_string()),
