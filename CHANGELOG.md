@@ -21,6 +21,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - Recognize when socket has been terminated from device-side more quickly and close.
 
+### Changed
+
+- Updated branding from Keithley Instruments to Tektronix
+
 ## [0.19.6]
 
 ### Fixed

@@ -1,6 +1,6 @@
 [package]
 name = "kic-visa"
-description = "Keithley Instruments TSP® communications commandline application with VISA support."
+description = "Tektronix TSP® communications commandline application with VISA support."
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }

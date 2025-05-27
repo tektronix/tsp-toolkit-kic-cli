@@ -1,6 +1,6 @@
 [package]
 name = "kic"
-description = "Keithley Instruments TSP® communications commandline application."
+description = "Tektronix TSP® communications commandline application."
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
