@@ -233,7 +233,7 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|err| err.exit())
         .unwrap();
 
-    eprintln!("Tektronix Instruments Discovery");
+    eprintln!("Tektronix Instrument Discovery");
     let close_handle = init_rpc()
         .await
         .context("Unable to start JSON RPC server")?;

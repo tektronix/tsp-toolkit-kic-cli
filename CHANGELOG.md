@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.8]
+
+### Changes
+
+- Updated branding from Keithley Instruments to Tektronix
+
 ## [0.19.7]
 
 ### Fixed
