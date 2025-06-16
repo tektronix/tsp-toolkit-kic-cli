@@ -5,7 +5,7 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
-use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
+use tracing::{error, info, instrument, level_filters::LevelFilter, trace};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
@@ -205,10 +205,6 @@ fn start_logger(
     }
 
     info!("Application started");
-    debug!(
-        "Application starting with the following args: {:?}",
-        std::env::args()
-    );
     Ok(())
 }
 
@@ -284,7 +280,17 @@ async fn main() -> anyhow::Result<()> {
             info!("LAN Discovery complete");
             trace!("Discovered {} LAN instruments", lan_instruments.len());
             println!("Discovered {} LAN instruments", lan_instruments.len());
-            trace!("Discovered instruments: {lan_instruments:?}");
+            trace!(
+                "Discovered instruments: {:?}",
+                lan_instruments
+                    .iter()
+                    .map(|i| {
+                        let mut clone = i.clone();
+                        clone.address = None;
+                        clone
+                    })
+                    .collect::<Vec<_>>()
+            );
             lan_instruments
         }
         SubCli::All(args) => {

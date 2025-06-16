@@ -394,10 +394,6 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-    debug!(
-        "Application starting with the following args: {:?}",
-        std::env::args()
-    );
 
     match matches.subcommand() {
         Some(("print-description", _)) => {
@@ -511,7 +507,7 @@ impl ConnectionType {
     }
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     info!("Synchronously connecting to interface");
     let interface: Protocol = match t {
@@ -523,7 +519,7 @@ fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     Ok(interface)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     info!("Asynchronously connecting to interface");
     let interface: Protocol = match t {
@@ -536,7 +532,7 @@ fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     Ok(interface)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     trace!("Converting interface to instrument");
     let interface = connect_sync_protocol(t)?;
@@ -546,7 +542,7 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
     Ok(instrument)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     let interface: Protocol = connect_async_protocol(t)?;
 
@@ -619,7 +615,6 @@ fn pause_exit_on_error() {
 #[instrument(skip(args))]
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
-    trace!("args: {args:?}");
     eprintln!(
         "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
