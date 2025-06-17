@@ -204,6 +204,10 @@ fn start_logger(
     }
 
     info!("Application started");
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
     Ok(())
 }
 
@@ -251,18 +255,7 @@ async fn main() -> anyhow::Result<()> {
             info!("LAN Discovery complete");
             trace!("Discovered {} LAN instruments", lan_instruments.len());
             println!("Discovered {} LAN instruments", lan_instruments.len());
-            // Log discovered instruments without revealing their addresses
-            trace!(
-                "Discovered instruments: {:?}",
-                lan_instruments
-                    .iter()
-                    .map(|i| {
-                        let mut clone = i.clone();
-                        clone.address = None;
-                        clone
-                    })
-                    .collect::<Vec<_>>()
-            );
+            trace!("Discovered instruments: {lan_instruments:?}");
             lan_instruments
         }
         SubCli::Visa(args) => {

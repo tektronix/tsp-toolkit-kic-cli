@@ -386,7 +386,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-
+    trace!(
+        "Application starting with the following args: {:?}",
+        std::env::args()
+    );
     match matches.subcommand() {
         Some(("print-description", _)) => {
             println!("{}", clap::crate_description!());
@@ -619,6 +622,7 @@ fn pause_exit_on_error() {
 #[instrument(skip(args))]
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
+    trace!("args: {args:?}");
     eprintln!(
         "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
