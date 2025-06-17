@@ -1,6 +1,6 @@
 {
     "name": "@tektronix/kic-cli",
-    "version": "0.19.7",
+    "version": "0.19.8",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
