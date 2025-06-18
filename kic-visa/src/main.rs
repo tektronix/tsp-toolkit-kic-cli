@@ -386,11 +386,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-    debug!(
+    trace!(
         "Application starting with the following args: {:?}",
         std::env::args()
     );
-
     match matches.subcommand() {
         Some(("print-description", _)) => {
             println!("{}", clap::crate_description!());
@@ -513,7 +512,7 @@ impl ConnectionType {
     }
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     info!("Synchronously connecting to interface");
     let interface: Protocol = match t {
@@ -526,7 +525,7 @@ fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     Ok(interface)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     info!("Asynchronously connecting to interface");
     let interface: Protocol = match t {
@@ -540,7 +539,7 @@ fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
     Ok(interface)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     trace!("Converting interface to instrument");
     let interface = connect_sync_protocol(t)?;
@@ -550,7 +549,7 @@ fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrume
     Ok(instrument)
 }
 
-#[instrument]
+#[instrument(skip(t))]
 fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
     let interface: Protocol = connect_async_protocol(t)?;
 
