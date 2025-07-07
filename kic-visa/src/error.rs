@@ -15,4 +15,19 @@ pub enum KicError {
     /// Another user must relinquish the instrument before it can be logged into.
     #[error("there is another session connected to the instrument that must logout")]
     InstrumentLogoutRequired,
+
+    /// The instrument is protected over the given interface. This should ONLY be used
+    /// for checking the login status of an instrument.
+    #[error("the instrument is password protected")]
+    InstrumentPasswordProtected,
+
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+
+    /// The requested action was not supported.
+    #[error("the requested action is not supported: {0}")]
+    UnsupportedAction(String),
+
+    #[error("instrument error: {0}")]
+    InstrumentError(#[from] tsp_toolkit_kic_lib::InstrumentError),
 }

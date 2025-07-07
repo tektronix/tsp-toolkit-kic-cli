@@ -187,7 +187,7 @@ impl Repl {
         let join = Self::init_user_input(user_out)?;
 
         self.clear_output_queue(5000, Duration::from_millis(1))?;
-        self.inst.set_nonblocking(false)?;
+        //self.inst.set_nonblocking(false)?;
 
         debug!("Writing common script to instrument");
         self.inst.write_script(
@@ -211,16 +211,14 @@ impl Repl {
         debug!("Starting user loop");
         let re = Regex::new(r"[^A-Za-z\d_]");
         'user_loop: loop {
-            self.inst.set_nonblocking(true)?;
+            //self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
             if command_written || last_read.elapsed() >= Duration::from_secs(3) {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
                 last_read = Instant::now();
                 let read_size = match self.inst.read(&mut read_buf) {
                     Ok(read_size) => read_size,
-                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                        continue;
-                    }
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => 0,
                     Err(e) if e.kind() == ErrorKind::ConnectionReset => {
                         error!("Error reading: CONNECTION RESET {e:?}");
                         return Err(e.into());
@@ -404,6 +402,7 @@ impl Repl {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     fn get_errors(&mut self) -> Result<Vec<TspError>> {
         self.inst.write_all(b"print(_KIC.error_message())\n")?;
         let mut errors: Vec<TspError> = Vec::new();
@@ -411,9 +410,19 @@ impl Repl {
         'error_loop: loop {
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
-            let _ = self.inst.read(&mut read_buf)?;
-            if !(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0))).is_empty() {
-                err.push_str(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0)));
+            let read_size = match self.inst.read(&mut read_buf) {
+                Ok(read_size) => read_size,
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    error!("{e:?}: {e}");
+                    return Err(e.into());
+                }
+            };
+            let read_buf = &read_buf[..read_size];
+            if !String::from_utf8_lossy(read_buf).is_empty() {
+                err.push_str(&String::from_utf8_lossy(read_buf));
                 if err.contains(">DONE") {
                     break 'error_loop;
                 }
@@ -427,7 +436,6 @@ impl Repl {
                 errors.push(x);
             }
         }
-        self.inst.set_nonblocking(true)?;
         Ok(errors)
     }
 
