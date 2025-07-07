@@ -415,7 +415,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("Application started");
-    debug!(
+    trace!(
         "Application starting with the following args: {:?}",
         std::env::args()
     );
