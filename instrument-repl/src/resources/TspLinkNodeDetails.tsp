@@ -7,10 +7,25 @@ local newSystem =
 }
 local MP5103 = "MP5103"
 
-
+---Function to add slot
+local function updateSlots(slotTable, slotDetails)
+  local slots = {}
+  for i = 1, 4, 1 do
+    if (slotDetails.slot[i] ~= nil) then
+      local slot = {
+        slotId = "slot" .. "[" .. i .. "]",
+        mainframe = slotDetails.slot[i].model
+      }
+      table.insert(slots, slot)
+    end
+  end
+  if next(slots) ~= nil then
+    slotTable.slots = slots
+  end
+end
 
 ---Function to add node
-local function getNodes()
+local function updateNodes()
   newSystem.nodes = {}
   for i = 1, 64, 1 do
     if (node[i] ~= nil) then
@@ -20,44 +35,11 @@ local function getNodes()
       }
       table.insert(newSystem.nodes, newNode)
       if (node[i].model == MP5103) then
-        getSlots(node[i])
+        updateSlots(newSystem.nodes, node[i])
       end
     end
   end
 end
-
----Function to add slot
-local function getSlots(nodeTable)
-  newSystem.slots = {}
-  for i = 1, 4, 1 do
-    if (nodeTable.slot[i] ~= nil) then
-      local slot = {
-        slotId = "slot" .. "[" .. i .. "]",
-        mainframe = nodeTable.slot[i].model
-      }
-      table.insert(newSystem.slots, slot)
-    end
-  end
-end
-
-
-if tsplink.initialize == nil then
-  tsplink.reset(1)
-else
-  tsplink.initialize(1)
-end
-
-if (tsplink.state == "online") then
-  getNodes()
-end
-
-
-newSystem.localNode = node[tsplink.master].model
-if (node[tsplink.master].model == MP5103) then
-  getSlots(newSystem)
-end
-
-
 
 local function tableToString(tbl, orderedKeys)
   local str = ""
@@ -129,6 +111,24 @@ local function tableToString(tbl, orderedKeys)
   end
 
   return str
+end
+
+
+
+if tsplink.initialize == nil then
+  tsplink.reset(1)
+else
+  tsplink.initialize(1)
+end
+
+if (tsplink.state == "online") then
+  updateNodes()
+end
+
+
+newSystem.localNode = node[tsplink.master].model
+if (node[tsplink.master].model == MP5103) then
+  updateSlots(newSystem, node[tsplink.master])
 end
 
 

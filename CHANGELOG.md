@@ -16,6 +16,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.8]
+
+### Changed
+- Sanitize log files to remove sensitive information.
+
+### Fixed
+- Unable to fetch TSPLink network information from Trebuchet
+
 ## [0.19.7]
 
 ### Fixed
