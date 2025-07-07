@@ -58,6 +58,8 @@ fn accumulate_and_search(accumulator: &mut String, buf: &[u8], needle: &str) -> 
 /// Errors in this function can range from [`std::io::Error`]s to being unable to
 /// clear the output queue in the requested number of attempts.
 #[instrument(skip(inst))]
+#[allow(clippy::cognitive_complexity)] // This function is relatively short and is not worth
+                                       // breaking down
 pub fn clear_output_queue(
     inst: &mut Box<dyn Instrument>,
     max_attempts: usize,
@@ -111,6 +113,8 @@ impl Repl {
     }
 
     #[instrument(skip(self))]
+    #[allow(clippy::cognitive_complexity)] // This function is relatively short and non-complex.
+                                           // It is not worth simplifying at this time.
     fn handle_data(
         &mut self,
         data: &[u8],
@@ -643,6 +647,9 @@ impl Repl {
     }
 
     #[allow(clippy::too_many_lines)] // This is a parser function, it is unavoidably long
+    #[allow(clippy::cognitive_complexity)]
+    // This is a parser function and has unavoidable
+    // complexity that isn't easy to break down. It is not worth simplifying at this time.
     #[instrument]
     fn parse_user_commands(input: &str) -> Result<Request> {
         debug!("Parsing user input");

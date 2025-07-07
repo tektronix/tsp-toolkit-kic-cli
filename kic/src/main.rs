@@ -514,7 +514,7 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
             Ok(i) => i,
             Err(e) => {
                 error!("Unable to connect to instrument interface: {e}");
-                return Err(e.into());
+                return Err(e);
             }
         };
 
@@ -582,7 +582,7 @@ fn connect_async_protocol(t: &ConnectionInfo) -> Result<Protocol, KicError> {
         | ConnectionInfo::Gpib { .. }
         | ConnectionInfo::Usb { .. } => {
             error!("Unable to connect to a VISA device, no VISA driver found.");
-            return Err(KicError::NoVisa.into());
+            return Err(KicError::NoVisa);
         }
     };
     trace!("Asynchronously connected to interface");
@@ -595,7 +595,7 @@ fn connect_sync_instrument(
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, KicError> {
     trace!("Connecting to sync instrument");
-    let instrument: Box<dyn Instrument> = connect_to(&t, auth)?;
+    let instrument: Box<dyn Instrument> = connect_to(t, auth)?;
     info!("Successfully connected to sync instrument");
     Ok(instrument)
 }
@@ -605,10 +605,10 @@ fn connect_async_instrument(
     t: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, KicError> {
-    let interface: Protocol = connect_async_protocol(&t)?;
+    let interface: Protocol = connect_async_protocol(t)?;
 
     trace!("Connecting to async instrument");
-    let instrument: Box<dyn Instrument> = connect_protocol(&t, interface, auth)?;
+    let instrument: Box<dyn Instrument> = connect_protocol(t, interface, auth)?;
     info!("Successfully connected to async instrument");
     Ok(instrument)
 }
@@ -676,12 +676,10 @@ fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
             username: username.to_string(),
             password: password.to_string(),
         }
+    } else if check_connection_login_status(conn).is_ok() {
+        Authentication::NoAuth
     } else {
-        if check_connection_login_status(conn).is_ok() {
-            Authentication::NoAuth
-        } else {
-            Authentication::Prompt
-        }
+        Authentication::Prompt
     }
 }
 
