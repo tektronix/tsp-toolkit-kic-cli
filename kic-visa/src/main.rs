@@ -411,6 +411,9 @@ fn main() -> anyhow::Result<()> {
         Some(("reset", sub_matches)) => {
             return reset(sub_matches);
         }
+        Some(("abort", sub_matches)) => {
+            return abort(sub_matches);
+        }
         Some(("dump", sub_matches)) => {
             return dump(sub_matches);
         }
@@ -1090,6 +1093,39 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
 /// This function will not make an actual connection to an instrument and will instead fetch
 /// instrument information from the given connection address by getting the LXI Identification
 /// page where possible.
+#[instrument(skip(args))]
+fn abort(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Aborting instrument operations");
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+
+    let auth = auth_type(conn, args);
+
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e.into());
+        }
+    };
+
+    instrument.abort()?;
+
+    info!("Instrument opearation aborted.");
+
+    Ok(())
+}
+
 #[instrument(skip(args))]
 fn info(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Getting instrument info");
