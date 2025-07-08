@@ -37,8 +37,7 @@ use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
     instrument::{authenticate::Authentication, read_until, Instrument, State},
-    model::{connect_protocol, connect_to},
-    protocol::Protocol,
+    model::connect_to,
     ConnectionInfo,
 };
 
@@ -486,11 +485,13 @@ fn main() -> anyhow::Result<()> {
 
 /// Check the connection status of the instrument. This will cause a connect and disconnect
 /// from the instrument.
+#[instrument(skip(conn))]
 fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> {
     // We can check instrument login with Authentication::NoAuth because we aren't trying to log
     // in but simply check whether the instrument is password protected.
+    trace!("connecting...");
     let mut instrument: Box<dyn Instrument> =
-        match connect_sync_instrument(conn, Authentication::NoAuth) {
+        match connect_async_instrument(conn, Authentication::NoAuth) {
             Ok(i) => i,
             Err(e) => {
                 error!("Unable to connect to instrument interface: {e}");
@@ -500,6 +501,7 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
 
     //TODO: Add call to not reset the instrument after disconnecting.
 
+    trace!("checking login");
     match instrument.check_login()? {
         State::Needed => Err(KicError::InstrumentPasswordProtected),
         State::NotNeeded => Ok(()),
@@ -539,7 +541,7 @@ fn login(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let mut inst = connect_sync_instrument(conn, auth)?;
+    let mut inst = connect_async_instrument(conn, auth)?;
 
     inst.login()?;
 
@@ -550,50 +552,14 @@ fn login(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 #[instrument]
-fn connect_async_protocol(t: &ConnectionInfo) -> Result<Protocol, KicError> {
-    info!("Asynchronously connecting to interface");
-    let interface: Protocol = match t {
-        //ConnectionInfo::Lan { addr } => Protocol::new(AsyncStream::try_from(Arc::new(
-        //    TcpStream::connect(addr)?,
-        //)
-        //    as Arc<dyn Interface + Send + Sync>)?),
-        ConnectionInfo::Lan { .. }
-        | ConnectionInfo::Vxi11 { .. }
-        | ConnectionInfo::HiSlip { .. }
-        | ConnectionInfo::VisaSocket { .. }
-        | ConnectionInfo::Gpib { .. }
-        | ConnectionInfo::Usb { .. } => {
-            Protocol::connect(t)?
-            //Protocol::new(AsyncStream::try_from(Arc::new(
-            //    Visa::new(&string)?,
-            //)
-            //as Arc<dyn Interface + Send + Sync>)?),
-        }
-    };
-    trace!("Asynchronously connected to interface");
-    Ok(interface)
-}
-
-#[instrument]
-fn connect_sync_instrument(
-    t: &ConnectionInfo,
-    auth: Authentication,
-) -> Result<Box<dyn Instrument>, KicError> {
-    trace!("Connecting to sync instrument");
-    let instrument: Box<dyn Instrument> = connect_to(t, auth)?;
-    info!("Successfully connected to sync instrument");
-    Ok(instrument)
-}
-
-#[instrument]
 fn connect_async_instrument(
     t: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, KicError> {
-    let interface: Protocol = connect_async_protocol(t)?;
+    //let interface: Protocol = connect_async_protocol(t)?;
 
     trace!("Connecting to async instrument");
-    let instrument: Box<dyn Instrument> = connect_protocol(t, interface, auth)?;
+    let instrument: Box<dyn Instrument> = connect_to(t, auth)?;
     info!("Successfully connected to async instrument");
     Ok(instrument)
 }
@@ -648,11 +614,15 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[instrument(skip(conn, args))]
 fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
     if let Some(id) = args.get_one::<String>("keyring") {
+        trace!("keyring authentication selected");
         Authentication::Keyring { id: id.to_string() }
     } else if let Some(password) = args.get_one::<String>("password") {
+        trace!("password authentication selected");
         let username = if let Some(username) = args.get_one::<String>("username") {
+            trace!("username provided");
             username
         } else {
             &String::new()
@@ -662,6 +632,7 @@ fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
             password: password.to_string(),
         }
     } else if check_connection_login_status(conn).is_ok() {
+        trace!("no auth necessary");
         Authentication::NoAuth
     } else {
         Authentication::Prompt
@@ -802,7 +773,7 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let mut instrument = connect_sync_instrument(conn, auth)?;
+    let mut instrument = connect_async_instrument(conn, auth)?;
     //TODO: call option to not do reset on disconnect.
 
     let timestamp = chrono::Utc::now().to_string();
@@ -849,7 +820,7 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -926,7 +897,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     };
 
     let auth = auth_type(conn, args);
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -1071,7 +1042,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+    let instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
