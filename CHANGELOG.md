@@ -15,12 +15,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
-
 ## [0.20.0]
 
 ### Added
-- Support for passwords for all instruments and connection types
 - .abort command to cancel any ongoing job
+- Support for passwords for all instruments and connection types
+
+### Changed
+- CLI arguments now only require IP Address/VISA Resource String and don't need a `lan` or `visa` connection type specifier
 
 ## [0.19.8]
 
