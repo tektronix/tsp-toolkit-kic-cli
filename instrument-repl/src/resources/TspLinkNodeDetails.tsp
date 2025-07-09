@@ -10,16 +10,14 @@ local MP5103 = "MP5103"
 ---Function to add slot
 local function updateSlots(slotTable, slotDetails)
   local slots = {}
-  for i = 1, 4, 1 do
-    if (slotDetails.slot[i] ~= nil) then
-      local slot = {
-        slotId = "slot" .. "[" .. i .. "]",
-        mainframe = slotDetails.slot[i].model
-      }
-      table.insert(slots, slot)
-    end
+  for i = 1, 4 do
+    local mainframe = (slotDetails.slot[i] and slotDetails.slot[i].model) or "Empty"
+    table.insert(slots, {
+      slotId = "slot[" .. i .. "]",
+      mainframe = mainframe
+    })
   end
-  if next(slots) ~= nil then
+  if next(slots) then
     slotTable.slots = slots
   end
 end
