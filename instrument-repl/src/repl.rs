@@ -58,6 +58,8 @@ fn accumulate_and_search(accumulator: &mut String, buf: &[u8], needle: &str) -> 
 /// Errors in this function can range from [`std::io::Error`]s to being unable to
 /// clear the output queue in the requested number of attempts.
 #[instrument(skip(inst))]
+#[allow(clippy::cognitive_complexity)] // This function is relatively short and is not worth
+                                       // breaking down
 pub fn clear_output_queue(
     inst: &mut Box<dyn Instrument>,
     max_attempts: usize,
@@ -111,6 +113,8 @@ impl Repl {
     }
 
     #[instrument(skip(self))]
+    #[allow(clippy::cognitive_complexity)] // This function is relatively short and non-complex.
+                                           // It is not worth simplifying at this time.
     fn handle_data(
         &mut self,
         data: &[u8],
@@ -187,7 +191,7 @@ impl Repl {
         let join = Self::init_user_input(user_out)?;
 
         self.clear_output_queue(5000, Duration::from_millis(1))?;
-        self.inst.set_nonblocking(false)?;
+        //self.inst.set_nonblocking(false)?;
 
         debug!("Writing common script to instrument");
         self.inst.write_script(
@@ -211,16 +215,14 @@ impl Repl {
         debug!("Starting user loop");
         let re = Regex::new(r"[^A-Za-z\d_]");
         'user_loop: loop {
-            self.inst.set_nonblocking(true)?;
+            //self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
             if command_written || last_read.elapsed() >= Duration::from_secs(3) {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
                 last_read = Instant::now();
                 let read_size = match self.inst.read(&mut read_buf) {
                     Ok(read_size) => read_size,
-                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                        continue;
-                    }
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => 0,
                     Err(e) if e.kind() == ErrorKind::ConnectionReset => {
                         error!("Error reading: CONNECTION RESET {e:?}");
                         return Err(e.into());
@@ -366,6 +368,11 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
+                        Request::Abort => {
+                            self.inst.as_mut().abort()?;
+                            prompt = true;
+                            command_written = true;
+                        }
                         Request::Help { sub_cmd } => {
                             prompt = true;
                             if let Some(sub_cmd) = sub_cmd {
@@ -404,6 +411,7 @@ impl Repl {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     fn get_errors(&mut self) -> Result<Vec<TspError>> {
         self.inst.write_all(b"print(_KIC.error_message())\n")?;
         let mut errors: Vec<TspError> = Vec::new();
@@ -411,9 +419,19 @@ impl Repl {
         'error_loop: loop {
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
-            let _ = self.inst.read(&mut read_buf)?;
-            if !(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0))).is_empty() {
-                err.push_str(String::from_utf8_lossy(&read_buf).trim_end_matches(char::from(0)));
+            let read_size = match self.inst.read(&mut read_buf) {
+                Ok(read_size) => read_size,
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    error!("{e:?}: {e}");
+                    return Err(e.into());
+                }
+            };
+            let read_buf = &read_buf[..read_size];
+            if !String::from_utf8_lossy(read_buf).is_empty() {
+                err.push_str(&String::from_utf8_lossy(read_buf));
                 if err.contains(">DONE") {
                     break 'error_loop;
                 }
@@ -427,7 +445,6 @@ impl Repl {
                 errors.push(x);
             }
         }
-        self.inst.set_nonblocking(true)?;
         Ok(errors)
     }
 
@@ -631,10 +648,22 @@ impl Repl {
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
                 ),
         )
+        .subcommand(
+            Command::new(".abort")
+                .help_template(SUBCMD_TEMPLATE)
+                .about("Cancel any ongoing jobs.")
+                .disable_help_flag(true)
+                .arg(
+                    Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
+                ),
+        )
         .disable_help_flag(true)
     }
 
     #[allow(clippy::too_many_lines)] // This is a parser function, it is unavoidably long
+    #[allow(clippy::cognitive_complexity)]
+    // This is a parser function and has unavoidable
+    // complexity that isn't easy to break down. It is not worth simplifying at this time.
     #[instrument]
     fn parse_user_commands(input: &str) -> Result<Request> {
         debug!("Parsing user input");
@@ -721,6 +750,12 @@ impl Repl {
                     sub_cmd: Some(".reset".to_string()),
                 },
                 _ => Request::Reset,
+            },
+            Some((".abort", flags)) => match flags.get_one::<bool>("help") {
+                Some(help) if *help => Request::Help {
+                    sub_cmd: Some(".abort".to_string()),
+                },
+                _ => Request::Abort,
             },
             Some((".nodes", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {

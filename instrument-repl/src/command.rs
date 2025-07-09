@@ -24,6 +24,7 @@ pub enum Request {
     },
     Exit,
     Reset,
+    Abort,
     Help {
         sub_cmd: Option<String>,
     },
