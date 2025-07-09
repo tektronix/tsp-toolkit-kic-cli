@@ -531,7 +531,6 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
         State::Needed => Err(KicError::InstrumentPasswordProtected),
         State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
-    Ok(())
 }
 
 #[instrument(skip(args))]
@@ -1205,7 +1204,7 @@ fn abort(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");

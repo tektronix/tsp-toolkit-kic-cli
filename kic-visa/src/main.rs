@@ -507,7 +507,6 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
         State::NotNeeded => Ok(()),
         State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
-    Ok(())
 }
 
 #[instrument(skip(args))]
@@ -1147,6 +1146,41 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     info!("Operations terminated");
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn abort(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Abort current operations on the instrument.");
+    trace!("args: {args:?}");
+    eprintln!("\nTektronix TSP Shell\n");
+
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+
+    let auth = auth_type(conn, args);
+
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to async instrument: {e}");
+            return Err(e.into());
+        }
+    };
+
+    instrument.abort()?;
+    info!("Instrument operation aborted.");
 
     Ok(())
 }
