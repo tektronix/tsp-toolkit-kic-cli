@@ -15,7 +15,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
-## [0.21.0-1]
+## [0.20.0]
 ### Added
 - .abort command to cancel any ongoing job
 
