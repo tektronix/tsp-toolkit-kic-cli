@@ -1,11 +1,9 @@
-use std::net::SocketAddr;
 use std::{collections::HashSet, time::Duration};
 
-use tsp_toolkit_kic_lib::{
-    instrument::info::InstrumentInfo, interface::connection_addr::ConnectionAddr,
-};
+use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
+use tsp_toolkit_kic_lib::model::{Model, Vendor};
 
-use crate::ethernet::{LxiDeviceInfo, COMM_PORT};
+use crate::ethernet::LxiDeviceInfo;
 use crate::visa::visa_discover;
 
 #[derive(Debug)]
@@ -69,14 +67,16 @@ impl InstrumentDiscovery {
 impl From<LxiDeviceInfo> for InstrumentInfo {
     fn from(lxi_info: LxiDeviceInfo) -> Self {
         Self {
-            vendor: Some(lxi_info.manufacturer),
-            model: Some(lxi_info.model),
-            serial_number: Some(lxi_info.serial_number),
+            vendor: lxi_info
+                .manufacturer
+                .parse::<Vendor>()
+                .expect("should have parsed manufacturer"),
+            model: lxi_info
+                .model
+                .parse::<Model>()
+                .expect("should have parsed model"),
+            serial_number: lxi_info.serial_number,
             firmware_rev: Some(lxi_info.firmware_revision),
-            address: Some(ConnectionAddr::Lan(SocketAddr::new(
-                lxi_info.instr_address,
-                COMM_PORT,
-            ))),
         }
     }
 }

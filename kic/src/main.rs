@@ -26,7 +26,7 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
     process::exit,
-    sync::{Arc, Mutex},
+    sync::Mutex,
     thread,
     time::Duration,
 };
@@ -34,10 +34,9 @@ use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace,
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
 use tsp_toolkit_kic_lib::{
-    instrument::{read_until, CmdLanguage, Instrument},
-    interface::async_stream::AsyncStream,
-    protocol::Protocol,
-    Interface,
+    instrument::{authenticate::Authentication, read_until, Instrument, State},
+    model::connect_to,
+    ConnectionInfo,
 };
 
 #[derive(Debug, Subcommand)]
@@ -68,30 +67,38 @@ fn add_connection_subcommands(
     command: impl Into<Command>,
     additional_args: impl IntoIterator<Item = Arg>,
 ) -> Command {
-    let command: Command = command.into();
+    let mut command: Command = command.into();
 
-    let mut lan = Command::new("lan")
-        .about("Perform the given action over a LAN connection")
-        .arg(
-            Arg::new("port")
-                .help("The port on which to connect to the instrument")
-                .short('p')
-                .long("port")
-                .value_parser(value_parser!(u16))
-                .default_value("5025"),
-        )
-        .arg(
-            Arg::new("ip_addr")
-                .help("The IP address of the instrument to connect to")
-                .required(true)
-                .value_parser(value_parser!(IpAddr)),
-        );
+    command = command.arg(
+        Arg::new("addr")
+            .help("The IP address or VISA resource string (requires VISA driver) to connect to")
+            .required(true)
+            .value_parser(value_parser!(ConnectionInfo)),
+    ).arg(
+        Arg::new("keyring")
+           .help("Attempt to look up the credentials for this instrument using the provided id in the system keyring")
+            .required(false)
+            .long("keyring")
+            .value_parser(value_parser!(String)),
+    ).arg(
+        Arg::new("password")
+            .help("Use the provided password to authenticate with the instrument.")
+            .required(false)
+            .long("password")
+            .value_parser(value_parser!(String)),
+    ).arg(
+        Arg::new("username")
+            .help("Use the provided username to authenticate with the instrument.")
+            .required(false)
+            .long("username")
+            .value_parser(value_parser!(String)),
+    );
 
     for arg in additional_args {
-        lan = lan.arg(arg.clone());
+        command = command.arg(arg.clone());
     }
 
-    command.subcommand(lan)
+    command
 }
 
 #[must_use]
@@ -168,6 +175,18 @@ fn cmds() -> Command {
             ])
         })
         .subcommand({
+            let cmd = Command::new("check-login")
+                .about("Check if a login is required for the given instrument.");
+
+            add_connection_subcommands(cmd, [])
+        })
+        .subcommand({
+            let cmd = Command::new("login")
+                .about("Log in to the given instrument");
+
+            add_connection_subcommands(cmd, [])
+        })
+        .subcommand({
             let cmd = Command::new("dump")
                 .about("Dump the contents of the instrument output and error queue without any initial setup.");
 
@@ -225,8 +244,13 @@ fn cmds() -> Command {
         })
         .subcommand({
             let cmd = Command::new("terminate")
-                .about("Terminate all the connections on the given instrument. Only supports LAN");
+                .about("Terminate all the connections on the given instrument. Only supports LAN.");
             TerminateType::augment_subcommands(cmd)
+        })
+        .subcommand({
+            let cmd = Command::new("abort")
+                .about("Abort the current operation on the instrument.");
+            add_connection_subcommands(cmd, [])
         })
 }
 
@@ -422,8 +446,17 @@ fn main() -> anyhow::Result<()> {
         Some(("script", sub_matches)) => {
             return script(sub_matches);
         }
+        Some(("check-login", sub_matches)) => {
+            return check_login(sub_matches);
+        }
+        Some(("login", sub_matches)) => {
+            return login(sub_matches);
+        }
         Some(("info", sub_matches)) => {
             return info(sub_matches);
+        }
+        Some(("abort", sub_matches)) => {
+            return abort(sub_matches);
         }
         Some((ext, sub_matches)) => {
             debug!("Subcommand '{ext}' not defined internally, checking external commands");
@@ -477,83 +510,78 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
-enum ConnectionType {
-    Lan(SocketAddr),
-}
-
-impl ConnectionType {
-    fn try_from_arg_matches(args: &ArgMatches) -> anyhow::Result<Self> {
-        match args.subcommand() {
-            Some(("lan", sub_matches)) => {
-                let ip_addr: IpAddr =
-                    *sub_matches.get_one::<IpAddr>("ip_addr").ok_or_else(|| {
-                        KicError::ArgParseError {
-                            details: "no IP address provided".to_string(),
-                        }
-                    })?;
-
-                let port: u16 = *sub_matches.get_one::<u16>("port").unwrap_or(&5025);
-
-                let socket_addr = SocketAddr::new(ip_addr, port);
-                Ok(Self::Lan(socket_addr))
+/// Check the connection status of the instrument. This will cause a connect and disconnect
+/// from the instrument.
+fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> {
+    // We can check instrument login with Authentication::NoAuth because we aren't trying to log
+    // in but simply check whether the instrument is password protected.
+    let mut instrument: Box<dyn Instrument> =
+        match connect_async_instrument(conn, Authentication::NoAuth) {
+            Ok(i) => i,
+            Err(e) => {
+                error!("Unable to connect to instrument interface: {e}");
+                return Err(e);
             }
+        };
 
-            Some((ct, _sub_matches)) => {
-                println!();
-                Err(KicError::ArgParseError {
-                    details: format!("unknown connection type: \"{ct}\""),
-                }
-                .into())
-            }
-            None => unreachable!("connection type not specified"),
-        }
+    //TODO: Add call to not reset the instrument after disconnecting.
+
+    match instrument.check_login()? {
+        State::NotNeeded => Ok(()),
+        State::Needed => Err(KicError::InstrumentPasswordProtected),
+        State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
 }
 
-#[instrument(skip(t))]
-fn connect_sync_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
-    info!("Synchronously connecting to interface");
-    let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => {
-            (Box::new(TcpStream::connect(addr)?) as Box<dyn Interface>).into()
+#[instrument(skip(args))]
+fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Checking login");
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
-    trace!("Synchronously connected to interface");
-    Ok(interface)
+    match check_connection_login_status(conn) {
+        Ok(()) => println!("NOT PROTECTED"),
+        Err(KicError::InstrumentPasswordProtected) => println!("PROTECTED"),
+        Err(KicError::InstrumentLogoutRequired) => println!("PROTECTED, IN USE"),
+        Err(e) => return Err(e.into()),
+    }
+    Ok(())
 }
 
-#[instrument(skip(t))]
-fn connect_async_protocol(t: ConnectionType) -> anyhow::Result<Protocol> {
-    info!("Asynchronously connecting to interface");
-    let interface: Protocol = match t {
-        ConnectionType::Lan(addr) => Protocol::Raw(Box::new(AsyncStream::try_from(Arc::new(
-            TcpStream::connect(addr)?,
-        )
-            as Arc<dyn Interface + Send + Sync>)?)),
+#[instrument(skip(args))]
+fn login(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Login to instrument");
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
     };
-    trace!("Asynchronously connected to interface");
-    Ok(interface)
+
+    let auth = auth_type(conn, args);
+
+    let mut inst = connect_async_instrument(conn, auth)?;
+
+    inst.login()?;
+    let info = inst.info()?;
+    println!("{}#{}", info.model, info.serial_number);
+
+    Ok(())
 }
 
-#[instrument(skip(t))]
-fn connect_sync_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
-    trace!("Converting interface to instrument");
-    let interface = connect_sync_protocol(t)?;
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-    trace!("Converted interface to instrument");
-    info!("Successfully connected to instrument");
-    Ok(instrument)
-}
-
-#[instrument(skip(t))]
-fn connect_async_instrument(t: ConnectionType) -> anyhow::Result<Box<dyn Instrument>> {
-    let interface: Protocol = connect_async_protocol(t)?;
-
-    trace!("Converting interface to instrument");
-    let instrument: Box<dyn Instrument> = interface.try_into()?;
-    trace!("Converted interface to instrument");
-    info!("Successfully connected to instrument");
+#[instrument]
+fn connect_async_instrument(
+    t: &ConnectionInfo,
+    auth: Authentication,
+) -> Result<Box<dyn Instrument>, KicError> {
+    trace!("Connecting to async instrument");
+    let instrument: Box<dyn Instrument> = connect_to(t, auth)?;
+    info!("Successfully connected to async instrument");
     Ok(instrument)
 }
 
@@ -562,15 +590,15 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     info!("Configuring instrument for usage.");
     debug!("Checking login");
     match inst.as_mut().check_login()? {
-        tsp_toolkit_kic_lib::instrument::State::Needed => {
+        State::Needed => {
             trace!("Login required");
             inst.as_mut().login()?;
             debug!("Login complete");
         }
-        tsp_toolkit_kic_lib::instrument::State::LogoutNeeded => {
+        State::LogoutNeeded => {
             return Err(KicError::InstrumentLogoutRequired.into());
         }
-        tsp_toolkit_kic_lib::instrument::State::NotNeeded => {
+        State::NotNeeded => {
             debug!("Login not required");
         }
     };
@@ -607,6 +635,26 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
+    if let Some(id) = args.get_one::<String>("keyring") {
+        Authentication::Keyring { id: id.to_string() }
+    } else if let Some(password) = args.get_one::<String>("password") {
+        let username = if let Some(username) = args.get_one::<String>("username") {
+            username
+        } else {
+            &String::new()
+        };
+        Authentication::Credential {
+            username: username.to_string(),
+            password: password.to_string(),
+        }
+    } else if check_connection_login_status(conn).is_ok() {
+        Authentication::NoAuth
+    } else {
+        Authentication::Prompt
+    }
+}
+
 fn pause_exit_on_error() {
     eprintln!(
         "\n\n{}",
@@ -624,22 +672,30 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
     );
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            eprintln!(
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
                 "{}",
-                format!("\nUnable to parse connection information: {e}\n\nUnrecoverable error. Closing.").red()
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
             );
-            pause_exit_on_error();
-            return Err(e);
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
 
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
+    match conn {
+        ConnectionInfo::Lan { .. } => {}
+        ConnectionInfo::Vxi11 { string, .. }
+        | ConnectionInfo::HiSlip { string, .. }
+        | ConnectionInfo::VisaSocket { string, .. }
+        | ConnectionInfo::Gpib { string }
+        | ConnectionInfo::Usb { string, .. } => {
+            error!("A connection to a VISA device was requested: {string}");
+            return Err(KicError::NoVisa.into());
+        }
+    }
 
     if let Some(dump_path) = args.get_one::<PathBuf>("dump-output") {
         if let Ok(mut dump_file) = std::fs::File::open(dump_path) {
@@ -660,7 +716,12 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
     }
 
-    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn) {
+    trace!("Getting auth type...");
+    let auth = auth_type(conn, args);
+    trace!("Auth type: {auth:?}");
+
+    trace!("Initial instrument connection");
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to async instrument: {e}");
@@ -672,10 +733,11 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
                 .red()
             );
             pause_exit_on_error();
-            return Err(e);
+            return Err(e.into());
         }
     };
 
+    trace!("Configuring instrument");
     if let Err(e) = get_instrument_access(&mut instrument) {
         error!("Error setting up instrument: {e}");
         eprintln!(
@@ -686,6 +748,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e);
     }
 
+    trace!("Getting instrument information");
     let info = match instrument.info() {
         Ok(i) => i,
         Err(e) => {
@@ -723,16 +786,17 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Dumping contents of instrument output and error queue");
     trace!("args: {args:?}");
 
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
-    };
-
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
+        .into());
     };
 
     let mut output: Box<dyn Write> = match args.get_one::<PathBuf>("output") {
@@ -740,18 +804,21 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
         None => Box::new(std::io::stdout()),
     };
 
-    let mut interface = connect_sync_protocol(conn)?;
+    let auth = auth_type(conn, args);
+
+    let mut instrument = connect_async_instrument(conn, auth)?;
+    //TODO: call option to not do reset on disconnect.
 
     let timestamp = chrono::Utc::now().to_string();
 
     trace!("Writing print('{timestamp}') to instrument");
-    interface.write_all(format!("print('{timestamp}')\n").as_bytes())?;
+    instrument.write_all(format!("print('{timestamp}')\n").as_bytes())?;
     trace!("Write complete");
 
     //get output
     loop {
         let mut buf = vec![0u8; 512];
-        let bytes = interface.read(&mut buf)?;
+        let bytes = instrument.read(&mut buf)?;
 
         let buf = &buf[0..bytes];
 
@@ -771,23 +838,26 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
     trace!("args: {args:?}");
     eprintln!("\nTektronix TSP Shell\n");
 
-    let lan = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
 
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
+    let auth = auth_type(conn, args);
 
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(lan) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
-            return Err(e);
+            return Err(e.into());
         }
     };
 
@@ -846,19 +916,25 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
     eprintln!("\nTektronix TSP Shell\n");
 
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
 
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+    let auth = auth_type(conn, args);
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
-            return Err(e);
+            return Err(e.into());
         }
     };
 
@@ -876,10 +952,6 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
     };
     info!("IDN: {info}");
     eprintln!("{info}");
-
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
 
     let run: bool = *args.get_one::<bool>("run").unwrap_or(&true);
     let save: bool = *args.get_one::<bool>("save").unwrap_or(&false);
@@ -936,7 +1008,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
             }
             if let Err(e) = read_until(
                 &mut instrument,
-                vec!["TSP>".to_string()],
+                &["TSP>".to_string()],
                 20,
                 Duration::from_millis(50),
             ) {
@@ -988,18 +1060,26 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 #[instrument(skip(args))]
 fn reset(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Resetting instrument");
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
-    let instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
+
+    let auth = auth_type(conn, args);
+
+    let instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
-            return Err(e);
+            return Err(e.into());
         }
     };
 
@@ -1011,46 +1091,33 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// This function will not make an actual connection to an instrument and will instead fetch
+/// instrument information from the given connection address by getting the LXI Identification
+/// page where possible.
 #[instrument(skip(args))]
 fn info(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Getting instrument info");
-    let conn = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
         }
+        .into());
     };
-    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn) {
-        Ok(i) => i,
-        Err(e) => {
-            error!("Error connecting to sync instrument: {e}");
-            return Err(e);
-        }
-    };
-
-    let Some((_, args)) = args.subcommand() else {
-        unreachable!("arguments didn't exist")
-    };
-
-    match instrument.get_language() {
-        Ok(CmdLanguage::Tsp) => {}
-        Ok(_) => match instrument.change_language(CmdLanguage::Tsp) {
-            Ok(_) => {}
-            Err(e) => error!("Error setting instrument language to TSP: {e}"),
-        },
-        Err(e) => error!("Unable to determine instrument language: {e}"),
-    }
-
-    let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
-
-    let info = match instrument.info() {
+    let info = match conn.get_info() {
         Ok(i) => i,
         Err(e) => {
             error!("Error getting instrument info: {e}");
             return Err(e.into());
         }
     };
+
+    let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 
     trace!("print as json?: {json:?}");
 
@@ -1072,31 +1139,81 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     trace!("args: {args:?}");
     eprintln!("\nTektronix TSP Shell\n");
 
-    let connection = match ConnectionType::try_from_arg_matches(args) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Unable to parse connection information: {e}");
-            return Err(e);
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+    let mut conn = match conn {
+        ConnectionInfo::VisaSocket { addr, .. } | ConnectionInfo::Lan { addr } => {
+            let addr = addr.ip();
+            let socket = SocketAddr::new(addr, 5030);
+            TcpStream::connect(socket)?
+        }
+        ConnectionInfo::Vxi11 { addr, .. } => {
+            let socket = SocketAddr::new(IpAddr::V4(*addr), 5030);
+            TcpStream::connect(socket)?
+        }
+        ConnectionInfo::HiSlip { addr, .. } => {
+            let socket = SocketAddr::new(*addr, 5030);
+            TcpStream::connect(socket)?
+        }
+        ConnectionInfo::Gpib { .. } | ConnectionInfo::Usb { .. } => {
+            return Err(KicError::UnsupportedAction(
+                "terminate is not supported for GPIB or USBTMC devices".to_string(),
+            )
+            .into())
         }
     };
-    match connection {
-        ConnectionType::Lan(socket) => {
-            let mut connection = match TcpStream::connect(socket) {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("{e}");
-                    return Err(e.into());
-                }
-            };
 
-            if let Err(e) = connection.write_all(b"ABORT\n") {
-                error!("Unable to write 'ABORT': {e}");
-                return Err(e.into());
-            }
-        }
+    if let Err(e) = conn.write_all(b"ABORT\n") {
+        error!("Unable to write 'ABORT': {e}");
+        return Err(e.into());
     }
 
     info!("Operations terminated");
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn abort(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Abort current operations on the instrument.");
+    trace!("args: {args:?}");
+    eprintln!("\nTektronix TSP Shell\n");
+
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+
+    let auth = auth_type(conn, args);
+
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e.into());
+        }
+    };
+
+    instrument.abort()?;
+    info!("Instrument operation aborted.");
 
     Ok(())
 }
