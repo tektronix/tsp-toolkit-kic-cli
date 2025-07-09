@@ -368,6 +368,11 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
+                        Request::Abort => {
+                            self.inst.as_mut().abort()?;
+                            prompt = true;
+                            command_written = true;
+                        }
                         Request::Help { sub_cmd } => {
                             prompt = true;
                             if let Some(sub_cmd) = sub_cmd {
@@ -643,6 +648,15 @@ impl Repl {
                     Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
                 ),
         )
+        .subcommand(
+            Command::new(".abort")
+                .help_template(SUBCMD_TEMPLATE)
+                .about("Cancel any ongoing jobs.")
+                .disable_help_flag(true)
+                .arg(
+                    Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
+                ),
+        )
         .disable_help_flag(true)
     }
 
@@ -736,6 +750,12 @@ impl Repl {
                     sub_cmd: Some(".reset".to_string()),
                 },
                 _ => Request::Reset,
+            },
+            Some((".abort", flags)) => match flags.get_one::<bool>("help") {
+                Some(help) if *help => Request::Help {
+                    sub_cmd: Some(".abort".to_string()),
+                },
+                _ => Request::Abort,
             },
             Some((".nodes", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {

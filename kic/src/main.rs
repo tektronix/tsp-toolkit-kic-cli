@@ -244,8 +244,13 @@ fn cmds() -> Command {
         })
         .subcommand({
             let cmd = Command::new("terminate")
-                .about("Terminate all the connections on the given instrument. Only supports LAN");
+                .about("Terminate all the connections on the given instrument. Only supports LAN.");
             TerminateType::augment_subcommands(cmd)
+        })
+        .subcommand({
+            let cmd = Command::new("abort")
+                .about("Abort the current operation on the instrument.");
+            add_connection_subcommands(cmd, [])
         })
 }
 
@@ -450,6 +455,9 @@ fn main() -> anyhow::Result<()> {
         Some(("info", sub_matches)) => {
             return info(sub_matches);
         }
+        Some(("abort", sub_matches)) => {
+            return abort(sub_matches);
+        }
         Some((ext, sub_matches)) => {
             debug!("Subcommand '{ext}' not defined internally, checking external commands");
             if let Some((path, ..)) = external_cmd_lut.get(ext) {
@@ -523,6 +531,7 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
         State::Needed => Err(KicError::InstrumentPasswordProtected),
         State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
+    Ok(())
 }
 
 #[instrument(skip(args))]
@@ -1171,6 +1180,41 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     info!("Operations terminated");
+
+    Ok(())
+}
+
+#[instrument(skip(args))]
+fn abort(args: &ArgMatches) -> anyhow::Result<()> {
+    info!("Abort current operations on the instrument.");
+    trace!("args: {args:?}");
+    eprintln!("\nTektronix TSP Shell\n");
+
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+
+    let auth = auth_type(conn, args);
+
+    let mut instrument: Box<dyn Instrument> = match connect_sync_instrument(conn, auth) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("Error connecting to sync instrument: {e}");
+            return Err(e.into());
+        }
+    };
+
+    instrument.abort()?;
+    info!("Instrument operation aborted.");
 
     Ok(())
 }

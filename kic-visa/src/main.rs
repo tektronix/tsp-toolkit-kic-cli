@@ -410,6 +410,9 @@ fn main() -> anyhow::Result<()> {
         Some(("reset", sub_matches)) => {
             return reset(sub_matches);
         }
+        Some(("abort", sub_matches)) => {
+            return abort(sub_matches);
+        }
         Some(("dump", sub_matches)) => {
             return dump(sub_matches);
         }
@@ -489,7 +492,6 @@ fn main() -> anyhow::Result<()> {
 fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> {
     // We can check instrument login with Authentication::NoAuth because we aren't trying to log
     // in but simply check whether the instrument is password protected.
-    trace!("connecting...");
     let mut instrument: Box<dyn Instrument> =
         match connect_async_instrument(conn, Authentication::NoAuth) {
             Ok(i) => i,
@@ -500,13 +502,12 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
         };
 
     //TODO: Add call to not reset the instrument after disconnecting.
-
-    trace!("checking login");
     match instrument.check_login()? {
         State::Needed => Err(KicError::InstrumentPasswordProtected),
         State::NotNeeded => Ok(()),
         State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
+    Ok(())
 }
 
 #[instrument(skip(args))]
@@ -632,7 +633,6 @@ fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
             password: password.to_string(),
         }
     } else if check_connection_login_status(conn).is_ok() {
-        trace!("no auth necessary");
         Authentication::NoAuth
     } else {
         Authentication::Prompt
@@ -1076,6 +1076,7 @@ fn info(args: &ArgMatches) -> anyhow::Result<()> {
         }
         .into());
     };
+
     let info = match conn.get_info() {
         Ok(i) => i,
         Err(e) => {
