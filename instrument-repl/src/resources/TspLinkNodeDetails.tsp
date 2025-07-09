@@ -10,34 +10,38 @@ local MP5103 = "MP5103"
 ---Function to add slot
 local function updateSlots(slotTable, slotDetails)
   local slots = {}
-  for i = 1, 4, 1 do
-    if (slotDetails.slot[i] ~= nil) then
-      local slot = {
-        slotId = "slot" .. "[" .. i .. "]",
-        mainframe = slotDetails.slot[i].model
-      }
-      table.insert(slots, slot)
-    end
+  for i = 1, 4 do
+    local mainframe = (slotDetails.slot[i] and slotDetails.slot[i].model) or "Empty"
+    table.insert(slots, {
+      slotId = "slot[" .. i .. "]",
+      mainframe = mainframe
+    })
   end
-  if next(slots) ~= nil then
+  if next(slots) then
     slotTable.slots = slots
   end
 end
 
 ---Function to add node
 local function updateNodes()
-  newSystem.nodes = {}
-  for i = 1, 64, 1 do
-    if (node[i] ~= nil) then
+  local nodes = {}
+  for i = 1, 64 do
+    if node[i] and i ~= tsplink.master then
       local newNode = {
-        nodeId = "node" .. "[" .. i .. "]",
+        nodeId = "node[" .. i .. "]",
         mainframe = node[i].model
       }
-      table.insert(newSystem.nodes, newNode)
-      if (node[i].model == MP5103) then
-        updateSlots(newSystem.nodes, node[i])
+
+      if node[i].model == MP5103 then
+        updateSlots(newNode, node[i])
       end
+
+      table.insert(nodes, newNode)
     end
+  end
+
+  if next(nodes) then
+    newSystem.nodes = nodes
   end
 end
 
