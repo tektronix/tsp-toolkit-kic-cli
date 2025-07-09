@@ -25,19 +25,22 @@ end
 ---Function to add node
 local function updateNodes()
   local nodes = {}
-  for i = 1, 64, 1 do
-    if (node[i] ~= nil and i ~= tsplink.master) then
+  for i = 1, 64 do
+    if node[i] and i ~= tsplink.master then
       local newNode = {
-        nodeId = "node" .. "[" .. i .. "]",
+        nodeId = "node[" .. i .. "]",
         mainframe = node[i].model
       }
-      table.insert(nodes, newNode)
-      if (node[i].model == MP5103) then
+
+      if node[i].model == MP5103 then
         updateSlots(newNode, node[i])
       end
+
+      table.insert(nodes, newNode)
     end
   end
-  if next(nodes) ~= nil then
+
+  if next(nodes) then
     newSystem.nodes = nodes
   end
 end
