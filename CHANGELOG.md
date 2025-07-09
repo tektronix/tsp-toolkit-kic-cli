@@ -19,6 +19,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 - .abort command to cancel any ongoing job
 
+## [0.20.0]
+
+### Added
+- Support for passwords for all instruments and connection types
+
 ## [0.19.8]
 
 ### Changed

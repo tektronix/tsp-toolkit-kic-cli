@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.19.8"
+version = "0.20.0"
 authors = ["Tektronix, Inc."]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
@@ -53,3 +53,4 @@ arithmetic_side_effects = "deny"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
+

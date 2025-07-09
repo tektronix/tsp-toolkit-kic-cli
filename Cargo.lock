@@ -1216,9 +1216,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc2fdfdbff08affe55bb779f33b053aa1fe5dd5b54c257343c17edfa55711bdb"
+checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1406,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "instrument-repl"
-version = "0.19.8"
+version = "0.20.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1559,7 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "kic"
-version = "0.19.8"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1579,7 +1579,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover"
-version = "0.19.8"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1607,7 +1607,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover-visa"
-version = "0.19.8"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1635,7 +1635,7 @@ dependencies = [
 
 [[package]]
 name = "kic-visa"
-version = "0.19.8"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3177,7 +3177,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "tsp-toolkit-kic-lib"
 version = "0.21.0"
-source = "git+https://github.com/tektronix/tsp-toolkit-kic-lib.git?tag=v0.21.0-0#ba754824fd3be5ae8538cb2807c2312316eec24e"
+source = "git+https://github.com/tektronix/tsp-toolkit-kic-lib.git?tag=v0.21.0-1#b4f610fe420fde7d1974dc6fb20f3c584c951f0a"
 dependencies = [
  "bytes",
  "chrono",
