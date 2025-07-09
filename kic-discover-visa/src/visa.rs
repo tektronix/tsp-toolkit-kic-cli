@@ -43,7 +43,10 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
             continue;
         };
 
-        if i.to_string().contains("PXI") || i.to_string().contains("SOCKET") || i.to_string().contains("INTFC") {
+        if i.to_string().contains("PXI")
+            || i.to_string().contains("SOCKET")
+            || i.to_string().contains("INTFC")
+        {
             continue;
         }
 
@@ -51,7 +54,7 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
         // Since we are using reqwest::blocking::Client, we need to using
         // tokio::task::spawn_blocking (see
         // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
-        let info = tokio::task::spawn_blocking(move ||info.get_info()).await?;
+        let info = tokio::task::spawn_blocking(move || info.get_info()).await?;
         let info = info?;
 
         trace!("Got info: {info:?}");
