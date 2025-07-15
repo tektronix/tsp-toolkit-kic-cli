@@ -519,9 +519,29 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
         }
         .into());
     };
+    let info = conn.get_info()?;
     match check_connection_login_status(conn) {
         Ok(()) => println!("NOT PROTECTED"),
-        Err(KicError::InstrumentPasswordProtected) => println!("PROTECTED"),
+        Err(KicError::InstrumentPasswordProtected) => {
+            let keyring_id = format!("{}#{}", info.model, info.serial_number);
+            let keyring = Authentication::Keyring {
+                id: keyring_id.clone(),
+            };
+            let keyring_str = if keyring.keyring_entry_exists()? {
+                format!(",{keyring_id}")
+            } else {
+                String::new()
+            };
+            if info.model.is_mp() {
+                trace!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
+                println!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
+                exit(2);
+            } else {
+                trace!("PROTECTED: PASSWORD{keyring_str}");
+                println!("PROTECTED: PASSWORD{keyring_str}");
+                exit(1);
+            }
+        }
         Err(KicError::InstrumentLogoutRequired) => println!("PROTECTED, IN USE"),
         Err(e) => return Err(e.into()),
     }
