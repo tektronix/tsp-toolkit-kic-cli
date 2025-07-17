@@ -161,6 +161,17 @@ fn cmds() -> Command {
             ])
         })
         .subcommand({
+            let cmd = Command::new("ping")
+                .about("Check to see if the instrument is available, printing the instrument information to stdout");
+            add_connection_subcommands(cmd, [
+                Arg::new("json")
+                    .help("Print the instrument information in JSON format.")
+                    .long("json")
+                    .short('j')
+                    .action(ArgAction::SetTrue)
+            ])
+        })
+        .subcommand({
             let cmd = Command::new("reset")
                 .about("Connect to an instrument, cancel any ongoing jobs, send *RST then exit.");
             add_connection_subcommands(cmd, [])
@@ -248,6 +259,11 @@ fn cmds() -> Command {
             let cmd = Command::new("terminate")
                 .about("Terminate all the connections on the given instrument. Only supports LAN");
             TerminateType::augment_subcommands(cmd)
+        })
+        .subcommand({
+            let cmd = Command::new("abort")
+                .about("Abort the current operation on the instrument.");
+            add_connection_subcommands(cmd, [])
         })
 }
 
@@ -410,9 +426,6 @@ fn main() -> anyhow::Result<()> {
         Some(("reset", sub_matches)) => {
             return reset(sub_matches);
         }
-        Some(("abort", sub_matches)) => {
-            return abort(sub_matches);
-        }
         Some(("dump", sub_matches)) => {
             return dump(sub_matches);
         }
@@ -433,6 +446,12 @@ fn main() -> anyhow::Result<()> {
         }
         Some(("info", sub_matches)) => {
             return info(sub_matches);
+        }
+        Some(("ping", sub_matches)) => {
+            return ping(sub_matches);
+        }
+        Some(("abort", sub_matches)) => {
+            return abort(sub_matches);
         }
         Some((ext, sub_matches)) => {
             debug!("Subcommand '{ext}' not defined internally, checking external commands");
@@ -1201,6 +1220,71 @@ fn abort(args: &ArgMatches) -> anyhow::Result<()> {
 
     instrument.abort()?;
     info!("Instrument operation aborted.");
+
+    Ok(())
+}
+
+fn ping(args: &ArgMatches) -> anyhow::Result<()> {
+    use visa_rs::{AsResourceManager, VisaString};
+
+    let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
+        error!("No IP address or VISA resource string given");
+        eprintln!(
+                "{}",
+                "\nUnable to parse connection information: no connection information given\n\nUnrecoverable error. Closing.".red()
+            );
+        pause_exit_on_error();
+        return Err(KicError::ArgParseError {
+            details: "No IP address or VISA resource string given".to_string(),
+        }
+        .into());
+    };
+
+    let info = match conn {
+        ConnectionInfo::Lan { .. }
+        | ConnectionInfo::Vxi11 { .. }
+        | ConnectionInfo::HiSlip { .. }
+        | ConnectionInfo::VisaSocket { .. }
+        | ConnectionInfo::Gpib { .. } => conn.get_info()?,
+        ConnectionInfo::Usb { string, .. } => {
+            let rm = match visa_rs::DefaultRM::new() {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("Instrument unavailable: {e}");
+                    return Err(e.into());
+                }
+            };
+
+            let Some(expr) = VisaString::from_string(string.to_string()) else {
+                return Err(KicError::ArgParseError {
+                    details: format!("{string} was not a valid visa resource string"),
+                }
+                .into());
+            };
+
+            match rm.find_res(&expr) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Unable to find instrument: {e}");
+                    return Err(e.into());
+                }
+            };
+            conn.get_info()?
+        }
+    };
+
+    let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
+
+    trace!("print as json?: {json:?}");
+
+    let info: String = if json {
+        serde_json::to_string(&info)?
+    } else {
+        info.to_string()
+    };
+
+    info!("Information to print: {info}");
+    println!("{info}");
 
     Ok(())
 }
