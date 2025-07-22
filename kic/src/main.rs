@@ -1246,16 +1246,7 @@ fn ping(args: &ArgMatches) -> anyhow::Result<()> {
         .into());
     };
 
-    let info = match conn {
-        ConnectionInfo::Lan { .. } => conn.get_info()?,
-        ConnectionInfo::Vxi11 { .. }
-        | ConnectionInfo::HiSlip { .. }
-        | ConnectionInfo::VisaSocket { .. }
-        | ConnectionInfo::Gpib { .. }
-        | ConnectionInfo::Usb { .. } => {
-            return Err(KicError::NoVisa.into());
-        }
-    };
+    let info = conn.ping()?;
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 
