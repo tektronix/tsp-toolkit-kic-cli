@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tsp-toolkit-kic-lib = { workspace = true, features = ["visa"] }
+visa-rs = "0.6.2"
 regex = "1.10.3"
 windows-sys = { version = "0.52.0", features = [
     "Win32_System_Console",
