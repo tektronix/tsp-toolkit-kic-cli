@@ -1225,8 +1225,6 @@ fn abort(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 fn ping(args: &ArgMatches) -> anyhow::Result<()> {
-    use visa_rs::{AsResourceManager, VisaString};
-
     let Some(conn) = args.get_one::<ConnectionInfo>("addr") else {
         error!("No IP address or VISA resource string given");
         eprintln!(
@@ -1240,38 +1238,7 @@ fn ping(args: &ArgMatches) -> anyhow::Result<()> {
         .into());
     };
 
-    let info = match conn {
-        ConnectionInfo::Lan { .. }
-        | ConnectionInfo::Vxi11 { .. }
-        | ConnectionInfo::HiSlip { .. }
-        | ConnectionInfo::VisaSocket { .. }
-        | ConnectionInfo::Gpib { .. } => conn.get_info()?,
-        ConnectionInfo::Usb { string, .. } => {
-            let rm = match visa_rs::DefaultRM::new() {
-                Ok(r) => r,
-                Err(e) => {
-                    error!("Instrument unavailable: {e}");
-                    return Err(e.into());
-                }
-            };
-
-            let Some(expr) = VisaString::from_string(string.to_string()) else {
-                return Err(KicError::ArgParseError {
-                    details: format!("{string} was not a valid visa resource string"),
-                }
-                .into());
-            };
-
-            match rm.find_res(&expr) {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("Unable to find instrument: {e}");
-                    return Err(e.into());
-                }
-            };
-            conn.get_info()?
-        }
-    };
+    let info = conn.ping()?;
 
     let json: bool = *args.get_one::<bool>("json").unwrap_or(&true);
 

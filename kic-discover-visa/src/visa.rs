@@ -54,23 +54,25 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
         // Since we are using reqwest::blocking::Client, we need to using
         // tokio::task::spawn_blocking (see
         // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
-        let info = tokio::task::spawn_blocking(move || info.get_info()).await?;
-        let info = info?;
+        let info: Option<InstrumentInfo> =
+            tokio::task::spawn_blocking(move || info.ping().ok()).await?;
 
-        trace!("Got info: {info:?}");
-        if !matches!(info.model, Model::Other(_)) {
-            if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
-                io_type: IoType::Visa,
-                instr_address: i.to_string(),
-                manufacturer: info.vendor.to_string(),
-                model: info.model.to_string(),
-                serial_number: info.serial_number.to_string(),
-                firmware_revision: info.firmware_rev.clone().unwrap_or("UNKNOWN".to_string()),
-                instr_categ: model_category(&info.model.to_string()).to_string(),
-            }) {
-                insert_disc_device(out_str.as_str())?;
+        if let Some(info) = info {
+            trace!("Got info: {info:?}");
+            if !matches!(info.model, Model::Other(_)) {
+                if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
+                    io_type: IoType::Visa,
+                    instr_address: i.to_string(),
+                    manufacturer: info.vendor.to_string(),
+                    model: info.model.to_string(),
+                    serial_number: info.serial_number.to_string(),
+                    firmware_revision: info.firmware_rev.clone().unwrap_or("UNKNOWN".to_string()),
+                    instr_categ: model_category(&info.model.to_string()).to_string(),
+                }) {
+                    insert_disc_device(out_str.as_str())?;
+                }
+                discovered_instruments.insert(info.clone());
             }
-            discovered_instruments.insert(info.clone());
         }
     }
     Ok(discovered_instruments)
