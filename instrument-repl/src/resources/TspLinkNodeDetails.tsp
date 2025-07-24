@@ -11,10 +11,10 @@ local MP5103 = "MP5103"
 local function updateSlots(slotTable, slotDetails)
   local slots = {}
   for i = 1, 3 do
-    local mainframe = (slotDetails.slot[i] and slotDetails.slot[i].model) or "Empty"
+    local module = (slotDetails.slot[i] and slotDetails.slot[i].model) or "Empty"
     table.insert(slots, {
       slotId = "slot[" .. i .. "]",
-      mainframe = mainframe
+      module = module
     })
   end
   if next(slots) then
