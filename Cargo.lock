@@ -696,6 +696,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,6 +841,12 @@ checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
 ]
+
+[[package]]
+name = "fragile"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 
 [[package]]
 name = "futures"
@@ -1409,13 +1421,13 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
+ "kic-lib",
  "regex",
  "serde",
  "serde_json",
  "shlex",
  "thiserror 2.0.12",
  "tracing",
- "tsp-toolkit-kic-lib",
 ]
 
 [[package]]
@@ -1565,6 +1577,7 @@ dependencies = [
  "clap",
  "colored",
  "instrument-repl",
+ "kic-lib",
  "regex",
  "rpassword",
  "serde",
@@ -1572,7 +1585,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber",
- "tsp-toolkit-kic-lib",
  "windows-sys 0.52.0",
 ]
 
@@ -1588,6 +1600,7 @@ dependencies = [
  "futures",
  "futures-util",
  "jsonrpsee",
+ "kic-lib",
  "lazy_static",
  "local-ip-address",
  "mdns",
@@ -1600,7 +1613,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "tsp-toolkit-kic-lib",
  "windows-sys 0.52.0",
 ]
 
@@ -1616,6 +1628,7 @@ dependencies = [
  "futures",
  "futures-util",
  "jsonrpsee",
+ "kic-lib",
  "lazy_static",
  "local-ip-address",
  "mdns",
@@ -1628,7 +1641,28 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "tsp-toolkit-kic-lib",
+ "visa-rs",
+]
+
+[[package]]
+name = "kic-lib"
+version = "0.20.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono",
+ "colored",
+ "indicatif",
+ "keyring",
+ "mockall",
+ "phf",
+ "reqwest",
+ "roxmltree",
+ "rpassword",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tracing",
  "visa-rs",
 ]
 
@@ -1641,6 +1675,7 @@ dependencies = [
  "clap",
  "colored",
  "instrument-repl",
+ "kic-lib",
  "regex",
  "rpassword",
  "serde",
@@ -1648,7 +1683,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber",
- "tsp-toolkit-kic-lib",
  "visa-rs",
  "windows-sys 0.52.0",
 ]
@@ -1799,6 +1833,33 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "mockall"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43766c2b5203b10de348ffe19f7e54564b64f3d6018ff7648d1e2d6d3a0f0a48"
+dependencies = [
+ "cfg-if 1.0.1",
+ "downcast",
+ "fragile",
+ "lazy_static",
+ "mockall_derive",
+ "predicates",
+ "predicates-tree",
+]
+
+[[package]]
+name = "mockall_derive"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af7cbce79ec385a1d4f54baa90a76401eb15d9cab93685f62e7e9f942aa00ae2"
+dependencies = [
+ "cfg-if 1.0.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -2227,6 +2288,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "predicates"
+version = "3.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d19ee57562043d37e82899fade9a22ebab7be9cef5026b07fda9cdd4293573"
+dependencies = [
+ "anstyle",
+ "predicates-core",
+]
+
+[[package]]
+name = "predicates-core"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "727e462b119fe9c93fd0eb1429a5f7647394014cf3c04ab2c0350eeb09095ffa"
+
+[[package]]
+name = "predicates-tree"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72dd2d6d381dfb73a193c7fca536518d7caee39fc8503f74e7dc0be0531b425c"
+dependencies = [
+ "predicates-core",
+ "termtree",
 ]
 
 [[package]]
@@ -2888,6 +2975,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "termtree"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3172,26 +3265,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tsp-toolkit-kic-lib"
-version = "0.21.0"
-source = "git+https://github.com/tektronix/tsp-toolkit-kic-lib.git?tag=v0.21.0-6#c334fb59060b2228948189d2d4b78ef847d12d21"
-dependencies = [
- "bytes",
- "chrono",
- "indicatif",
- "keyring",
- "phf",
- "reqwest",
- "roxmltree",
- "rpassword",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
- "tracing",
- "visa-rs",
-]
 
 [[package]]
 name = "typenum"
