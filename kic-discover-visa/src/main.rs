@@ -5,9 +5,9 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover_visa::instrument_discovery::InstrumentDiscovery;
+use kic_lib::instrument::info::InstrumentInfo;
 use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
-use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::fs::OpenOptions;
 use std::str;

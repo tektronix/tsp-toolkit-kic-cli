@@ -1,6 +1,6 @@
 use std::{collections::HashSet, hash::Hash, io::Error, sync::Mutex};
 
-use tsp_toolkit_kic_lib::{ki2600, model::ki3700, tti, versatest};
+use kic_lib::{ki2600, model::ki3700, tti, versatest};
 
 pub mod ethernet;
 pub mod instrument_discovery;

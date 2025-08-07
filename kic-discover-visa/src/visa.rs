@@ -1,10 +1,10 @@
 use std::{collections::HashSet, ffi::CString, net::IpAddr, time::Duration};
 
-use serde::{Deserialize, Serialize};
-use tracing::{debug, error, trace};
-use tsp_toolkit_kic_lib::{
+use kic_lib::{
     instrument::info::InstrumentInfo, interface::connection_addr::ConnectionInfo, model::Model,
 };
+use serde::{Deserialize, Serialize};
+use tracing::{debug, error, trace};
 use visa_rs::AsResourceManager;
 
 use crate::{ethernet::LxiDeviceInfo, insert_disc_device, model_category, IoType};

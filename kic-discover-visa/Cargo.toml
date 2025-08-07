@@ -29,6 +29,6 @@ thiserror = { workspace = true }
 tokio = { version = "1.36.0", features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tsp-toolkit-kic-lib = { workspace = true, features = ["visa"] }
+kic-lib = { workspace = true, features = ["visa"] }
 visa-rs = "0.6.2"
 

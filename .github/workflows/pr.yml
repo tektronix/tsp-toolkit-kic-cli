@@ -115,7 +115,7 @@ jobs:
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           mkdir -p "${{env.TEST_DIR}}"
-          cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
+          LD_LIBRARY_PATH="$LD_LIBRARY_PATH}:$PWD" cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
       - name: Process Test Results
         run: |
           cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml

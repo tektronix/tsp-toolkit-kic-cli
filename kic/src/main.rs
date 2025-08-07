@@ -33,7 +33,7 @@ use std::{
 use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
-use tsp_toolkit_kic_lib::{
+use kic_lib::{
     instrument::{authenticate::Authentication, read_until, Instrument, State},
     model::connect_to,
     ConnectionInfo,
@@ -273,7 +273,7 @@ fn main() -> anyhow::Result<()> {
             .map(std::convert::Into::into)
     });
 
-    if tsp_toolkit_kic_lib::is_visa_installed() {
+    if kic_lib::is_visa_installed() {
         #[cfg(target_os = "windows")]
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
 
@@ -618,7 +618,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     };
     debug!("Checking instrument language");
     match inst.as_mut().get_language()? {
-        tsp_toolkit_kic_lib::instrument::CmdLanguage::Scpi => {
+        kic_lib::instrument::CmdLanguage::Scpi => {
             warn!("Instrument language set to SCPI, only TSP is supported. Prompting user...");
             eprintln!("Instrument command-set is not set to TSP. Would you like to change the command-set to TSP and reboot? (Y/n)");
 
@@ -629,7 +629,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
                 debug!("User accepted language change on the instrument.");
                 info!("Changing instrument language to TSP.");
                 inst.as_mut()
-                    .change_language(tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp)?;
+                    .change_language(kic_lib::instrument::CmdLanguage::Tsp)?;
                 info!("Instrument language changed to TSP.");
                 warn!("Instrument rebooting.");
                 inst.write_all(b"ki.reboot()\n")?;
@@ -639,7 +639,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
                 exit(0);
             }
         }
-        tsp_toolkit_kic_lib::instrument::CmdLanguage::Tsp => {
+        kic_lib::instrument::CmdLanguage::Tsp => {
             debug!("Instrument language already set to TSP, no change necessary.");
         }
     }

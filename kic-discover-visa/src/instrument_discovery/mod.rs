@@ -1,7 +1,7 @@
 use std::{collections::HashSet, time::Duration};
 
-use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
-use tsp_toolkit_kic_lib::model::{Model, Vendor};
+use kic_lib::instrument::info::InstrumentInfo;
+use kic_lib::model::{Model, Vendor};
 
 use crate::ethernet::LxiDeviceInfo;
 use crate::visa::visa_discover;
