@@ -174,6 +174,7 @@ impl Write for Instrument {
 
 impl Flash for Instrument {
     #[allow(clippy::too_many_lines)] //It is ok for this to be long for now.
+    #[tracing::instrument(skip(self, image))]
     fn flash_firmware(
         &mut self,
         image: &[u8],
@@ -183,6 +184,39 @@ impl Flash for Instrument {
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
             is_module = true;
+        }
+        const NOT_EXISTS: &str = "NE";
+        const EXISTS: &str = "SE";
+
+        if is_module {
+            self.write_all(format!("if slot[{slot_number}] == nil then print([[{NOT_EXISTS}]]) else print([[{EXISTS}]]) end\n").as_bytes())?;
+            match read_until(
+                self,
+                &[NOT_EXISTS.to_string(), EXISTS.to_string()],
+                1000,
+                Duration::from_millis(1),
+            ) {
+                Ok(s) if s.contains(EXISTS) => {
+                    trace!("slot exists");
+                }
+                Ok(s) if s.contains(NOT_EXISTS) => {
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        format!("Unable to upgrade module: ensure slot[{slot_number}] is populated and turned on")
+                    ));
+                }
+                Ok(s) => {
+                    trace!("Returned: {s}");
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        "Upgrade status unknown: did not receive expected response".to_string(),
+                    ));
+                }
+                Err(InstrumentError::Other(s)) if s == String::default() => {
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        "Upgrade status unknown: unable to read slot existance due to error: did not read back expected string".to_string(),
+                    ));
+                }
+                Err(e) => return Err(e),
+            }
         }
 
         #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
@@ -246,17 +280,20 @@ impl Flash for Instrument {
             Err(e) => return Err(e),
         }
 
-        self.write_all(b"if firmware.valid == nil or firmware.valid == true then print('VALID') else print('INVALID') end\n")?;
+        const FW_VALID: &str = "VALID";
+        const FW_NOT_VALID: &str = "INVALID";
+
+        self.write_all(format!("if firmware.valid == nil or firmware.valid == true then print([[{FW_VALID}]]) else print([[{FW_NOT_VALID}]]) end\n").as_bytes())?;
         match read_until(
             self,
-            &["VALID".to_string(), "INVALID".to_string()],
+            &[FW_VALID.to_string(), FW_NOT_VALID.to_string()],
             1000,
             Duration::from_millis(1),
         ) {
-            Ok(s) if s == "VALID" => {
+            Ok(s) if s == FW_VALID => {
                 trace!("Firwmare was valid");
             }
-            Ok(s) if s == "INVALID" => {
+            Ok(s) if s == FW_NOT_VALID => {
                 return Err(InstrumentError::FwUpgradeFailure(
                     "Unable to upgrade mainframe: Firmware was invalid".to_string(),
                 ));
@@ -276,35 +313,6 @@ impl Flash for Instrument {
         }
 
         if is_module {
-            self.write_all(format!("if slot[{slot_number}] == null then print([[SLOT_NOT_EXIST]]) else print([[SLOT_EXISTS]]) end").as_bytes())?;
-            match read_until(
-                self,
-                &["SLOT_NOT_EXIST".to_string(), "SLOT_EXISTS".to_string()],
-                1000,
-                Duration::from_millis(1),
-            ) {
-                Ok(s) if s == "SLOT_EXISTS" => {
-                    trace!("slot exists");
-                }
-                Ok(s) if s == "SLOT_NOT_EXIST" => {
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        format!("Unable to upgrade module: slot[{slot_number}] is not populated or is not turned on")
-                    ));
-                }
-                Ok(_) => {
-                    trace!("Firmware validity superposition detected! 😱");
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        "Upgrade status unknown: unable to read firmware validity".to_string(),
-                    ));
-                }
-                Err(InstrumentError::Other(s)) if s == String::default() => {
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        "Upgrade status unknown: unable to read firmware validity".to_string(),
-                    ));
-                }
-                Err(e) => return Err(e),
-            }
-
             if let Some(pb) = &spinner {
                 pb.set_message(
                     "Firmware file transferred successfully. Upgrade running on instrument.",
