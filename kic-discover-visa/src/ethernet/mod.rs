@@ -1,5 +1,6 @@
 use futures::future::join_all;
 use futures_util::{pin_mut, stream::StreamExt};
+use kic_lib::model::is_supported;
 use local_ip_address::list_afinet_netifas;
 use mdns::{Record, RecordKind};
 use minidom::Element;
@@ -8,7 +9,6 @@ use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use std::{collections::HashSet, time::Duration};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use tsp_toolkit_kic_lib::model::is_supported;
 
 use crate::{insert_disc_device, model_category, IoType};
 

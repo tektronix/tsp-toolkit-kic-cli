@@ -14,9 +14,9 @@ pub enum InstrumentReplError {
     /// An Error occurred in the tsp-instrument crate.
     #[error("instrument error occurred: {source}")]
     InstrumentError {
-        ///The original [`tsp_toolkit_kic_lib::InstrumentError`]
+        ///The original [`kic_lib::InstrumentError`]
         #[from]
-        source: tsp_toolkit_kic_lib::InstrumentError,
+        source: kic_lib::InstrumentError,
     },
 
     /// An IO error occurred

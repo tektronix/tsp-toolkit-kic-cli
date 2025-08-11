@@ -22,7 +22,7 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use tsp_toolkit_kic_lib::{instrument::Instrument, InstrumentError};
+use kic_lib::{instrument::Instrument, InstrumentError};
 
 use crate::{
     command::Request,

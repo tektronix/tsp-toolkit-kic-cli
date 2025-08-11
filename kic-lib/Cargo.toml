@@ -1,0 +1,32 @@
+[package]
+name = "kic-lib"
+description = "A library specifically enabling communication to Tektronix and Keithley, TSP-enabled instruments"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+bytes = { workspace = true }
+phf = { version = "0.11", features = ["macros"] }
+rpassword = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true, features = ["blocking"] }
+visa-rs = { version = "0.6.2", optional = true }
+indicatif = "0.17.11"
+roxmltree = { version = "0.20.0", default-features = false, features = ["std"] }
+keyring = { version = "3.6.2", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
+
+[features]
+visa = ["dep:visa-rs"]
+
+[dev-dependencies]
+anyhow = "1"
+bytes = "1"
+colored = "2"
+mockall = { version = "0.12" }
+
