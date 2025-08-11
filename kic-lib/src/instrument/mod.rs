@@ -23,7 +23,7 @@ pub use language::{CmdLanguage, Language};
 pub use login::{Login, State};
 pub use reset::Reset;
 pub use script::Script;
-use tracing::debug;
+use tracing::{debug, trace};
 
 /// A marker trait that defines the traits any [`Instrument`] needs to have.
 pub trait Instrument:
@@ -49,7 +49,6 @@ pub fn read_until<T: Read + Write + ?Sized>(
         match rw.read(&mut buf) {
             Ok(_) => Ok(()),
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(delay_between_attempts);
                 continue;
             }
             Err(e) => Err(e),
@@ -86,7 +85,21 @@ pub fn clear_output_queue<T: Read + Write + ?Sized>(
     let timestamp = chrono::Utc::now().to_string();
 
     debug!("Sending print({timestamp})");
-    rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes())?;
+    let mut loop_count = 0;
+    loop {
+        match rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes()) {
+            Ok(_) => break,
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // The send buffer is full. Try this write again when the buffer might
+                // have cleared out. Keep retrying until success.
+                loop_count += 1;
+                std::thread::sleep(delay_between_attempts);
+                continue;
+            }
+            Err(e) => return Err(e.into()),
+        };
+    }
+    trace!("Write successfully completed after {loop_count} attempts");
 
     match read_until(rw, &[timestamp], max_attempts, delay_between_attempts) {
         Ok(_) => Ok(()),
