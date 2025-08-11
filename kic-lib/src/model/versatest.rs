@@ -244,7 +244,20 @@ impl Flash for Instrument {
 
         self.write_all(image)?;
 
-        self.write_all(b"endflash\n")?;
+        let mut loop_count = 0;
+        loop {
+            loop_count += 1;
+            match self.write_all(b"endflash\n") {
+                Ok(_) => break,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        trace!("Wrote 'endflash' after {loop_count} attempts");
 
         if spinner.is_none() {
             let pb = ProgressBar::new(1);
