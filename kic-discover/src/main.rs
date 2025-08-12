@@ -5,9 +5,9 @@ use jsonrpsee::{
     RpcModule,
 };
 use kic_discover::instrument_discovery::InstrumentDiscovery;
+use kic_lib::instrument::info::InstrumentInfo;
 use tracing::{error, info, instrument, level_filters::LevelFilter, trace};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
-use tsp_toolkit_kic_lib::instrument::info::InstrumentInfo;
 
 use std::fs::OpenOptions;
 use std::str;
@@ -222,7 +222,7 @@ async fn main() -> anyhow::Result<()> {
             .map(std::convert::Into::into)
     });
 
-    if tsp_toolkit_kic_lib::is_visa_installed() {
+    if kic_lib::is_visa_installed() {
         #[cfg(target_os = "windows")]
         let kic_discover_visa_exe: Option<std::path::PathBuf> =
             parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));

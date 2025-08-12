@@ -29,5 +29,5 @@ pub enum KicError {
     UnsupportedAction(String),
 
     #[error("instrument error: {0}")]
-    InstrumentError(#[from] tsp_toolkit_kic_lib::InstrumentError),
+    InstrumentError(#[from] kic_lib::InstrumentError),
 }
