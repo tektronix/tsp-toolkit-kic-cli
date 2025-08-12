@@ -323,7 +323,7 @@ impl Repl {
                             if slot.is_some_and(|s| s > 0) {
                                 // Upgrading Module
                                 Self::println_flush(
-                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 10 minutes)..."
+                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 5 minutes)..."
                                         .bright_yellow(),
                                 )?;
                             } else {
