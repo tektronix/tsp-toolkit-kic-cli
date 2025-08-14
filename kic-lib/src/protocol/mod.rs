@@ -1,4 +1,4 @@
-use crate::{interface::connection_addr::ConnectionInfo};
+use crate::interface::connection_addr::ConnectionInfo;
 use crate::protocol::raw::Raw;
 use std::{
     error::Error,
@@ -20,7 +20,7 @@ use crate::{InstrumentError, Interface};
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
 #[allow(unused_imports)] // warn is only used in 'visa' feature
-use tracing::{trace, debug, warn, error};
+use tracing::{debug, error, trace, warn};
 
 #[cfg(feature = "visa")]
 use visa_rs::{
