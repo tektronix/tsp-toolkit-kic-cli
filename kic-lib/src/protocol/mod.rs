@@ -1,4 +1,4 @@
-use crate::interface::connection_addr::ConnectionInfo;
+use crate::{interface::connection_addr::ConnectionInfo};
 use crate::protocol::raw::Raw;
 use std::{
     error::Error,
@@ -20,7 +20,7 @@ use crate::{InstrumentError, Interface};
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
 #[allow(unused_imports)] // warn is only used in 'visa' feature
-use tracing::{trace, warn};
+use tracing::{trace, debug, warn, error};
 
 #[cfg(feature = "visa")]
 use visa_rs::{
@@ -180,12 +180,30 @@ impl Read for Protocol {
 
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        const WRITE_ATTEMPT_LIMIT: u8 = 30;
         trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
-        match self {
-            Self::Raw(r) => r.write(buf),
 
-            #[cfg(feature = "visa")]
-            Self::Visa(v) => v.write(buf),
+        let mut attempts = 0;
+        loop {
+            let write_res = match self {
+                Self::Raw(r) => r.write(buf),
+
+                #[cfg(feature = "visa")]
+                Self::Visa(v) => v.write(buf),
+            };
+
+            attempts += 1;
+
+            match &write_res {
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    warn!("Encountered would-block (attempt {attempts})");
+                    if attempts >= WRITE_ATTEMPT_LIMIT {
+                        error!("Unable to write after {attempts} attempts, giving up");
+                        return write_res;
+                    }
+                }
+                _ => return write_res,
+            }
         }
     }
 
