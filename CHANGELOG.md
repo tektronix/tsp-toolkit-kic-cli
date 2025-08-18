@@ -25,7 +25,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - CLI arguments now only require IP Address/VISA Resource String and don't need a `lan` or `visa` connection type specifier
 
 ### Fixed
-Unable to fetch TSPLink network information from Trebuchet
+- Unable to fetch TSPLink network information from Trebuchet
 
 ## [0.19.8]
 
