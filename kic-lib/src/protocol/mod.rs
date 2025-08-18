@@ -180,7 +180,7 @@ impl Read for Protocol {
 
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        const WRITE_ATTEMPT_LIMIT: u8 = 30;
+        const WRITE_ATTEMPT_LIMIT: u8 = 100;
         trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
 
         let mut attempts = 0;
@@ -197,6 +197,7 @@ impl Write for Protocol {
             match &write_res {
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     warn!("Encountered would-block (attempt {attempts})");
+                    std::thread::sleep(Duration::from_micros(1000));
                     if attempts >= WRITE_ATTEMPT_LIMIT {
                         error!("Unable to write after {attempts} attempts, giving up");
                         return write_res;
