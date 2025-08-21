@@ -205,6 +205,8 @@ impl Flash for Instrument {
 
         self.write_all(b"endflash\n")?;
 
+        // Only sleep in non-test builds
+        #[cfg(not(test))]
         std::thread::sleep(Duration::from_secs(180));
 
         if let Some(pb) = spinner {
@@ -1150,6 +1152,12 @@ mod unit {
         interface.expect_flush().times(..).returning(|| Ok(()));
 
         interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| !*enable)
+            .returning(|_| Ok(()));
+
+        interface
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| String::from_utf8_lossy(buf).contains("localnode.prompts"))
@@ -1187,6 +1195,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| *enable)
+            .returning(|_| Ok(()));
+
         interface
             .expect_write()
             .times(..)
