@@ -160,6 +160,7 @@ impl Flash for Instrument {
         self.write_all(b"flash\n")?;
         self.write_all(image.fill_buf().unwrap())?;
         self.write_all(b"endflash\n")?;
+        std::thread::sleep(Duration::from_secs(180));
         if let Some(pb) = spinner {
             pb.finish_with_message(
                 "Firmware file transferred successfully. Upgrade running on instrument.",
@@ -167,8 +168,8 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
         }
+        let _ = self.set_nonblocking(true);
         Ok(())
-        
     }
 }
 

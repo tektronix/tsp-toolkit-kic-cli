@@ -15,6 +15,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+
+## [0.20.1]
+
+### Fixed
+- Getting error after firmware file transferred successfully
+- Firmware upgrade for TTI and 2600 models getting stuck over slow connection speeds 
+
 ## [0.20.0]
 
 ### Added

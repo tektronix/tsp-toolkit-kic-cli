@@ -170,6 +170,7 @@ impl Flash for Instrument {
 
         std::thread::sleep(Duration::from_millis(10)); //The position and duration of this delay is intentional
         self.write_all(b"endflash\n")?;
+        std::thread::sleep(Duration::from_secs(180));
 
         if let Some(pb) = spinner {
             pb.finish_with_message(
@@ -178,6 +179,7 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
         }
+        let _ = self.set_nonblocking(true);
         Ok(())
     }
 }
