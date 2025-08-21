@@ -344,7 +344,8 @@ impl Repl {
                                             &"Firmware file download complete.".bright_yellow(),
                                         )?;
                                         // Upgrading Mainframe
-                                        Self::println_flush(&"Close the terminal (.exit) and reconnect after the instrument has restarted.".bright_yellow())?;
+                                        Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
+                                        break 'user_loop;
                                     }
                                 }
                                 Err(InstrumentError::FwUpgradeFailure(msg)) => {

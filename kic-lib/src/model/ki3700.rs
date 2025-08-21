@@ -146,6 +146,7 @@ impl Flash for Instrument {
 
         #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
         //visa
+        let _ = self.set_nonblocking(false);
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
@@ -170,6 +171,10 @@ impl Flash for Instrument {
         std::thread::sleep(Duration::from_millis(10)); //The position and duration of this delay is intentional
         self.write_all(b"endflash\n")?;
 
+        // Only sleep in non-test builds
+        #[cfg(not(test))]
+        std::thread::sleep(Duration::from_secs(180));
+
         if let Some(pb) = spinner {
             pb.finish_with_message(
                 "Firmware file transferred successfully. Upgrade running on instrument.",
@@ -177,6 +182,7 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
         }
+        let _ = self.set_nonblocking(true);
         Ok(())
     }
 }
@@ -1074,6 +1080,12 @@ mod unit {
         interface.expect_flush().times(..).returning(|| Ok(()));
 
         interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| !*enable)
+            .returning(|_| Ok(()));
+
+        interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
@@ -1105,6 +1117,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| *enable)
+            .returning(|_| Ok(()));
+
         interface
             .expect_write()
             .times(..)

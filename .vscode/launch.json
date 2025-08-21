@@ -9,8 +9,8 @@
             "name": "(Windows) kic Launch",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/kic",
-            "args": ["connect","lan", "134.63.78.86"],
+            "program": "${workspaceFolder}/target/debug/kic-visa",
+            "args": ["connect", "10.233.237.120"],
             "cwd": "${workspaceRoot}",
 
         },
