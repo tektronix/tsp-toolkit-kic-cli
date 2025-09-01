@@ -160,6 +160,10 @@ impl Flash for Instrument {
         self.write_all(b"flash\n")?;
         self.write_all(image.fill_buf().unwrap())?;
         self.write_all(b"endflash\n")?;
+
+        // Only sleep in non-test builds
+        #[cfg(not(test))]
+        std::thread::sleep(Duration::from_secs(180));
         if let Some(pb) = spinner {
             pb.finish_with_message(
                 "Firmware file transferred successfully. Upgrade running on instrument.",
@@ -167,6 +171,7 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
         }
+        let _ = self.set_nonblocking(true);
         Ok(())
         
     }
@@ -1073,6 +1078,12 @@ mod unit {
         let mut seq = Sequence::new();
 
         interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| !*enable)
+            .returning(|_| Ok(()));
+
+        interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
@@ -1104,6 +1115,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_set_nonblocking()
+            .times(1)
+            .withf(|enable| *enable)
+            .returning(|_| Ok(()));
+
         interface
             .expect_write()
             .times(..)

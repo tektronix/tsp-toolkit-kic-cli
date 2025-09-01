@@ -345,6 +345,7 @@ impl Repl {
                                         )?;
                                         // Upgrading Mainframe
                                         Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
+                                        break 'user_loop;
                                     }
                                     break 'user_loop;
                                 }

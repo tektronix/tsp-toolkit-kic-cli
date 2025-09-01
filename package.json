@@ -1,12 +1,14 @@
 {
     "name": "@tektronix/kic-cli",
-    "version": "0.20.0",
+    "version": "0.21.0",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
         "linux-kic": "./bin/kic",
         "windows-kic-discover": "./bin/kic-discover.exe",
-        "linux-kic-discover": "./bin/kic-discover"
+        "linux-kic-discover": "./bin/kic-discover",
+        "windows-kic-debug": "./bin/kic-debug.exe",
+        "linux-kic-debug": "./bin/kic-debug"
     },
     "repository": {
         "type": "git",
