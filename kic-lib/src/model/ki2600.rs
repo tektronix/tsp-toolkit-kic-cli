@@ -173,7 +173,6 @@ impl Flash for Instrument {
         }
         let _ = self.set_nonblocking(true);
         Ok(())
-        
     }
 }
 
