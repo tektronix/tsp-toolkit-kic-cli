@@ -320,6 +320,11 @@ impl Repl {
                         Request::Upgrade { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
+                            if contents.is_empty() {
+                                Self::println_flush(&"Firmware file is empty (0 bytes)".red())?;
+                                prompt = true;
+                                continue 'user_loop;
+                            }
                             if slot.is_some_and(|s| s > 0) {
                                 // Upgrading Module
                                 Self::println_flush(
