@@ -30,4 +30,7 @@ pub enum KicError {
 
     #[error("instrument error: {0}")]
     InstrumentError(#[from] kic_lib::InstrumentError),
+
+    #[error("{0}")]
+    Other(String),
 }

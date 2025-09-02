@@ -890,6 +890,10 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     };
 
+    if std::fs::metadata(&file)?.len() == 0 {
+        return Err(KicError::Other("Firmware file is empty (0 bytes)".to_string()).into());
+    }
+
     let mut image: Vec<u8> = Vec::new();
 
     let mut file = match std::fs::File::open(file) {
