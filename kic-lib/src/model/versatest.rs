@@ -380,6 +380,7 @@ impl Drop for Instrument {
             return;
         }
         let _ = self.reset();
+        let _ = self.write_all(b"localnode.prompts = 0\n");
     }
 }
 

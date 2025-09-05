@@ -270,6 +270,7 @@ impl Drop for Instrument {
     fn drop(&mut self) {
         trace!("calling tti drop...");
         let _ = self.reset();
+        let _ = self.write_all(b"localnode.prompts = 0\n");
         let _ = self.write_all(b"logout\n");
         std::thread::sleep(Duration::from_millis(100));
     }
