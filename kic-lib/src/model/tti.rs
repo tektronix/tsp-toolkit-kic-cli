@@ -382,6 +382,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -554,6 +559,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -697,6 +707,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(
@@ -830,6 +845,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(
@@ -887,6 +907,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(
@@ -930,6 +955,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
@@ -988,6 +1018,13 @@ mod unit {
                 .withf(move |buf: &[u8]| buf == e)
                 .returning(|buf: &[u8]| Ok(buf.len()));
         }
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
             Authentication::NoAuth,
@@ -1036,6 +1073,12 @@ mod unit {
                 .withf(move |buf: &[u8]| buf == e)
                 .returning(|buf: &[u8]| Ok(buf.len()));
         }
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
             Authentication::NoAuth,
@@ -1084,6 +1127,12 @@ mod unit {
                 .withf(move |buf: &[u8]| buf == e)
                 .returning(|buf: &[u8]| Ok(buf.len()));
         }
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
@@ -1134,6 +1183,12 @@ mod unit {
                 .withf(move |buf: &[u8]| buf == e)
                 .returning(|buf: &[u8]| Ok(buf.len()));
         }
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
@@ -1212,6 +1267,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"localnode.prompts = 0\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
