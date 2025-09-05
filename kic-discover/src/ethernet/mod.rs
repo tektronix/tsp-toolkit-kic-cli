@@ -113,7 +113,10 @@ impl LxiDeviceInfo {
                     port_split[port_split.len().saturating_sub(1)].to_string()
                 };
 
-                if manufacturer.to_ascii_lowercase().contains("keithley") && is_supported(&model) {
+                if (manufacturer.to_ascii_lowercase().contains("keithley")
+                    || manufacturer.to_ascii_lowercase().contains("tektronix"))
+                    && is_supported(&model)
+                {
                     let device = Self {
                         io_type: IoType::Lan,
                         instr_address: instr_addr,
