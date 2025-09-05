@@ -13,6 +13,7 @@ use crate::{
     protocol::Protocol,
     Flash, InstrumentError,
 };
+
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{error, trace};
 
@@ -374,13 +375,28 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
-        trace!("calling versatest drop...");
+        trace!("calling MP5000 drop...");
         if self.fw_flash_in_progress {
-            trace!("FW flash in progress. Skipping instrument reset.");
+            trace!("FW flash in progress. Just drop.");
             return;
         }
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
+
         let _ = self.reset();
+
+        #[cfg(not(test))]
+        //Allow reset to complete
+        match clear_output_queue(self, 100, Duration::from_millis(100)) {
+            Ok(()) => {}
+            Err(_e) => {}
+        }
+
         let _ = self.write_all(b"localnode.prompts = 0\n");
+        std::thread::sleep(Duration::from_millis(100));
+
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 

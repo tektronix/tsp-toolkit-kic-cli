@@ -8,8 +8,8 @@ use tracing::{error, trace};
 
 use crate::{
     instrument::{
-        self, authenticate::Authentication, info::InstrumentInfo, language, Abort, Info, Login,
-        Reset, Script,
+        self, authenticate::Authentication, clear_output_queue, info::InstrumentInfo, language,
+        Abort, Info, Login, Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
@@ -21,6 +21,7 @@ pub struct Instrument {
     info: Option<InstrumentInfo>,
     protocol: Protocol,
     auth: Authentication,
+    fw_flash_in_progress: bool,
 }
 
 impl Instrument {
@@ -51,6 +52,7 @@ impl Instrument {
             info: None,
             protocol,
             auth,
+            fw_flash_in_progress: false,
         })
     }
 
@@ -60,6 +62,7 @@ impl Instrument {
             info: None,
             protocol,
             auth,
+            fw_flash_in_progress: false,
         }
     }
 
@@ -163,6 +166,8 @@ impl Flash for Instrument {
             None
         };
 
+        self.fw_flash_in_progress = true;
+
         for chunk in image.chunks(4096) {
             self.write_all(chunk)?;
             std::thread::sleep(Duration::from_millis(10)); //The position and duration of this delay is intentional
@@ -183,6 +188,7 @@ impl Flash for Instrument {
             eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
         }
         let _ = self.set_nonblocking(true);
+        self.fw_flash_in_progress = false;
         Ok(())
     }
 }
@@ -222,7 +228,19 @@ impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
         trace!("calling ki3700 drop...");
+        if self.fw_flash_in_progress {
+            return;
+        }
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
+
         let _ = self.reset();
+        #[cfg(not(test))]
+        //Allow reset to complete
+        match clear_output_queue(self, 100, Duration::from_millis(100)) {
+            Ok(()) => {}
+            Err(_e) => {}
+        }
         let _ = self.write_all(b"localnode.prompts = 0\n");
     }
 }
