@@ -16,16 +16,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-## [0.21.0-1]
+## [0.21.0]
 
 ### Added
 - Wait for reset to complete before closing connection
+- Consolidate kic-debug
 
 ### Fixed
 - TSP prompt is returned on reads when closing Toolkit sockets session with trash can and reconnecting via Python
-
-## [0.21.0]
-- Consolidate kic-debug
 
 ## [0.20.1]
 
