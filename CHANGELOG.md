@@ -17,7 +17,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 
 ## [0.21.0]
+
+### Added
+- Wait for reset to complete before closing connection
 - Consolidate kic-debug
+
+### Fixed
+- TSP prompt is returned on reads when closing Toolkit sockets session with trash can and reconnecting via Python
 
 ## [0.20.1]
 
