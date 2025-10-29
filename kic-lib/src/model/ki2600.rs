@@ -84,7 +84,7 @@ impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
         self.write_all(b"print('unlocked')\n")?;
         for _i in 0..5 {
-            std::thread::sleep(Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(200));
             let mut resp: Vec<u8> = vec![0; 256];
             let read_size = match self.read(&mut resp) {
                 Ok(read_size) => read_size,
