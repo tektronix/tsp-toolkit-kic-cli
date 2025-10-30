@@ -161,12 +161,12 @@ impl Repl {
                 }
             }
             if get_error {
-                let errors = self.get_errors()?;
+                let (errors, new_prompt) = self.get_errors()?;
                 for e in errors {
                     error!("TSP error: {e}");
                     Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
                 }
-                prompt = true;
+                prompt = new_prompt;
                 *state = Some(ReadState::DataReadEnd);
             }
             debug!("Data handling complete");
@@ -203,7 +203,7 @@ impl Repl {
         debug!("Writing common script to instrument completed");
 
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
-        let errors = self.get_errors()?;
+        let (errors, _) = self.get_errors()?;
         for e in errors {
             error!("TSP error: {e}");
             Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
@@ -260,7 +260,7 @@ impl Repl {
                             prev_state = None;
                         }
                         Request::GetError => {
-                            let errors = self.get_errors()?;
+                            let (errors, _) = self.get_errors()?;
                             for e in errors {
                                 error!("TSP error: {e}");
                                 Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
@@ -418,10 +418,11 @@ impl Repl {
     }
 
     #[instrument(skip(self))]
-    fn get_errors(&mut self) -> Result<Vec<TspError>> {
+    fn get_errors(&mut self) -> Result<(Vec<TspError>, bool)> {
         self.inst.write_all(b"print(_KIC.error_message())\n")?;
         let mut errors: Vec<TspError> = Vec::new();
         let mut err: String = String::new();
+        let mut prompt = false;
         'error_loop: loop {
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
@@ -446,12 +447,16 @@ impl Repl {
 
         let parser = ResponseParser::new(err.as_bytes());
         for response in parser {
-            if let ParsedResponse::TspError(e) = response {
+            if let ParsedResponse::TspError(e) = &response {
                 let x: TspError = serde_json::from_str(e.trim())?;
                 errors.push(x);
             }
+            // in trebuchet for usbtmc connection prompt is getting in error query output, which got handled here
+            if response == ParsedResponse::Prompt {
+                prompt = true;
+            }
         }
-        Ok(errors)
+        Ok((errors, prompt))
     }
 
     fn print_flush<D: Display>(string: &D) -> Result<()> {
