@@ -451,8 +451,8 @@ impl Repl {
                 let x: TspError = serde_json::from_str(e.trim())?;
                 errors.push(x);
             }
-            if let ParsedResponse::Prompt = response {
-               prompt = true;
+            if response == ParsedResponse::Prompt {
+                prompt = true;
             }
         }
         Ok((errors, prompt))
