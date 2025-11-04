@@ -393,7 +393,10 @@ impl Drop for Instrument {
         }
 
         let _ = self.write_all(b"localnode.prompts = 0\n");
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(200));
+        let _ = self.write_all(b"abort\n");
+        // Make sure an abort is the last thing to run so the
+        // instrument goes to local mode
     }
 }
 

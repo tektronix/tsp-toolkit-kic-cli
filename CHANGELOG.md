@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.21.1]
+
+### Fixed
+- CLI gets all messed up on USBTMC
+- Connecting to MP5000 mainframe over different interfaces prompts for password
+
 ## [0.21.0]
 
 ### Added
