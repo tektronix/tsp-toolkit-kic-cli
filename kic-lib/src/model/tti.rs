@@ -300,6 +300,9 @@ impl Drop for Instrument {
 
         let _ = self.write_all(b"logout\n");
         std::thread::sleep(Duration::from_millis(100));
+
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 

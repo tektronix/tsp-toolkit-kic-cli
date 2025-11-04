@@ -242,6 +242,9 @@ impl Drop for Instrument {
             Err(_e) => {}
         }
         let _ = self.write_all(b"localnode.prompts = 0\n");
+
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = self.write_all(b"abort\n");
     }
 }
 

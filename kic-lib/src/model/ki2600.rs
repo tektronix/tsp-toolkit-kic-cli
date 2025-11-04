@@ -252,6 +252,7 @@ impl Drop for Instrument {
 
         let _ = self.write_all(b"password\n");
         std::thread::sleep(Duration::from_millis(100));
+        let _ = self.write_all(b"abort\n");
     }
 }
 
