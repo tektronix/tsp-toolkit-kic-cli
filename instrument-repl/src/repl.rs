@@ -260,7 +260,7 @@ impl Repl {
                             prev_state = None;
                         }
                         Request::GetError => {
-                            let (errors, _promt) = self.get_errors()?;
+                            let (errors, _) = self.get_errors()?;
                             for e in errors {
                                 error!("TSP error: {e}");
                                 Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
@@ -451,8 +451,9 @@ impl Repl {
                 let x: TspError = serde_json::from_str(e.trim())?;
                 errors.push(x);
             }
-            if let ParsedResponse::Prompt = response {
-               prompt = true;
+            // in trebuchet for usbtmc connection prompt is getting in error query output, which got handled here
+            if response == ParsedResponse::Prompt {
+                prompt = true;
             }
         }
         Ok((errors, prompt))
