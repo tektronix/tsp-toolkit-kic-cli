@@ -563,7 +563,55 @@ mod unit {
                 Ok(msg.len())
             });
 
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         // login() { first check_login() }
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         interface
             .expect_write()
             .times(1)
@@ -736,8 +784,55 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
 
         // login() { first check_login() }
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         interface
             .expect_write()
             .times(1)
@@ -794,7 +889,55 @@ mod unit {
                 Ok(msg.len())
             });
 
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         // check_login()
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(5)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .returning(|buf: &mut [u8]| {
+                let msg = b"FAILURE\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         interface
             .expect_write()
             .times(1)
