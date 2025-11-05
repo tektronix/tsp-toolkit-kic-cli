@@ -15,7 +15,7 @@ use crate::{
 };
 
 use indicatif::{ProgressBar, ProgressStyle};
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 
 pub struct Instrument {
     info: Option<InstrumentInfo>,
@@ -81,29 +81,32 @@ impl Language for Instrument {}
 
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
-        self.write_all(b"print('unlocked')\n")?;
-        for _i in 0..5 {
-            std::thread::sleep(Duration::from_millis(200));
-            let mut resp: Vec<u8> = vec![0; 256];
-            let read_size = match self.read(&mut resp) {
-                Ok(read_size) => read_size,
-                Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                    continue;
-                }
-                Err(e) => {
-                    error!("{e:?}: {e}");
-                    return Err(e.into());
-                }
-            };
-            let resp = &resp[..read_size];
+        for _ in 0..2 {
+            self.write_all(b"print('unlocked')\n")?;
+            for _i in 0..5 {
+                std::thread::sleep(Duration::from_millis(200));
+                let mut resp: Vec<u8> = vec![0; 256];
+                let read_size = match self.read(&mut resp) {
+                    Ok(read_size) => read_size,
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                        warn!("{e:?}: {e}");
+                        continue;
+                    }
+                    Err(e) => {
+                        error!("{e:?}: {e}");
+                        return Err(e.into());
+                    }
+                };
+                let resp = &resp[..read_size];
 
-            let resp = std::str::from_utf8(resp).unwrap_or("").trim();
+                let resp = std::str::from_utf8(resp).unwrap_or("").trim();
 
-            if resp.contains("unlocked") {
-                return Ok(instrument::State::NotNeeded);
-            }
-            if resp.contains("Port in use") {
-                return Ok(instrument::State::LogoutNeeded);
+                if resp.contains("unlocked") {
+                    return Ok(instrument::State::NotNeeded);
+                }
+                if resp.contains("Port in use") {
+                    return Ok(instrument::State::LogoutNeeded);
+                }
             }
         }
 
@@ -394,6 +397,7 @@ impl Drop for Instrument {
 
         let _ = self.write_all(b"localnode.prompts = 0\n");
         std::thread::sleep(Duration::from_millis(200));
+        let _ = self.write_all(b"abort\n");
         let _ = self.write_all(b"abort\n");
         // Make sure an abort is the last thing to run so the
         // instrument goes to local mode
