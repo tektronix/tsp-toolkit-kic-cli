@@ -235,6 +235,7 @@ impl ConnectionInfo {
                 // doesn't serve `https`, so this won't redirect.
                 client
                     .get(format!("http://{addr}/lxi/identification"))
+                    .timeout(Duration::from_secs(2))
                     .send()?
                     .text()?
             }
@@ -243,6 +244,7 @@ impl ConnectionInfo {
                 // is serving `https`.
                 client
                     .get(format!("http://{addr}/lxi/identification"))
+                    .timeout(Duration::from_secs(2))
                     .send()?
                     .text()?
             }
@@ -251,6 +253,7 @@ impl ConnectionInfo {
                 // it does it will redirect, so just use `http`
                 client
                     .get(format!("http://{}/lxi/identification", addr.ip()))
+                    .timeout(Duration::from_secs(2))
                     .send()?
                     .text()?
             }

@@ -83,7 +83,7 @@ impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
         self.write_all(b"print('unlocked')\n")?;
         for _i in 0..5 {
-            std::thread::sleep(Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(200));
             let mut resp: Vec<u8> = vec![0; 256];
             let read_size = match self.read(&mut resp) {
                 Ok(read_size) => read_size,
@@ -393,7 +393,10 @@ impl Drop for Instrument {
         }
 
         let _ = self.write_all(b"localnode.prompts = 0\n");
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(200));
+        let _ = self.write_all(b"abort\n");
+        // Make sure an abort is the last thing to run so the
+        // instrument goes to local mode
     }
 }
 
