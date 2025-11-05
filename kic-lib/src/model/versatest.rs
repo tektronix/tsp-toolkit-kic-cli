@@ -81,6 +81,7 @@ impl Language for Instrument {}
 
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
+        // Issue with MP5000 firmware in HiSLIP requires this retry
         for _ in 0..2 {
             self.write_all(b"print('unlocked')\n")?;
             for _i in 0..5 {
@@ -398,6 +399,8 @@ impl Drop for Instrument {
         let _ = self.write_all(b"localnode.prompts = 0\n");
         std::thread::sleep(Duration::from_millis(200));
         let _ = self.write_all(b"abort\n");
+
+        // Issue with MP5000 firmware in HiSLIP requires this retry
         let _ = self.write_all(b"abort\n");
         // Make sure an abort is the last thing to run so the
         // instrument goes to local mode
