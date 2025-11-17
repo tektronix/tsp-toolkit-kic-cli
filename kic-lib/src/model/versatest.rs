@@ -185,15 +185,20 @@ impl Flash for Instrument {
         image: &[u8],
         firmware_info: Option<u16>,
     ) -> crate::error::Result<()> {
+        trace!("Starting flash_firmware: image size = {} bytes, firmware_info = {:?}", image.len(), firmware_info);
         let mut is_module = false;
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
             is_module = true;
+            trace!("Module upgrade requested: slot_number = {}", slot_number);
+        } else {
+            trace!("Mainframe upgrade requested");
         }
         const NOT_EXISTS: &str = "NE";
         const EXISTS: &str = "SE";
 
         if is_module {
+            trace!("Checking if slot[{}] exists", slot_number);
             self.write_all(format!("if slot[{slot_number}] == nil then print([[{NOT_EXISTS}]]) else print([[{EXISTS}]]) end\n").as_bytes())?;
             match read_until(
                 self,
@@ -205,22 +210,27 @@ impl Flash for Instrument {
                     trace!("slot exists");
                 }
                 Ok(s) if s.contains(NOT_EXISTS) => {
+                    trace!("Slot {} does not exist or is not populated", slot_number);
                     return Err(InstrumentError::FwUpgradeFailure(
                         format!("Unable to upgrade module: ensure slot[{slot_number}] is populated and turned on")
                     ));
                 }
                 Ok(s) => {
-                    trace!("Returned: {s}");
+                    trace!("Unexpected response when checking slot: {s}");
                     return Err(InstrumentError::FwUpgradeFailure(
                         "Upgrade status unknown: did not receive expected response".to_string(),
                     ));
                 }
                 Err(InstrumentError::Other(s)) if s == String::default() => {
+                    trace!("Error: did not read back expected string when checking slot");
                     return Err(InstrumentError::FwUpgradeFailure(
                         "Upgrade status unknown: unable to read slot existance due to error: did not read back expected string".to_string(),
                     ));
                 }
-                Err(e) => return Err(e),
+                Err(e) => {
+                    trace!("Error while checking slot: {e:?}");
+                    return Err(e);
+                }
             }
         }
 
@@ -242,32 +252,38 @@ impl Flash for Instrument {
             None
         };
 
-        self.write_all(b"localnode.prompts=0\n")?;
-        //let image = image.reader();
-        //let start_time = Instant::now();
-        self.write_all(b"flash\n")?;
-
-        self.write_all(image)?;
+    trace!("Disabling prompts and starting flash command");
+    self.write_all(b"localnode.prompts=0\n")?;
+    self.write_all(b"flash\n")?;
+    trace!("Writing firmware image ({} bytes)", image.len());
+    self.write_all(image)?;
 
         let mut loop_count = 0;
         loop {
             loop_count += 1;
             match self.write_all(b"endflash\n") {
-                Ok(_) => break,
+                Ok(_) => {
+                    trace!("Successfully wrote 'endflash' after {} attempts", loop_count);
+                    break;
+                },
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    if loop_count == 1 {
+                        trace!("'endflash' WouldBlock, entering retry loop");
+                    }
                     std::thread::sleep(Duration::from_millis(10));
                     continue;
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => {
+                    trace!("Error writing 'endflash': {e:?}");
+                    return Err(e.into());
+                },
             }
         }
 
-        trace!("Wrote 'endflash' after {loop_count} attempts");
-
         if spinner.is_none() {
+            trace!("Creating progress bar for firmware processing");
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
-            // This is a template for ProgressStyle that requires this syntax
             pb.set_style(
                 ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
             );
@@ -285,22 +301,32 @@ impl Flash for Instrument {
         //    TryInto::<u32>::try_into(image.len()).unwrap_or_default(),
         //) / duration.as_secs_f64();
 
-        // give it up to 10 minutes.
+        // give it up to 20 minutes.
         // This call will write a timestamp to be printed by the instrument
         // and will then poll (if `self` is non-blocking) to read the timestamp
         // back.
-        match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
-            Ok(()) => {}
-            Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
-                "Writing image took longer than 10 minutes. Check your connection and try again."
-                    .to_string(),
-            )),
-            Err(e) => return Err(e),
+        trace!("Waiting for instrument to process firmware (up to 20 minutes)");
+        match clear_output_queue(self, 60 * 20, Duration::from_secs(1)) {
+            Ok(()) => {
+                trace!("Firmware image processed by instrument");
+            }
+            Err(InstrumentError::Other(_)) => {
+                trace!("Timeout: Writing image took longer than 20 minutes");
+                return Err(InstrumentError::FwUpgradeFailure(
+                    "Writing image took longer than 20 minutes. Check your connection and try again."
+                        .to_string(),
+                ));
+            }
+            Err(e) => {
+                trace!("Error while waiting for firmware processing: {e:?}");
+                return Err(e);
+            }
         }
 
         const FW_VALID: &str = "VALID";
         const FW_NOT_VALID: &str = "INVALID";
 
+        trace!("Checking firmware validity");
         self.write_all(format!("if firmware.valid == nil or firmware.valid == true then print([[{FW_VALID}]]) else print([[{FW_NOT_VALID}]]) end\n").as_bytes())?;
         match read_until(
             self,
@@ -309,9 +335,10 @@ impl Flash for Instrument {
             Duration::from_millis(1),
         ) {
             Ok(s) if s == FW_VALID => {
-                trace!("Firwmare was valid");
+                trace!("Firmware was valid");
             }
             Ok(s) if s == FW_NOT_VALID => {
+                trace!("Firmware was invalid");
                 return Err(InstrumentError::FwUpgradeFailure(
                     "Unable to upgrade mainframe: Firmware was invalid".to_string(),
                 ));
@@ -323,11 +350,15 @@ impl Flash for Instrument {
                 ));
             }
             Err(InstrumentError::Other(s)) if s == String::default() => {
+                trace!("Did not read back expected string for firmware validity");
                 return Err(InstrumentError::FwUpgradeFailure(
                     "Upgrade status unknown: unable to read firmware validity".to_string(),
                 ));
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                trace!("Error while checking firmware validity: {e:?}");
+                return Err(e);
+            }
         }
 
         if is_module {
@@ -336,16 +367,26 @@ impl Flash for Instrument {
                     "Firmware file transferred successfully. Upgrade running on instrument.",
                 );
             }
+            trace!("Starting module firmware update for slot[{}]", slot_number);
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
 
+            trace!("Waiting for module firmware update to complete (up to 5 minutes)");
             match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
-                Ok(()) => {}
-                Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
-                    "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
-                        .to_string(),
-                )),
-                Err(e) => return Err(e),
+                Ok(()) => {
+                    trace!("Module firmware update completed");
+                }
+                Err(InstrumentError::Other(_)) => {
+                    trace!("Timeout: Upgrading module firmware took longer than 5 minutes");
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
+                            .to_string(),
+                    ));
+                }
+                Err(e) => {
+                    trace!("Error during module firmware update: {e:?}");
+                    return Err(e);
+                }
             }
             if let Some(pb) = spinner {
                 pb.finish_with_message("Module firmware upgrade complete.");
@@ -353,6 +394,7 @@ impl Flash for Instrument {
         } else {
             //Update Mainframe
             self.fw_flash_in_progress = true;
+            trace!("Starting mainframe firmware update");
             self.write_all(b"firmware.update()\n")?;
             if let Some(pb) = spinner {
                 pb.finish_with_message(
@@ -361,7 +403,8 @@ impl Flash for Instrument {
             }
         }
 
-        Ok(())
+    trace!("flash_firmware completed successfully");
+    Ok(())
     }
 }
 
