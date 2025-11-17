@@ -119,7 +119,7 @@ _KIC["toJson"] = function(o)
     return s
 end
 
-if _KIC.is_tti() then
+if _KIC.is_tti() or _KIC.is_3700() then
     _KIC["error_message"] = function()
         local errorstr = [[ERM>START]] .. '\n'
         for _err_num = 1, eventlog.getcount(eventlog.SEV_ERROR) do
@@ -137,7 +137,7 @@ if _KIC.is_tti() then
         return errorstr
     end
 
-elseif _KIC.is_2600() or _KIC.is_3700() then
+elseif _KIC.is_2600() then
     _KIC["error_message"] = function()
         local errorstr = [[ERM>START]].."\n"
         for _err_num = 1, errorqueue.count do
