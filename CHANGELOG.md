@@ -22,6 +22,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Error when sending a large TSP script to the terminal
 - CLI gets all messed up on USBTMC
 - Connecting to MP5000 mainframe over different interfaces prompts for password
+- Error messages for 3706A, 707B, and 708B should be retrieved using the same function
+  as TTI instead of 2600
 
 ## [0.21.0]
 
