@@ -23,6 +23,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - CLI gets all messed up on USBTMC
 - Connecting to MP5000 mainframe over different interfaces prompts for password
 - Firmware flashing issue with MP5103 mainframe and slots via USBTMC
+- Error messages for 3706A, 707B, and 708B should be retrieved using the same function
+  as TTI instead of 2600
+
 
 ## [0.21.0]
 
