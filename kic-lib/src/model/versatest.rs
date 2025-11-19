@@ -185,7 +185,11 @@ impl Flash for Instrument {
         image: &[u8],
         firmware_info: Option<u16>,
     ) -> crate::error::Result<()> {
-        trace!("Starting flash_firmware: image size = {} bytes, firmware_info = {:?}", image.len(), firmware_info);
+        trace!(
+            "Starting flash_firmware: image size = {} bytes, firmware_info = {:?}",
+            image.len(),
+            firmware_info
+        );
         let mut is_module = false;
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
@@ -252,20 +256,23 @@ impl Flash for Instrument {
             None
         };
 
-    trace!("Disabling prompts and starting flash command");
-    self.write_all(b"localnode.prompts=0\n")?;
-    self.write_all(b"flash\n")?;
-    trace!("Writing firmware image ({} bytes)", image.len());
-    self.write_all(image)?;
+        trace!("Disabling prompts and starting flash command");
+        self.write_all(b"localnode.prompts=0\n")?;
+        self.write_all(b"flash\n")?;
+        trace!("Writing firmware image ({} bytes)", image.len());
+        self.write_all(image)?;
 
         let mut loop_count = 0;
         loop {
             loop_count += 1;
             match self.write_all(b"endflash\n") {
                 Ok(_) => {
-                    trace!("Successfully wrote 'endflash' after {} attempts", loop_count);
+                    trace!(
+                        "Successfully wrote 'endflash' after {} attempts",
+                        loop_count
+                    );
                     break;
-                },
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     if loop_count == 1 {
                         trace!("'endflash' WouldBlock, entering retry loop");
@@ -276,7 +283,7 @@ impl Flash for Instrument {
                 Err(e) => {
                     trace!("Error writing 'endflash': {e:?}");
                     return Err(e.into());
-                },
+                }
             }
         }
 
@@ -403,8 +410,8 @@ impl Flash for Instrument {
             }
         }
 
-    trace!("flash_firmware completed successfully");
-    Ok(())
+        trace!("flash_firmware completed successfully");
+        Ok(())
     }
 }
 
