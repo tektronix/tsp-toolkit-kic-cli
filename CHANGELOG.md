@@ -19,6 +19,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.21.1]
 
 ### Fixed
+- Error when sending a large TSP script to the terminal
 - CLI gets all messed up on USBTMC
 - Connecting to MP5000 mainframe over different interfaces prompts for password
 
