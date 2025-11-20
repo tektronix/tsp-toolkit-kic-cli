@@ -26,6 +26,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Error messages for 3706A, 707B, and 708B should be retrieved using the same function
   as TTI instead of 2600
 - Fix message when writing more than 100,000 bytes of arbitrary data to an instrument
+- Fix IO timeout error when upgrading MP5000 module firmware
 
 
 ## [0.21.0]
