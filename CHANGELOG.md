@@ -25,6 +25,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Firmware flashing issue with MP5103 mainframe and slots via USBTMC
 - Error messages for 3706A, 707B, and 708B should be retrieved using the same function
   as TTI instead of 2600
+- Fix message when writing more than 100,000 bytes of arbitrary data to an instrument
 
 
 ## [0.21.0]
