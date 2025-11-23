@@ -282,12 +282,8 @@ fn main() -> anyhow::Result<()> {
 
         if let Some(kv) = kic_visa_exe {
             if kv.exists() {
-                Process::new(kv.clone(), std::env::args().skip(1))
-                    .exec_replace()
-                    .context(format!(
-                        "{} should have been launched because VISA was detected",
-                        kv.display(),
-                    ))?;
+                let _ = Process::new(kv.clone(), std::env::args().skip(1))
+                    .exec_replace();
                 return Ok(());
             }
         }
