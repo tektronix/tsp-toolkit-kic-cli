@@ -282,8 +282,7 @@ fn main() -> anyhow::Result<()> {
 
         if let Some(kv) = kic_visa_exe {
             if kv.exists() {
-                let _ = Process::new(kv.clone(), std::env::args().skip(1))
-                    .exec_replace();
+                let _ = Process::new(kv.clone(), std::env::args().skip(1)).exec_replace();
                 return Ok(());
             }
         }
