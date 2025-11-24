@@ -249,7 +249,7 @@ impl Write for Protocol {
                     let pb = ProgressBar::new(buf.len().try_into().unwrap_or_default());
                     #[allow(clippy::literal_string_with_formatting_args)] // This is a template for ProgressStyle that requires this syntax
                     pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:10.cyan/blue}] {bytes}/{total_bytes} (ETA: {eta}) {msg}").unwrap().with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()));
-                    pb.set_message("Loading firmware...");
+                    pb.set_message("Loading to instrument...");
                     Some(pb)
                 }
             }
@@ -294,8 +294,7 @@ impl Write for Protocol {
             p.set_style(
                 ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
             );
-            p.finish_with_message("Loading firmware complete");
-            //eprintln!("Loading firmware complete");
+            p.finish_with_message("Loading complete");
         }
 
         Ok(())

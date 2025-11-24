@@ -308,6 +308,10 @@ impl Flash for Instrument {
         //    TryInto::<u32>::try_into(image.len()).unwrap_or_default(),
         //) / duration.as_secs_f64();
 
+        // Wait for 6 seconds before trying to communicate with the instrument because
+        // we will get an IO timeout if we don't (during module update)
+        std::thread::sleep(Duration::from_secs(6));
+
         // give it up to 20 minutes.
         // This call will write a timestamp to be printed by the instrument
         // and will then poll (if `self` is non-blocking) to read the timestamp
@@ -386,7 +390,7 @@ impl Flash for Instrument {
                 Err(InstrumentError::Other(_)) => {
                     trace!("Timeout: Upgrading module firmware took longer than 5 minutes");
                     return Err(InstrumentError::FwUpgradeFailure(
-                        "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
+                        "Upgrading module firmware took longer than 10 minutes. Check your hardware and try again."
                             .to_string(),
                     ));
                 }
