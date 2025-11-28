@@ -53,12 +53,16 @@ where
         }
 
         if run_script {
+            //To address TSP-1215
+            self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
+            //clear_output_queue(self, 100, Duration::from_secs(1))?;
+            self.flush()?;
             self.write_all(format!("{name}.run()\n").as_bytes())?;
             self.flush()?;
         }
 
-        self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
-        self.flush()?;
+        //self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
+        //self.flush()?;
 
         Ok(())
     }
