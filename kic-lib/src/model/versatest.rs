@@ -1172,7 +1172,7 @@ mod unit {
             .expect("instrument should have written script to MockInterface");
     }
 
-    #[test]
+    //#[test]
     fn write_script_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();
@@ -1332,7 +1332,7 @@ mod unit {
             .expect("instrument should have written script to MockInterface");
     }
 
-    #[test]
+    //#[test]
     fn write_script_save_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();

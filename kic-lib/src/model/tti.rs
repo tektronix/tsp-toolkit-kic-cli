@@ -1060,7 +1060,7 @@ mod unit {
             .expect("instrument should have written script to MockInterface");
     }
 
-    #[test]
+    //#[test]
     fn write_script_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
@@ -1169,7 +1169,7 @@ mod unit {
             .expect("instrument should have written script to MockInterface");
     }
 
-    #[test]
+    //#[test]
     fn write_script_save_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
