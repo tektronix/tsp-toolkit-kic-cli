@@ -175,7 +175,11 @@ impl Read for Protocol {
             #[cfg(feature = "visa")]
             Self::Visa(v) => v.read(buf),
         };
-        trace!("Read from instrument: {}", String::from_utf8_lossy(buf));
+        let ascii = String::from_utf8_lossy(buf);
+        let ascii = ascii.trim_end().trim_matches(['\0', '\n', '\r']);
+        if !ascii.is_empty() {
+            trace!("read from instrument: '{ascii}'");
+        }
         bytes
     }
 }

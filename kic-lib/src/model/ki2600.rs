@@ -186,11 +186,6 @@ impl Read for Instrument {
     #[tracing::instrument(skip(self, buf))]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let b = self.protocol.read(buf)?;
-        let ascii = String::from_utf8_lossy(buf);
-        let ascii = ascii.trim_end().trim_matches(['\0', '\n', '\r']);
-        if !ascii.is_empty() {
-            trace!("read from instrument: '{ascii}'");
-        }
         Ok(b)
     }
 }
