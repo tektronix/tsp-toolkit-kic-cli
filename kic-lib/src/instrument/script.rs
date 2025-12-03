@@ -1,6 +1,9 @@
 //! A trait that allows for the writing of a TSP script file to the instrument.
 
-use std::{io::{BufRead, Read, Write}, time::Duration};
+use std::{
+    io::{BufRead, Read, Write},
+    time::Duration,
+};
 
 use bytes::Buf;
 
