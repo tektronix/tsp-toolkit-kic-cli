@@ -169,12 +169,18 @@ pub trait Trigger {
 
 impl Read for Protocol {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        match self {
+        let bytes = match self {
             Self::Raw(r) => r.read(buf),
 
             #[cfg(feature = "visa")]
             Self::Visa(v) => v.read(buf),
+        };
+        let ascii = String::from_utf8_lossy(buf);
+        let ascii = ascii.trim_end().trim_matches(['\0', '\n', '\r']);
+        if !ascii.is_empty() {
+            trace!("read from instrument: '{ascii}'");
         }
+        bytes
     }
 }
 

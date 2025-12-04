@@ -1,6 +1,9 @@
 //! A trait that allows for the writing of a TSP script file to the instrument.
 
-use std::io::{BufRead, Write};
+use std::{
+    io::{BufRead, Read, Write},
+    time::Duration,
+};
 
 use bytes::Buf;
 
@@ -9,7 +12,7 @@ use crate::error::Result;
 /// The [`Instrument`] can write a script to be executed.
 pub trait Script
 where
-    Self: Write,
+    Self: Write + Read,
 {
     /// Write the given script to the instrument with the given name.
     ///
@@ -35,7 +38,7 @@ where
         run_script: bool,
     ) -> Result<()> {
         // Truncate name otherwise we risk a Fatal Error (NS-2201)
-        let name = String::from_utf8_lossy(name.take(31).chunk()).to_string();
+        let name = String::from_utf8_lossy(Buf::take(name, 31).chunk()).to_string();
         let mut script = script.reader(); //String::from_utf8_lossy(script.as_ref()).to_string();
         self.write_all(b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")?;
         self.flush()?;
@@ -55,7 +58,7 @@ where
         if run_script {
             self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
             self.flush()?;
-            //clear_output_queue(self, 100, Duration::from_secs(1))?;
+            crate::instrument::clear_output_queue(self, 100, Duration::from_millis(1))?;
             self.write_all(format!("{name}.run()\n").as_bytes())?;
             self.flush()?;
         }
