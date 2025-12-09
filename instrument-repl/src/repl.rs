@@ -208,8 +208,6 @@ impl Repl {
             error!("TSP error: {e}");
             Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
-            let mut temp_count = 0;
-
         let mut prompt = true;
         let mut abort = false;
         let mut command_written = true;
@@ -252,8 +250,7 @@ impl Repl {
                     prompt = true;
                     command_written = true;
                 }
-                (true, true, false)
-                | (true, false, false) => {
+                (true, true | false, false) => {
                     let (errors, _) = self.get_errors()?;
                     for e in errors {
                         error!("TSP error: {e}");
@@ -270,14 +267,8 @@ impl Repl {
                 }
                 (false, true, false) => {
                     prompt = false;
-                    temp_count += 1;
-                    if temp_count > 5 {
-                        std::process::exit(0)
-                    }
                 }
-                (true, false, true)
-                | (false, false, true)
-                | (false, false, false) => {}
+                (true | false, false, true | false) => {}
             }
 
             match loop_in.try_recv() {
