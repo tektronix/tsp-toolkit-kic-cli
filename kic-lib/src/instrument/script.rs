@@ -1,9 +1,6 @@
 //! A trait that allows for the writing of a TSP script file to the instrument.
 
-use std::{
-    io::{BufRead, Read, Write},
-    time::Duration,
-};
+use std::io::{BufRead, Read, Write};
 
 use bytes::Buf;
 
@@ -56,15 +53,12 @@ where
         }
 
         if run_script {
-            self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
-            self.flush()?;
-            crate::instrument::clear_output_queue(self, 100, Duration::from_millis(1))?;
             self.write_all(format!("{name}.run()\n").as_bytes())?;
             self.flush()?;
         }
 
-        //self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
-        //self.flush()?;
+        self.write_all(b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")?;
+        self.flush()?;
 
         Ok(())
     }

@@ -208,8 +208,10 @@ impl Repl {
             error!("TSP error: {e}");
             Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
         }
+            let mut temp_count = 0;
 
         let mut prompt = true;
+        let mut abort = false;
         let mut command_written = true;
         let mut last_read = Instant::now();
         debug!("Starting user loop");
@@ -217,7 +219,7 @@ impl Repl {
         'user_loop: loop {
             //self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
-            if command_written || last_read.elapsed() >= Duration::from_secs(3) {
+            if abort || command_written || last_read.elapsed() >= Duration::from_secs(3) {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
                 last_read = Instant::now();
                 let read_size = match self.inst.read(&mut read_buf) {
@@ -244,12 +246,40 @@ impl Repl {
                 let read_buf: Vec<u8> = read_buf[..read_size].into();
                 prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
             }
-
-            if prompt {
-                prompt = false;
-                command_written = false;
-                Self::print_flush(&"\nTSP> ".blue())?;
+            match (abort, prompt, command_written) {
+                (true, true, true) => {
+                    abort = false;
+                    prompt = true;
+                    command_written = true;
+                }
+                (true, true, false)
+                | (true, false, false) => {
+                    let (errors, _) = self.get_errors()?;
+                    for e in errors {
+                        error!("TSP error: {e}");
+                        Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
+                    }
+                    // Enable prompts after reading errors
+                    self.inst.write_all(b"localnode.prompts = 1\n")?;
+                    command_written = true;
+                }
+                (false, true, true) => {
+                    prompt = false;
+                    command_written = false;
+                    Self::print_flush(&"\nTSP> ".blue())?;
+                }
+                (false, true, false) => {
+                    prompt = false;
+                    temp_count += 1;
+                    if temp_count > 5 {
+                        std::process::exit(0)
+                    }
+                }
+                (true, false, true)
+                | (false, false, true)
+                | (false, false, false) => {}
             }
+
             match loop_in.try_recv() {
                 Ok(msg) => {
                     debug!("User loop received request: {msg:?}");
@@ -266,6 +296,7 @@ impl Repl {
                                 Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
                             }
                             prompt = true;
+                            command_written = true;
                         }
                         Request::Script { file } => {
                             let mut contents = String::new();
@@ -312,10 +343,12 @@ impl Repl {
                                 true,
                             )?;
                             prompt = true;
+                            command_written = true;
                         }
                         Request::Info { .. } => {
                             Self::println_flush(&self.inst.info()?.to_string().normal())?;
                             prompt = true;
+                            command_written = true;
                         }
                         Request::Upgrade { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
@@ -376,11 +409,14 @@ impl Repl {
                         }
                         Request::Abort => {
                             self.inst.as_mut().abort()?;
-                            prompt = true;
-                            command_written = true;
+                            abort = true;
+                            command_written = false;
+                            // don't set prompt or command_written to true.
+                            // The prompt is handled by a read
                         }
                         Request::Help { sub_cmd } => {
                             prompt = true;
+                            command_written = true;
                             if let Some(sub_cmd) = sub_cmd {
                                 if let Some(mut sub) = self
                                     .command
@@ -396,15 +432,18 @@ impl Repl {
                         }
                         Request::Usage(s) => {
                             prompt = true;
+                            command_written = true;
                             Self::println_flush(&s)?;
                         }
                         Request::InvalidInput(s) => {
                             prompt = true;
+                            command_written = true;
                             warn!("Invalid input: {s}");
                             Self::println_flush(&(s + "\n").red())?;
                         }
                         Request::None => {
                             prompt = true;
+                            command_written = true;
                         }
                     }
                 }
