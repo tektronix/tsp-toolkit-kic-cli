@@ -276,12 +276,12 @@ impl Repl {
             match loop_in.try_recv() {
                 Ok(msg) => {
                     debug!("User loop received request: {msg:?}");
-                    if !processing_request {
-                        processing_request = true;
-                    } else {
+                    if processing_request {
                         Self::print_flush(&"\nPrevious request is still in progress. Please wait for it to complete or abort the operation.\n".yellow())?;
                         continue 'user_loop;
                     }
+                    processing_request = true;
+
                     match msg {
                         Request::Tsp(tsp) => {
                             self.inst.write_all(format!("{tsp}\n").as_bytes())?;
