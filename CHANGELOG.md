@@ -34,6 +34,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Fix message when writing more than 100,000 bytes of arbitrary data to an instrument
 - Fix IO timeout error when upgrading MP5000 module firmware
 - Aborting a Toolkit sent script leaves prompts disabled
+- Reject request with warning message, when previous request is still in progress
 
 ## [0.21.0]
 
