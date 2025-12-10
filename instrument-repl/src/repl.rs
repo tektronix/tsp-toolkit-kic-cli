@@ -212,6 +212,7 @@ impl Repl {
         let mut abort = false;
         let mut command_written = true;
         let mut last_read = Instant::now();
+        let mut processing_request = false;
         debug!("Starting user loop");
         let re = Regex::new(r"[^A-Za-z\d_]");
         'user_loop: loop {
@@ -264,6 +265,7 @@ impl Repl {
                     prompt = false;
                     command_written = false;
                     Self::print_flush(&"\nTSP> ".blue())?;
+                    processing_request = false;
                 }
                 (false, true, false) => {
                     prompt = false;
@@ -274,6 +276,12 @@ impl Repl {
             match loop_in.try_recv() {
                 Ok(msg) => {
                     debug!("User loop received request: {msg:?}");
+                    if !processing_request {
+                        processing_request = true;
+                    } else {
+                        Self::print_flush(&"\nPrevious request is still in progress. Please wait for it to complete or abort the operation.\n".yellow())?;
+                        continue 'user_loop;
+                    }
                     match msg {
                         Request::Tsp(tsp) => {
                             self.inst.write_all(format!("{tsp}\n").as_bytes())?;
