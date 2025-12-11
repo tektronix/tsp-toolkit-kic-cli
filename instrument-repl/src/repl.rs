@@ -385,30 +385,29 @@ impl Repl {
                                         Self::println_flush(
                                             &"Firmware file download complete.".bright_yellow(),
                                         )?;
-                                        let (errors, _) = self.get_errors()?;
+                                    }
+                                    let (errors, _) = self.get_errors()?;
 
-                                        if errors.is_empty() {
-                                            // Upgrading Mainframe
-                                            Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
-                                            break 'user_loop;
-                                        }
+                                    if errors.is_empty() {
+                                        // Upgrading Mainframe
+                                        Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
+                                        break 'user_loop;
+                                    }
 
-                                        Self::println_flush(
-                                            &"\nErrors detected after attempting to flash FW:"
-                                                .bright_yellow(),
-                                        )?;
-                                        for e in errors {
-                                            error!("TSP error after fw flash: {e}");
-                                            Self::print_data(
-                                                state,
-                                                ParsedResponse::TspError(e.to_string()),
-                                            )?;
-                                        }
-                                        Self::println_flush(
-                                            &"Choose a different file or flash target."
-                                                .bright_yellow(),
+                                    Self::println_flush(
+                                        &"\nErrors detected after attempting to flash FW:"
+                                            .bright_yellow(),
+                                    )?;
+                                    for e in errors {
+                                        error!("TSP error after fw flash: {e}");
+                                        Self::print_data(
+                                            state,
+                                            ParsedResponse::TspError(e.to_string()),
                                         )?;
                                     }
+                                    Self::println_flush(
+                                        &"Choose a different file or flash target.".bright_yellow(),
+                                    )?;
                                 }
                                 Err(InstrumentError::FwUpgradeFailure(msg)) => {
                                     error!("{msg}");
