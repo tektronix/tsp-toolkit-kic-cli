@@ -277,9 +277,18 @@ impl Repl {
                 Ok(msg) => {
                     debug!("User loop received request: {msg:?}");
                     if processing_request {
+                        if msg == Request::Abort {
+                            self.inst.as_mut().abort()?;
+                            abort = true;
+                            command_written = false;
+                            // don't set prompt or command_written to true.
+                            // The prompt is handled by a read
+                            continue 'user_loop;
+                        }
                         Self::print_flush(&"\nPrevious request is still in progress. Please wait for it to complete or abort the operation.\n".yellow())?;
                         continue 'user_loop;
                     }
+
                     processing_request = true;
 
                     match msg {
