@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.21.2]
+
+### Fixed
+- Upgrading MP5103 with invalid FW image does not show error in terminal
+
 ## [0.21.1]
 
 ### Fixed

@@ -366,6 +366,19 @@ impl Repl {
                                 prompt = true;
                                 continue 'user_loop;
                             }
+                            let (errors, _) = self.get_errors()?;
+                            if !errors.is_empty() {
+                                Self::println_flush(
+                                    &"Errors from device before sending firmware:".bright_yellow(),
+                                )?;
+                                for e in errors {
+                                    error!("TSP error before fw flash: {e}");
+                                    Self::print_data(
+                                        state,
+                                        ParsedResponse::TspError(e.to_string()),
+                                    )?;
+                                }
+                            }
                             if slot.is_some_and(|s| s > 0) {
                                 // Upgrading Module
                                 Self::println_flush(
@@ -380,18 +393,37 @@ impl Repl {
                             }
                             match self.inst.flash_firmware(contents.as_ref(), slot) {
                                 Ok(()) => {
+                                    let (errors, _) = self.get_errors()?;
+
+                                    Self::println_flush(
+                                        &"\nErrors detected after attempting to flash FW:"
+                                            .bright_yellow(),
+                                    )?;
+                                    for e in &errors {
+                                        error!("TSP error after fw flash: {e}");
+                                        Self::print_data(
+                                            state,
+                                            ParsedResponse::TspError(e.to_string()),
+                                        )?;
+                                    }
+                                    Self::println_flush(
+                                        &"Choose a different file or flash target.".bright_yellow(),
+                                    )?;
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
                                             &"Module upgrade complete.".bright_yellow(),
                                         )?;
+
+                                        if errors.is_empty() {
+                                            // Upgrading Mainframe
+                                            Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
+                                            break 'user_loop;
+                                        }
                                     } else {
                                         Self::println_flush(
                                             &"Firmware file download complete.".bright_yellow(),
                                         )?;
-                                        // Upgrading Mainframe
-                                        Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
-                                        break 'user_loop;
                                     }
                                 }
                                 Err(InstrumentError::FwUpgradeFailure(msg)) => {
