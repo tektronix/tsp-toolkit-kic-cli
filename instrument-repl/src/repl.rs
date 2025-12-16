@@ -504,22 +504,21 @@ impl Repl {
         let mut errors: Vec<TspError> = Vec::new();
         let mut err: String = String::new();
         let mut prompt = false;
-        let mut attempts = 1000;
+        let mut attempts = 1000u16;
         'error_loop: loop {
-            attempts -= 1;
+            attempts = attempts.saturating_sub(1);
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
             let read_size = match self.inst.read(&mut read_buf) {
                 Ok(read_size) => {
-                    attempts += 1;
+                    attempts = attempts.saturating_add(1);
                     read_size
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                    if attempts <= 0 {
+                    if attempts == 0 {
                         break 'error_loop;
-                    } else {
-                        continue;
                     }
+                    continue;
                 }
                 Err(e) => {
                     error!("{e:?}: {e}");
