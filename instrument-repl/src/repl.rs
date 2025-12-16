@@ -407,7 +407,8 @@ impl Repl {
                                             )?;
                                         }
                                         Self::println_flush(
-                                            &"Choose a different file or flash target.".bright_yellow(),
+                                            &"Choose a different file or flash target."
+                                                .bright_yellow(),
                                         )?;
                                     }
 
@@ -416,7 +417,6 @@ impl Repl {
                                         Self::println_flush(
                                             &"Module upgrade complete.".bright_yellow(),
                                         )?;
-
                                     } else {
                                         Self::println_flush(
                                             &"Firmware file download complete.".bright_yellow(),
@@ -511,13 +511,12 @@ impl Repl {
             let mut read_buf: Vec<u8> = vec![0; 1024];
             let read_size = match self.inst.read(&mut read_buf) {
                 Ok(read_size) => {
-                    attempts +=1;
+                    attempts += 1;
                     read_size
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
                     if attempts <= 0 {
                         break 'error_loop;
-
                     } else {
                         continue;
                     }
