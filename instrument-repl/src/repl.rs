@@ -395,35 +395,37 @@ impl Repl {
                                 Ok(()) => {
                                     let (errors, _) = self.get_errors()?;
 
-                                    Self::println_flush(
-                                        &"\nErrors detected after attempting to flash FW:"
-                                            .bright_yellow(),
-                                    )?;
-                                    for e in &errors {
-                                        error!("TSP error after fw flash: {e}");
-                                        Self::print_data(
-                                            state,
-                                            ParsedResponse::TspError(e.to_string()),
+                                    if !errors.is_empty() {
+                                        Self::println_flush(
+                                            &"\nErrors detected after attempting to flash FW:"
+                                                .bright_yellow(),
+                                        )?;
+                                        for e in &errors {
+                                            Self::print_data(
+                                                state,
+                                                ParsedResponse::TspError(e.to_string()),
+                                            )?;
+                                        }
+                                        Self::println_flush(
+                                            &"Choose a different file or flash target."
+                                                .bright_yellow(),
                                         )?;
                                     }
-                                    Self::println_flush(
-                                        &"Choose a different file or flash target.".bright_yellow(),
-                                    )?;
+
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
                                             &"Module upgrade complete.".bright_yellow(),
                                         )?;
-
+                                    } else {
+                                        Self::println_flush(
+                                            &"Firmware file download complete.".bright_yellow(),
+                                        )?;
                                         if errors.is_empty() {
                                             // Upgrading Mainframe
                                             Self::println_flush(&"Close the terminal and reconnect after the instrument has restarted.".bright_yellow())?;
                                             break 'user_loop;
                                         }
-                                    } else {
-                                        Self::println_flush(
-                                            &"Firmware file download complete.".bright_yellow(),
-                                        )?;
                                     }
                                 }
                                 Err(InstrumentError::FwUpgradeFailure(msg)) => {
@@ -502,12 +504,20 @@ impl Repl {
         let mut errors: Vec<TspError> = Vec::new();
         let mut err: String = String::new();
         let mut prompt = false;
+        let mut attempts = 1000u16;
         'error_loop: loop {
+            attempts = attempts.saturating_sub(1);
             std::thread::sleep(Duration::from_micros(1));
             let mut read_buf: Vec<u8> = vec![0; 1024];
             let read_size = match self.inst.read(&mut read_buf) {
-                Ok(read_size) => read_size,
+                Ok(read_size) => {
+                    attempts = attempts.saturating_add(1);
+                    read_size
+                }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    if attempts == 0 {
+                        break 'error_loop;
+                    }
                     continue;
                 }
                 Err(e) => {
