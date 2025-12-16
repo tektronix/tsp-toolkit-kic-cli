@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use reqwest::blocking::Client;
 
+use reqwest::redirect;
 use tracing::{instrument, trace};
 
 #[cfg(feature = "visa")]
@@ -213,6 +214,7 @@ impl ConnectionInfo {
         // into the rustls backend.
         let client = Client::builder()
             .danger_accept_invalid_certs(true)
+            .redirect(redirect::Policy::default())
             .timeout(Duration::from_millis(100))
             .build()?;
 
