@@ -14,7 +14,7 @@ use std::{
     fmt::Display,
     fs::{self, File},
     io::{self, ErrorKind, Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::exit,
     sync::mpsc::{channel, Sender, TryRecvError},
     thread::JoinHandle,
@@ -25,7 +25,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 use kic_lib::{instrument::Instrument, InstrumentError};
 
 use crate::{
-    command::Request,
+    command::{Request, Save, SaveMethod},
     error::{InstrumentReplError, Result},
     instrument::{ParsedResponse, ResponseParser},
     resources::{KIC_COMMON_TSP, TSP_LINK_NODES_TSP},
@@ -121,6 +121,7 @@ impl Repl {
         mut prompt: bool,
         prev_state: &mut Option<ReadState>,
         state: &mut Option<ReadState>,
+        save: Option<&Save>,
     ) -> Result<bool> {
         if !String::from_utf8_lossy(data)
             .trim_end_matches(char::from(0))
@@ -144,11 +145,11 @@ impl Repl {
                     }
                     Action::PrintText => {
                         trace!("Print data");
-                        Self::print_data(*state, response)?;
+                        Self::print_data(*state, response, save)?;
                     }
                     Action::PrintError => {
                         trace!("Print error");
-                        Self::print_data(*state, response)?;
+                        Self::print_data(*state, response, save)?;
                     }
                     Action::GetNodeDetails => {
                         trace!("Update node configuration file");
@@ -164,7 +165,7 @@ impl Repl {
                 let (errors, new_prompt) = self.get_errors()?;
                 for e in errors {
                     error!("TSP error: {e}");
-                    Self::print_data(*state, ParsedResponse::TspError(e.to_string()))?;
+                    Self::print_data(*state, ParsedResponse::TspError(e.to_string()), save)?;
                 }
                 prompt = new_prompt;
                 *state = Some(ReadState::DataReadEnd);
@@ -172,6 +173,48 @@ impl Repl {
             debug!("Data handling complete");
         }
         Ok(prompt)
+    }
+
+    /// Write the given string to the given path
+    ///
+    /// # Errors
+    /// [`std::io::Error`]s may occure when writing to the file.
+    fn write_to_file(path: &Path, to_write: &[u8]) -> Result<()> {
+        let mut file = File::options().append(true).create(true).open(path)?;
+        file.write_all(to_write)?;
+        Ok(())
+    }
+
+    fn handle_script_request(&mut self, file: &Path) -> Result<(bool, bool)> {
+        let re = Regex::new(r"[^A-Za-z\d_]");
+        let prompt = false;
+        let command_written = true;
+
+        let mut contents = String::new();
+        let _ = File::open(file)?.read_to_string(&mut contents)?;
+        let Some(name) = &file.file_stem() else {
+            return Err(InstrumentReplError::CommandError {
+                details: "requested script file had no stem".to_string(),
+            });
+        };
+        let Some(name) = name.to_str() else {
+            unreachable!("Could not convert OsStr to &str");
+        };
+
+        match re {
+            Ok(ref re_res) => {
+                let result = re_res.replace_all(name, "_");
+
+                let script_name = format!("kic_{result}");
+
+                self.inst
+                    .write_script(script_name.as_bytes(), contents.as_bytes(), false, true)?;
+            }
+            Err(err_msg) => {
+                unreachable!("Issue with regex creation: {}", err_msg.to_string());
+            }
+        }
+        Ok((prompt, command_written))
     }
 
     /// Start the Repl
@@ -206,15 +249,15 @@ impl Repl {
         let (errors, _) = self.get_errors()?;
         for e in errors {
             error!("TSP error: {e}");
-            Self::print_data(None, ParsedResponse::TspError(e.to_string()))?;
+            Self::print_data(None, ParsedResponse::TspError(e.to_string()), None)?;
         }
         let mut prompt = true;
         let mut abort = false;
         let mut command_written = true;
         let mut last_read = Instant::now();
         let mut processing_request = false;
+        let mut save: Option<Save> = None;
         debug!("Starting user loop");
-        let re = Regex::new(r"[^A-Za-z\d_]");
         'user_loop: loop {
             //self.inst.set_nonblocking(true)?;
             std::thread::sleep(Duration::from_micros(1));
@@ -243,7 +286,13 @@ impl Repl {
                 };
 
                 let read_buf: Vec<u8> = read_buf[..read_size].into();
-                prompt = self.handle_data(&read_buf, prompt, &mut prev_state, &mut state)?;
+                prompt = self.handle_data(
+                    &read_buf,
+                    prompt,
+                    &mut prev_state,
+                    &mut state,
+                    save.as_ref(),
+                )?;
             }
             match (abort, prompt, command_written) {
                 (true, true, true) => {
@@ -255,13 +304,22 @@ impl Repl {
                     let (errors, _) = self.get_errors()?;
                     for e in errors {
                         error!("TSP error: {e}");
-                        Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
+                        Self::print_data(
+                            state,
+                            ParsedResponse::TspError(e.to_string()),
+                            save.as_ref(),
+                        )?;
                     }
+                    save = None;
                     // Enable prompts after reading errors
                     self.inst.write_all(b"localnode.prompts = 1\n")?;
                     command_written = true;
                 }
                 (false, true, true) => {
+                    match save {
+                        Some(s) if s.clone().method != SaveMethod::Start => save = None,
+                        _ => {}
+                    }
                     prompt = false;
                     command_written = false;
                     Self::print_flush(&"\nTSP> ".blue())?;
@@ -293,6 +351,13 @@ impl Repl {
 
                     match msg {
                         Request::Tsp(tsp) => {
+                            if let Some(ref s) = save {
+                                //print out the user command with a TSP> to the appropriate file.
+                                Self::write_to_file(
+                                    &s.output,
+                                    format!("\nTSP> {tsp}\n").as_bytes(),
+                                )?;
+                            }
                             self.inst.write_all(format!("{tsp}\n").as_bytes())?;
                             command_written = true;
                             prev_state = None;
@@ -301,45 +366,98 @@ impl Repl {
                             let (errors, _) = self.get_errors()?;
                             for e in errors {
                                 error!("TSP error: {e}");
-                                Self::print_data(state, ParsedResponse::TspError(e.to_string()))?;
+                                Self::print_data(
+                                    state,
+                                    ParsedResponse::TspError(e.to_string()),
+                                    save.as_ref(),
+                                )?;
                             }
                             prompt = true;
                             command_written = true;
                         }
-                        Request::Script { file } => {
-                            let mut contents = String::new();
-                            let _ = File::open(&file)?.read_to_string(&mut contents)?;
-                            let Some(name) = &file.file_stem() else {
-                                return Err(InstrumentReplError::CommandError {
-                                    details: "requested script file had no stem".to_string(),
-                                });
-                            };
-                            let Some(name) = name.to_str() else {
-                                unreachable!("Could not convert OsStr to &str");
-                            };
-
-                            match re {
-                                Ok(ref re_res) => {
-                                    let result = re_res.replace_all(name, "_");
-
-                                    let script_name = format!("kic_{result}");
-
-                                    self.inst.write_script(
-                                        script_name.as_bytes(),
-                                        contents.as_bytes(),
-                                        false,
-                                        true,
-                                    )?;
-                                }
-                                Err(err_msg) => {
-                                    unreachable!(
-                                        "Issue with regex creation: {}",
-                                        err_msg.to_string()
+                        Request::Save(s) => {
+                            trace!("Save Requested");
+                            match s.clone().method {
+                                SaveMethod::End => {
+                                    processing_request = false;
+                                    save = None;
+                                    // due to complications, we just print the next prompt for the
+                                    // user
+                                    eprintln!(
+                                        "{}",
+                                        "\nSaving of commands, errors, and printed output ended"
+                                            .yellow()
                                     );
+                                    Self::print_flush(&"\nTSP> ".blue())?;
+                                }
+                                SaveMethod::Start => {
+                                    processing_request = false;
+                                    save = Some(s);
+                                    // due to complications, we just print the next prompt for the
+                                    // user
+                                    eprintln!(
+                                        "{}",
+                                        format!(
+                                            "\nSaving commands, errors, and printed output to {}",
+                                            save.as_ref().map_or_else(
+                                                || "UNABLE TO GET OUTPUT".to_string(),
+                                                |d| d.output.display().to_string()
+                                            )
+                                        )
+                                        .yellow()
+                                    );
+                                    Self::print_flush(&"\nTSP> ".blue())?;
+                                }
+                                SaveMethod::Script { file } => {
+                                    save = Some(s);
+                                    eprintln!(
+                                        "{}",
+                                        &format!(
+                                            "Saving output of script '{}' to {}",
+                                            file.display(),
+                                            save.as_ref().map_or_else(
+                                                || "UNABLE TO GET OUTPUT".to_string(),
+                                                |d| d.output.display().to_string()
+                                            )
+                                        )
+                                        .yellow()
+                                    );
+                                    Self::write_to_file(
+                                        &save.as_ref().map_or_else(
+                                            || "./SCRIPT_OUTPUT.txt".into(),
+                                            |d| d.output.clone(),
+                                        ),
+                                        format!("\nRunning Script: {}\n", file.display())
+                                            .as_bytes(),
+                                    )?;
+                                    (prompt, command_written) =
+                                        self.handle_script_request(&file)?;
+                                }
+                                SaveMethod::Buffers {
+                                    names,
+                                    fields,
+                                    delimiter,
+                                } => {
+                                    save = Some(s);
+                                    eprintln!(
+                                        "{}",
+                                        &format!(
+                                            "Saving contents of buffer(s) {} to {}",
+                                            names.join(","),
+                                            &save.as_ref().map_or_else(
+                                                || "UNABLE TO GET OUTPUT".to_string(),
+                                                |d| d.output.display().to_string()
+                                            ),
+                                        )
+                                        .yellow()
+                                    );
+                                    self.inst.write_all(format!("_KIC.print_buffers_csv({{'{}'}}, {{'{}'}}, '{delimiter}')\n", names.join("','"), fields.join("','")).as_bytes())?;
+                                    command_written = true;
                                 }
                             }
-                            prompt = false;
-                            command_written = true;
+                        }
+                        Request::Script { file } => {
+                            (prompt, command_written) = self.handle_script_request(&file)?;
                         }
                         Request::TspLinkNodes { json_file } => {
                             self.set_lang_config_path(json_file.to_string_lossy().to_string());
@@ -376,6 +494,7 @@ impl Repl {
                                     Self::print_data(
                                         state,
                                         ParsedResponse::TspError(e.to_string()),
+                                        save.as_ref(),
                                     )?;
                                 }
                             }
@@ -404,6 +523,7 @@ impl Repl {
                                             Self::print_data(
                                                 state,
                                                 ParsedResponse::TspError(e.to_string()),
+                                                save.as_ref(),
                                             )?;
                                         }
                                         Self::println_flush(
@@ -489,7 +609,10 @@ impl Repl {
                         }
                     }
                 }
-                Err(TryRecvError::Disconnected) => break 'user_loop,
+                Err(TryRecvError::Disconnected) => {
+                    trace!("user input disconnected");
+                    break 'user_loop;
+                }
                 Err(TryRecvError::Empty) => {}
             }
         }
@@ -560,10 +683,24 @@ impl Repl {
         Ok(())
     }
 
-    fn print_data(_state: Option<ReadState>, resp: ParsedResponse) -> Result<()> {
+    fn print_data(
+        _state: Option<ReadState>,
+        resp: ParsedResponse,
+        save: Option<&Save>,
+    ) -> Result<()> {
         match resp {
-            ParsedResponse::TspError(e) => Self::print_flush(&(e + "\n").red()),
-            ParsedResponse::Data(d) => Self::print_flush(&String::from_utf8_lossy(&d).to_string()),
+            ParsedResponse::TspError(e) => {
+                if let Some(s) = save {
+                    Self::write_to_file(&s.output, format!("TSP Error: {e}\n").as_bytes())?;
+                }
+                Self::print_flush(&(e + "\n").red())
+            }
+            ParsedResponse::Data(d) => {
+                if let Some(s) = save {
+                    Self::write_to_file(&s.output, &d)?;
+                }
+                Self::print_flush(&String::from_utf8_lossy(&d).to_string())
+            }
             ParsedResponse::Prompt
             | ParsedResponse::PromptWithError
             | ParsedResponse::TspErrorStart
@@ -656,7 +793,7 @@ impl Repl {
     fn set_lang_config_path(&mut self, file_path: String) {
         self.lang_cong_file_path = file_path;
     }
-    #[allow(clippy::cognitive_complexity)]
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn cli() -> Command {
         const CMD_TEMPLATE: &str = "\
             {all-args}
@@ -700,6 +837,41 @@ impl Repl {
                     Arg::new("path")
                         .required_unless_present("help")
                         .help("Path to the firmware file to be sent to the instrument")
+                )
+        )
+        .subcommand(
+            Command::new(".save").about("Save data to a file")
+                .help_template(SUBCMD_TEMPLATE)
+                .disable_help_flag(true)
+                .arg(
+                    Arg::new("help").short('h').long("help").help("Print help").action(ArgAction::SetTrue)
+                )
+                .arg(
+                    arg!(script: -s --script <SCRIPT_PATH> "Path to the TSP script to be sent to the instrument and the output saved").value_parser(value_parser!(PathBuf))
+                )
+                .arg(
+                    arg!(tsp: -t --tsp "Start the capturing the output of arbirary TSP commands in the terminal. To stop capturing output, use `.save --end`.")
+                )
+                .arg(
+                    arg!(end: -e --end "End the capturing the output of arbirary TSP commands in the terminal.")
+                )
+                .arg(
+                    arg!(buffer: -b --buffer <BUFFER_NAME> "Save the contents of a buffer in CSV format").action(ArgAction::Append)
+                )
+                .arg(
+                    arg!(delimiter: -d --delimiter <DELIMITER> "The delimiter to use when using `--buffer`").value_parser(value_parser!(String)).default_value(",")
+                )
+                .arg(
+                    //TODO: Add value parser for comma-separated buffer fields
+                    arg!(format: -f --format <FORMAT> "A comma-separated list of fields of the buffers to include (only when using `--buffer`)").default_value("relative_timestamps,sourcevalues,readings")
+                )
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .value_parser(value_parser!(PathBuf))
+                        .required_unless_present_any(["help", "end"])
+                        .help("The file path to which data should be written")
                 )
         )
         .subcommand(
@@ -822,6 +994,90 @@ impl Repl {
                     }
                 }
             },
+            Some((".save", flags)) => {
+                match flags.get_one::<bool>("help") {
+                    Some(help) if *help => Request::Help {
+                        sub_cmd: Some(".save".to_string()),
+                    },
+                    _ => {
+                        let script = flags.get_one::<PathBuf>("script");
+                        let Some(tsp) = flags.get_one::<bool>("tsp") else {
+                            return Err(InstrumentReplError::CommandError {
+                                details: "`tsp` arg not found".to_string(),
+                            });
+                        };
+                        let Some(end) = flags.get_one::<bool>("end") else {
+                            return Err(InstrumentReplError::CommandError {
+                                details: "`end` arg not found".to_string(),
+                            });
+                        };
+
+                        // Output is not required to --end
+                        if *end {
+                            return Ok(Request::Save(Save {
+                                method: SaveMethod::End,
+                                output: "".into(),
+                            }));
+                        }
+
+                        let Some(output) = flags.get_one::<PathBuf>("output") else {
+                            return Err(InstrumentReplError::CommandError {
+                                details: "expected file path, but none were provided".to_string(),
+                            });
+                        };
+
+                        let buffers = flags.get_many::<String>("buffer");
+                        let delimiter = flags.get_one::<String>("delimiter");
+                        let format = flags.get_one::<String>("format");
+
+                        // ensure that only one .save method is being used
+                        if ([script.is_some(), *tsp, *end, buffers.is_some()])
+                            .iter()
+                            .filter(|s| **s)
+                            .count()
+                            > 1
+                        {
+                            return Err(InstrumentReplError::CommandError {
+                                details:
+                                    "one of --script, --tsp, --end, --buffer may be used at once"
+                                        .to_string(),
+                            });
+                        }
+
+                        let method = if let Some(s) = script {
+                            SaveMethod::Script { file: s.clone() }
+                        } else if *tsp {
+                            SaveMethod::Start
+                        } else if *end {
+                            SaveMethod::End
+                        } else if let Some(b) = buffers {
+                            SaveMethod::Buffers {
+                                names: b.map(Clone::clone).collect(),
+                                delimiter: delimiter.map_or_else(|| ",".to_string(), Clone::clone),
+                                fields: format.map_or_else(
+                                    || {
+                                        vec![
+                                            "relative_timestamps".to_string(),
+                                            "sourcevalues".to_string(),
+                                            "readings".to_string(),
+                                        ]
+                                    },
+                                    |f| f.split(',').map(ToString::to_string).collect(),
+                                ),
+                            }
+                        } else {
+                            return Err(InstrumentReplError::CommandError {
+                                details: "one of --script, --tsp, --end, --buffer must be used"
+                                    .to_string(),
+                            });
+                        };
+                        Request::Save(Save {
+                            method,
+                            output: output.clone(),
+                        })
+                    }
+                }
+            }
             Some((".script", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
                     sub_cmd: Some(".script".to_string()),
@@ -940,7 +1196,13 @@ impl Repl {
                         //       a message quickly enough.
                         let mut input = String::new();
                         let _ = std::io::stdin().read_line(&mut input)?;
-                        let req = Self::parse_user_commands(&input)?;
+                        let req = match Self::parse_user_commands(&input) {
+                            Ok(r) => r,
+                            Err(e) => {
+                                error!("Parse Error: {e}");
+                                return Err(e);
+                            }
+                        };
                         if out.send(req.clone()).is_err() {
                             error!("User input thread could not send to Receiver. Closing!");
                             exit(1);
