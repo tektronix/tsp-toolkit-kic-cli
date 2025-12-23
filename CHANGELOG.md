@@ -18,6 +18,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.21.2]
 
+### Added
+- Added `.save` command for saving instrument output to a file
+
 ### Fixed
 - Upgrading MP5103 with invalid FW image does not show error in terminal
 

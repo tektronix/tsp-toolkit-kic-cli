@@ -2,6 +2,26 @@ use std::path::PathBuf;
 
 use crate::TspError;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum SaveMethod {
+    Script {
+        file: PathBuf,
+    },
+    Start,
+    End,
+    Buffers {
+        names: Vec<String>,
+        delimiter: String,
+        fields: Vec<String>,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Save {
+    pub method: SaveMethod,
+    pub output: PathBuf,
+}
+
 /// A request from a user that is to be dispatched within the program.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Request {
@@ -25,6 +45,7 @@ pub enum Request {
     Exit,
     Reset,
     Abort,
+    Save(Save),
     Help {
         sub_cmd: Option<String>,
     },
