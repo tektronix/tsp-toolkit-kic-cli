@@ -451,7 +451,17 @@ impl Repl {
                                         )
                                         .yellow()
                                     );
-                                    self.inst.write_all(format!("_KIC.print_buffers_csv({{'{}'}}, {{'{}'}}, '{delimiter}')\n", names.join("','"), fields.join("','")).as_bytes())?;
+                                    self.inst.write_all(
+                                        format!("_KIC.print_buffers_csv({{{}}}, {{'{}'}}, '{delimiter}')\n",
+                                            names.into_iter()
+                                                // create a table of tables that contain both the
+                                                // name and the buffer variable reference
+                                                // example (lua):
+                                                //  {{name='slot[1].smu[1].defbuffer1',b=slot[1].smu[1].defbuffer1},{name='buf1',b=buf1}}
+                                                .map(|e| format!("{{name='{e}',b={e}}}"))
+                                                .collect::<Vec<String>>()
+                                                .join(","),
+                                            fields.join("','")).as_bytes())?;
                                     command_written = true;
                                 }
                             }
