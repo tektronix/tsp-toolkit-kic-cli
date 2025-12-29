@@ -272,21 +272,6 @@ fn main() -> anyhow::Result<()> {
             .parent()
             .map(std::convert::Into::into)
     });
-
-    if kic_lib::is_visa_installed() {
-        #[cfg(target_os = "windows")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
-
-        #[cfg(target_family = "unix")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
-
-        if let Some(kv) = kic_visa_exe {
-            if kv.exists() {
-                let _ = Process::new(kv.clone(), std::env::args().skip(1)).exec_replace();
-                return Ok(());
-            }
-        }
-    }
     let cmd = cmds();
 
     let Ok((external_cmd_lut, mut cmd)) = find_subcommands_from_path(&parent_dir, cmd) else {
@@ -521,6 +506,7 @@ fn main() -> anyhow::Result<()> {
 
 /// Check the connection status of the instrument. This will cause a connect and disconnect
 /// from the instrument.
+#[instrument(skip(conn))]
 fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> {
     // We can check instrument login with Authentication::NoAuth because we aren't trying to log
     // in but simply check whether the instrument is password protected.
@@ -534,10 +520,9 @@ fn check_connection_login_status(conn: &ConnectionInfo) -> Result<(), KicError> 
         };
 
     //TODO: Add call to not reset the instrument after disconnecting.
-
     match instrument.check_login()? {
-        State::NotNeeded => Ok(()),
         State::Needed => Err(KicError::InstrumentPasswordProtected),
+        State::NotNeeded => Ok(()),
         State::LogoutNeeded => Err(KicError::InstrumentLogoutRequired),
     }
 }
@@ -552,9 +537,29 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
         }
         .into());
     };
+    let info = conn.get_info()?;
     match check_connection_login_status(conn) {
         Ok(()) => println!("NOT PROTECTED"),
-        Err(KicError::InstrumentPasswordProtected) => println!("PROTECTED"),
+        Err(KicError::InstrumentPasswordProtected) => {
+            let keyring_id = format!("{}#{}", info.model, info.serial_number);
+            let keyring = Authentication::Keyring {
+                id: keyring_id.clone(),
+            };
+            let keyring_str = if keyring.keyring_entry_exists()? {
+                format!(",{keyring_id}")
+            } else {
+                String::new()
+            };
+            if info.model.is_mp() {
+                trace!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
+                println!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
+                exit(2);
+            } else {
+                trace!("PROTECTED: PASSWORD{keyring_str}");
+                println!("PROTECTED: PASSWORD{keyring_str}");
+                exit(1);
+            }
+        }
         Err(KicError::InstrumentLogoutRequired) => println!("PROTECTED, IN USE"),
         Err(e) => return Err(e.into()),
     }
@@ -577,6 +582,7 @@ fn login(args: &ArgMatches) -> anyhow::Result<()> {
     let mut inst = connect_async_instrument(conn, auth)?;
 
     inst.login()?;
+
     let info = inst.info()?;
     println!("{}#{}", info.model, info.serial_number);
 
@@ -644,11 +650,15 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[instrument(skip(conn, args))]
 fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
     if let Some(id) = args.get_one::<String>("keyring") {
+        trace!("keyring authentication selected");
         Authentication::Keyring { id: id.to_string() }
     } else if let Some(password) = args.get_one::<String>("password") {
+        trace!("password authentication selected");
         let username = if let Some(username) = args.get_one::<String>("username") {
+            trace!("username provided");
             username
         } else {
             &String::new()
@@ -694,18 +704,6 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         .into());
     };
 
-    match conn {
-        ConnectionInfo::Lan { .. } => {}
-        ConnectionInfo::Vxi11 { string, .. }
-        | ConnectionInfo::HiSlip { string, .. }
-        | ConnectionInfo::VisaSocket { string, .. }
-        | ConnectionInfo::Gpib { string }
-        | ConnectionInfo::Usb { string, .. } => {
-            error!("A connection to a VISA device was requested: {string}");
-            return Err(KicError::NoVisa.into());
-        }
-    }
-
     if let Some(dump_path) = args.get_one::<PathBuf>("dump-output") {
         if let Ok(mut dump_file) = std::fs::File::open(dump_path) {
             let mut contents = String::new();
@@ -725,9 +723,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
     }
 
-    trace!("Getting auth type...");
     let auth = auth_type(conn, args);
-    trace!("Auth type: {auth:?}");
 
     trace!("Initial instrument connection");
     let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
@@ -1279,7 +1275,7 @@ fn find_subcommands_from_path(
                 .unwrap_or_default()
                 .to_str()
                 .unwrap_or_default();
-            if path.is_file() && filename.contains("kic-") {
+            if path.is_file() && filename.contains("kic-") && !filename.contains("visa") {
                 let cmd_name = filename
                     .split("kic-")
                     .last()
@@ -1294,17 +1290,15 @@ fn find_subcommands_from_path(
                     continue;
                 };
                 let result = String::from_utf8_lossy(&result.stdout).trim().to_string();
-                if !result.is_empty() {
-                    lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
+                lut.insert(cmd_name.clone(), (path.clone(), Some(result.clone())));
 
-                    cmd = cmd.subcommand(
+                cmd = cmd.subcommand(
                         Command::new(cmd_name.clone())
                             .about(result)
                             .allow_external_subcommands(true)
                             .arg(arg!(<options> ...).trailing_var_arg(true))
                             .override_help(format!("For help on this command, run `{0} {1} help` or `{0} {1} --help` instead.", "kic", cmd_name))
                     );
-                }
             }
         }
     }

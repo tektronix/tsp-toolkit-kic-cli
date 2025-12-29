@@ -285,7 +285,7 @@ fn main() -> anyhow::Result<()> {
     let matches = cmd.clone().get_matches();
 
     if matches.get_flag("no-color") {
-        set_var("NO_COLOR", "1");
+        set_var("NO_COLOR", "1") ;
     }
 
     let verbose: bool = matches.get_flag("verbose");
