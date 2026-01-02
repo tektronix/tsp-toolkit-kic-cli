@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "kic",
-    "kic-visa",
     "kic-debug",
     "kic-debug-visa",
     "kic-discover",

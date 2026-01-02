@@ -1656,27 +1656,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kic-visa"
-version = "0.21.2"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "instrument-repl",
- "kic-lib",
- "regex",
- "rpassword",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tracing",
- "tracing-subscriber",
- "visa-rs",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "kv-log-macro"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
