@@ -272,6 +272,22 @@ fn main() -> anyhow::Result<()> {
             .parent()
             .map(std::convert::Into::into)
     });
+
+    if kic_lib::is_visa_installed() {
+        #[cfg(target_os = "windows")]
+        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
+
+        #[cfg(target_family = "unix")]
+        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
+
+        if let Some(kv) = kic_visa_exe {
+            if kv.exists() {
+                let _ = Process::new(kv.clone(), std::env::args().skip(1)).exec_replace();
+                return Ok(());
+            }
+        }
+    }
+    
     let cmd = cmds();
 
     let Ok((external_cmd_lut, mut cmd)) = find_subcommands_from_path(&parent_dir, cmd) else {
