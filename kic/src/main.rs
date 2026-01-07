@@ -273,7 +273,7 @@ fn main() -> anyhow::Result<()> {
             .map(std::convert::Into::into)
     });
 
-    #[cfg(feature="visa")]
+    #[cfg(feature = "visa")]
     if kic_lib::is_visa_installed() {
         #[cfg(target_os = "windows")]
         let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
