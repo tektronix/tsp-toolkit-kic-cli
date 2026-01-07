@@ -6,6 +6,9 @@ authors = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
 
+[features]
+visa = ["kic-lib/visa"]
+
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true }
