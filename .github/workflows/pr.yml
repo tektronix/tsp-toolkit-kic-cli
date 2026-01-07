@@ -347,7 +347,12 @@ jobs:
           rm -f bin/*.pdb
       - name: Rename VISA Binary
         if: ${{ matrix.runner != 'macos-latest' }}
-        run: mv bin/kic bin/kic-visa
+        run: |
+          if [ -f bin/kic ]; then
+            mv bin/kic bin/kic-visa
+          elif [ -f bin/kic.exe ]; then
+            mv bin/kic.exe bin/kic-visa.exe
+          fi
       - name: Run ClamAV
         run: clamscan -v bin/*
       - name: npm Package
