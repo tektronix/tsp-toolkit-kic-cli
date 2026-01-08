@@ -201,11 +201,6 @@ jobs:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: "*"
-      - name: Build LAN-only
-        run: |
-          git config --global credential.helper store
-          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover --package kic-debug
       - name: Build VISA
         if: ${{ matrix.runner != 'macos-latest' }}
         run: |
@@ -213,6 +208,12 @@ jobs:
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           cargo build --target "${{matrix.triple}}" --release --package kic-discover-visa --package kic-debug-visa
           cargo build --target "${{matrix.triple}}" --release --package kic --features visa
+          mv target/${{matrix.triple}}/release/kic target/${{matrix.triple}}/release/kic-visa || mv target/${{matrix.triple}}/release/kic.exe target/${{matrix.triple}}/release/kic-visa.exe
+      - name: Build LAN-only
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover --package kic-debug
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -345,14 +346,6 @@ jobs:
           for f in target/*; do cp "$f" bin; done;
 
           rm -f bin/*.pdb
-      - name: Rename VISA Binary
-        if: ${{ matrix.runner != 'macos-latest' }}
-        run: |
-          if [ -f bin/kic ]; then
-            mv bin/kic bin/kic-visa
-          elif [ -f bin/kic.exe ]; then
-            mv bin/kic.exe bin/kic-visa.exe
-          fi
       - name: Run ClamAV
         run: clamscan -v bin/*
       - name: npm Package
