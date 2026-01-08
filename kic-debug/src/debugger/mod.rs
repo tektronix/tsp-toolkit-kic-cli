@@ -313,10 +313,10 @@ impl Debugger {
             "kiSetGlobalVariable",
         ];
 
-        for func in ki_debugger_global_functions {
-            self.instrument
-                .write_all(format!("{func} = nil\n").as_bytes())?;
-        }
+        let debugger_global_function = ki_debugger_global_functions.join("=nil ") + "=nil";
+
+        self.instrument
+            .write_all(format!("{debugger_global_function}\n").as_bytes())?;
 
         self.instrument
             .write_all(b"script.delete(\"kiDebugger\")\n")?;
