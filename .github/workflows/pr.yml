@@ -201,17 +201,28 @@ jobs:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: "*"
-      - name: Build LAN-only
-        run: |
-          git config --global credential.helper store
-          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover --package kic-debug
       - name: Build VISA
         if: ${{ matrix.runner != 'macos-latest' }}
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.triple}}" --release --package kic-visa --package kic-discover-visa --package kic-debug-visa
+          cargo build --target "${{matrix.triple}}" --release --package kic-discover-visa --package kic-debug-visa
+          cargo build --target "${{matrix.triple}}" --release --package kic --features visa
+        shell: bash
+      - name: Rename VISA Binary
+        if: ${{ matrix.runner != 'macos-latest' }}
+        run: |
+          if [ -f target/${{matrix.triple}}/release/kic ]; then
+            mv target/${{matrix.triple}}/release/kic target/${{matrix.triple}}/release/kic-visa
+          elif [ -f target/${{matrix.triple}}/release/kic.exe ]; then
+            mv target/${{matrix.triple}}/release/kic.exe target/${{matrix.triple}}/release/kic-visa.exe
+          fi
+        shell: bash
+      - name: Build LAN-only
+        run: |
+          git config --global credential.helper store
+          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
+          cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover --package kic-debug
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
