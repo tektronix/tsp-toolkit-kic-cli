@@ -720,6 +720,19 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
         .into());
     };
+    
+    #[cfg(not(feature = "visa"))]
+    match conn {
+        ConnectionInfo::Lan { .. } => {}
+        ConnectionInfo::Vxi11 { string, .. }
+        | ConnectionInfo::HiSlip { string, .. }
+        | ConnectionInfo::VisaSocket { string, .. }
+        | ConnectionInfo::Gpib { string }
+        | ConnectionInfo::Usb { string, .. } => {
+            error!("A connection to a VISA device was requested: {string}");
+            return Err(KicError::NoVisa.into());
+        }
+    }
 
     if let Some(dump_path) = args.get_one::<PathBuf>("dump-output") {
         if let Ok(mut dump_file) = std::fs::File::open(dump_path) {
