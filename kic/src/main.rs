@@ -720,7 +720,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
         .into());
     };
-    
+
     #[cfg(not(feature = "visa"))]
     match conn {
         ConnectionInfo::Lan { .. } => {}
