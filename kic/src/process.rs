@@ -73,7 +73,7 @@ mod imp {
     use crate::Process;
     use std::os::unix::process::CommandExt;
 
-    pub(super) fn exec_replace(process: &Process) -> anyhow::Result<()> {
+    pub(super) fn exec_replace(process: &Process) -> anyhow::Result<i32> {
         let mut command = std::process::Command::new(&process.path);
         command.args(&process.args);
         Err(command.exec().into()) // Exec replaces the current application's program memory, therefore execution will
