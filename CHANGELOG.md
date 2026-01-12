@@ -23,7 +23,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 - Upgrading MP5103 with invalid FW image does not show error in terminal
-- Sending too many messages to the instrument when terminating the debugger.
+- Sending too many messages to the instrument when terminating the debugger
+- Terminal process panics when USB cable is removed during connection
 
 ## [0.21.1]
 
