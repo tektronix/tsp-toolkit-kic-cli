@@ -283,8 +283,16 @@ fn main() -> anyhow::Result<()> {
 
         if let Some(kv) = kic_visa_exe {
             if kv.exists() {
-                let _ = Process::new(kv.clone(), std::env::args().skip(1)).exec_replace();
-                return Ok(());
+                match Process::new(kv.clone(), std::env::args().skip(1)).exec_replace() {
+                    Ok(exit_code) => {
+                        std::process::exit(exit_code);
+                    }
+                    Err(e) => {
+                        error!("Error executing kic-visa: {e}");
+                        std::process::exit(1);
+                    }
+
+                }
             }
         }
     }
@@ -810,18 +818,6 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
             format!("\n{e}\n\nClosing instrument connection...").red()
         );
         pause_exit_on_error();
-        // Check what kind of error it is
-        use instrument_repl::error::InstrumentReplError;
-        match &e {
-            InstrumentReplError::IOError { source } => {
-                if source.kind() != std::io::ErrorKind::NotConnected {
-                    drop(repl);
-                }
-            }
-            _ => {
-                drop(repl);
-            }
-        }
     }
 
     Ok(())
