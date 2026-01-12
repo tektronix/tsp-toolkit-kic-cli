@@ -56,11 +56,17 @@ impl Write for Visa {
 impl Read for Visa {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.nonblocking {
-            let stb = Stb::Stb(
-                self.inst
-                    .read_stb()
-                    .map_err(|e| std::io::Error::other(format!("error reading STB: {e}")))?,
-            );
+            let stb = match self.inst.read_stb() {
+                Ok(stb) => Stb::Stb(stb),
+                Err(e) =>
+                // If device is disconnected or STB read fails
+                {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::NotConnected,
+                        format!("Device disconnected or STB read failed: {e}"),
+                    ))
+                }
+            };
 
             if matches!(stb.message_available(), Ok(false)) {
                 return Err(std::io::Error::new(

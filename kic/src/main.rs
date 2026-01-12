@@ -809,8 +809,19 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
             "{}",
             format!("\n{e}\n\nClosing instrument connection...").red()
         );
-        drop(repl);
         pause_exit_on_error();
+        // Check what kind of error it is
+        use instrument_repl::error::InstrumentReplError;
+        match &e {
+            InstrumentReplError::IOError { source } => {
+                if source.kind() != std::io::ErrorKind::NotConnected {
+                    drop(repl);
+                }
+            }
+            _ => {
+                drop(repl);
+            }
+        }
     }
 
     Ok(())
