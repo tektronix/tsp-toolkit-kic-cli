@@ -291,7 +291,6 @@ fn main() -> anyhow::Result<()> {
                         error!("Error executing kic-visa: {e}");
                         std::process::exit(1);
                     }
-
                 }
             }
         }
