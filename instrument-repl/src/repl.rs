@@ -1214,8 +1214,8 @@ impl Repl {
                             }
                         };
                         if out.send(req.clone()).is_err() {
-                            error!("User input thread could not send to Receiver. Closing!");
-                            exit(1);
+                            info!("User input thread could not send to Receiver. Closing!");
+                            exit(0)
                         }
                         // This `if` statement seeks to fix the NOTE above about not exiting.
                         // It feels a little awkward, but should be effective.
