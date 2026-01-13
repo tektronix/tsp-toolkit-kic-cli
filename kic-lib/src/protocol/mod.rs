@@ -291,10 +291,12 @@ impl Write for Protocol {
         }
 
         //  write the last chunk
-        if start == end {
-            self.write(&[buf[start]])?;
-        } else {
-            self.write(&buf[start..=end])?;
+        if !buf.is_empty() {
+            if start == end {
+                self.write(&[buf[start]])?;
+            } else {
+                self.write(&buf[start..=end])?;
+            }
         }
         if let Some(p) = pb {
             p.set_style(

@@ -25,6 +25,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Upgrading MP5103 with invalid FW image does not show error in terminal
 - Sending too many messages to the instrument when terminating the debugger
 - Terminal process panics when USB cable is removed during connection
+- Fixed timeout issue with upgrading instruments over USB
+- Fixed issue with writing a zero-sized TSP script to an instrument
 
 ## [0.21.1]
 
