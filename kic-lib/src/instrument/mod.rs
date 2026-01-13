@@ -48,7 +48,10 @@ pub fn read_until<T: Read + Write + ?Sized>(
         let mut buf: Vec<u8> = vec![0u8; 512];
         match rw.read(&mut buf) {
             Ok(_) => Ok(()),
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
                 continue;
             }
             Err(e) => Err(e),
