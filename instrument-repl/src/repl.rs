@@ -1010,7 +1010,6 @@ impl Repl {
                         sub_cmd: Some(".save".to_string()),
                     },
                     _ => {
-
                         let script = flags.get_one::<PathBuf>("script");
                         if let Some(script_path) = script {
                             let file = PathBuf::from(script_path);
