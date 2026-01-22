@@ -1011,6 +1011,18 @@ impl Repl {
                     },
                     _ => {
                         let script = flags.get_one::<PathBuf>("script");
+                        if let Some(script_path) = script {
+                            let file = PathBuf::from(script_path);
+                            if !file.is_file() {
+                                return Ok(Request::Usage(
+                                    InstrumentReplError::Other(format!(
+                                        "unable to find script file \"{}\"",
+                                        file.to_string_lossy()
+                                    ))
+                                    .to_string(),
+                                ));
+                            }
+                        }
                         let Some(tsp) = flags.get_one::<bool>("tsp") else {
                             return Err(InstrumentReplError::CommandError {
                                 details: "`tsp` arg not found".to_string(),
@@ -1035,6 +1047,17 @@ impl Repl {
                                 details: "expected file path, but none were provided".to_string(),
                             });
                         };
+
+                        let file = PathBuf::from(output);
+                        if !file.is_file() {
+                            return Ok(Request::Usage(
+                                InstrumentReplError::Other(format!(
+                                    "unable to find output file \"{}\"",
+                                    file.to_string_lossy()
+                                ))
+                                .to_string(),
+                            ));
+                        }
 
                         let buffers = flags.get_many::<String>("buffer");
                         let delimiter = flags.get_one::<String>("delimiter");
