@@ -566,11 +566,11 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
         Ok(()) => {
             println!("NOT PROTECTED");
             exit(0);
-        },
+        }
         Err(KicError::InstrumentLogoutRequired) => {
             println!("PROTECTED, IN USE");
             exit(1);
-        },
+        }
         Err(KicError::InstrumentPasswordProtected) => {
             let keyring_id = format!("{}#{}", info.model, info.serial_number);
             let keyring = Authentication::Keyring {
@@ -591,9 +591,7 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
                 exit(3);
             }
         }
-        Err(e) => {
-            return Err(e.into());
-        }
+        Err(e) => Err(e.into()),
     }
 }
 
