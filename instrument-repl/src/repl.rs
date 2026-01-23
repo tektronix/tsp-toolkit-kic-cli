@@ -1048,8 +1048,6 @@ impl Repl {
                             });
                         };
 
-                        
-                        
                         let file = output;
                         if file.is_dir() {
                             return Ok(Request::Usage(
@@ -1066,7 +1064,7 @@ impl Repl {
                                 fs::create_dir_all(parent)?;
                             }
                         }
-                        
+
                         // If file exists, it's fine - we'll append/write to it
                         // If it doesn't exist, it will be created when writing
 
