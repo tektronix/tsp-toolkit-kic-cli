@@ -1048,16 +1048,27 @@ impl Repl {
                             });
                         };
 
-                        let file = PathBuf::from(output);
-                        if !file.is_file() {
+                        
+                        
+                        let file = output;
+                        if file.is_dir() {
                             return Ok(Request::Usage(
                                 InstrumentReplError::Other(format!(
-                                    "unable to find output file \"{}\"",
+                                    "the output path cannot be a directory \"{}\"",
                                     file.to_string_lossy()
                                 ))
                                 .to_string(),
                             ));
                         }
+                        // Check if parent directory exists, create if it doesn't
+                        if let Some(parent) = file.parent() {
+                            if !parent.exists() {
+                                fs::create_dir_all(parent)?;
+                            }
+                        }
+                        
+                        // If file exists, it's fine - we'll append/write to it
+                        // If it doesn't exist, it will be created when writing
 
                         let buffers = flags.get_many::<String>("buffer");
                         let delimiter = flags.get_one::<String>("delimiter");
