@@ -1048,18 +1048,17 @@ impl Repl {
                             });
                         };
 
-                        let file = output;
-                        if file.is_dir() {
+                        if output.is_dir() {
                             return Ok(Request::Usage(
                                 InstrumentReplError::Other(format!(
                                     "the output path cannot be a directory \"{}\"",
-                                    file.to_string_lossy()
+                                    output.to_string_lossy()
                                 ))
                                 .to_string(),
                             ));
                         }
                         // Check if parent directory exists, create if it doesn't
-                        if let Some(parent) = file.parent() {
+                        if let Some(parent) = output.parent() {
                             if !parent.exists() {
                                 fs::create_dir_all(parent)?;
                             }
