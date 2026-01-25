@@ -569,7 +569,7 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
         }
         Err(KicError::InstrumentLogoutRequired) => {
             println!("PROTECTED, IN USE");
-            exit(1);
+            exit(2);
         }
         Err(KicError::InstrumentPasswordProtected) => {
             let keyring_id = format!("{}#{}", info.model, info.serial_number);
@@ -584,11 +584,11 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
             if info.model.is_mp() {
                 trace!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
                 println!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
-                exit(2);
+                exit(3);
             } else {
                 trace!("PROTECTED: PASSWORD{keyring_str}");
                 println!("PROTECTED: PASSWORD{keyring_str}");
-                exit(3);
+                exit(4);
             }
         }
         Err(e) => Err(e.into()),
