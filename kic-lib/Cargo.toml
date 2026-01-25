@@ -29,4 +29,5 @@ anyhow = "1"
 bytes = "1"
 colored = "2"
 mockall = { version = "0.12" }
+assert_matches = "1.5.0"
 
