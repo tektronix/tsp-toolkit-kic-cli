@@ -27,15 +27,8 @@ impl Process {
             .args(&self.args)
             .spawn()?
             .wait()?;
-        if exit.success() {
-            Ok(exit.code().unwrap_or(0))
-        } else {
-            Err(std::io::Error::other(format!(
-                "child process did not exit successfully: {}",
-                self.path.display()
-            ))
-            .into())
-        }
+        // Always return the exit code, regardless of success/failure
+        Ok(exit.code().unwrap_or(1))
     }
 }
 
