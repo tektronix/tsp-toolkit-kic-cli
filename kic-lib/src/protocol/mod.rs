@@ -354,7 +354,7 @@ impl Trigger for Protocol {
 
 #[cfg(test)]
 mod unit {
-    use std::assert_matches::assert_matches;
+    use assert_matches::assert_matches;
 
     use crate::protocol::stb::Stb;
 
