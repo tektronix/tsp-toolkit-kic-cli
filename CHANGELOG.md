@@ -28,6 +28,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Fixed timeout issue with upgrading instruments over USB
 - Fixed issue with writing a zero-sized TSP script to an instrument
 
+### Changed
+- Repeat VISA query multiple times to ensure we get all discoverable instruments
+
 ## [0.21.1]
 
 ### Fixed
