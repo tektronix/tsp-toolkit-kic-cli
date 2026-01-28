@@ -483,10 +483,8 @@ mod unit {
         instrument::authenticate::Authentication,
         protocol::{self, raw::Raw},
     };
-    use std::{
-        assert_matches::assert_matches,
-        io::{BufRead, Read, Write},
-    };
+    use assert_matches::assert_matches;
+    use std::io::{BufRead, Read, Write};
 
     use bytes::Buf;
     use mockall::{mock, Sequence};

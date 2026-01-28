@@ -1,4 +1,9 @@
-use std::{collections::HashSet, ffi::CString, net::IpAddr, time::Duration};
+use std::{
+    collections::HashSet,
+    ffi::CString,
+    net::IpAddr,
+    time::{Duration, Instant},
+};
 
 use kic_lib::{
     instrument::info::InstrumentInfo, interface::connection_addr::ConnectionInfo, model::Model,
@@ -23,58 +28,69 @@ pub async fn visa_tcpip_info(rsc: String) -> Option<InstrumentInfo> {
 
 #[tracing::instrument]
 pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<InstrumentInfo>> {
+    let start = Instant::now();
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
 
-    let Ok(rm) = visa_rs::DefaultRM::new() else {
-        error!("Unable to get VISA Default Resource Manager");
-        return Ok(discovered_instruments);
-    };
-    let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
-        Ok(x) => x,
-        Err(e) => {
-            debug!("No VISA instruments found: {e}");
+    loop {
+        let Ok(rm) = visa_rs::DefaultRM::new() else {
+            error!("Unable to get VISA Default Resource Manager");
             return Ok(discovered_instruments);
-        }
-    };
-    debug!("discovered: {instruments:?}");
-
-    for i in instruments {
-        let Ok(i) = i else {
-            continue;
         };
+        let instruments = match rm.find_res_list(&CString::new("?*")?.into()) {
+            Ok(x) => x,
+            Err(e) => {
+                debug!("No VISA instruments found: {e}");
+                return Ok(discovered_instruments);
+            }
+        };
+        debug!("discovered: {instruments:?}");
 
-        if i.to_string().contains("PXI")
-            || i.to_string().contains("SOCKET")
-            || i.to_string().contains("INTFC")
-        {
-            continue;
-        }
+        for i in instruments {
+            let Ok(i) = i else {
+                continue;
+            };
 
-        let info = i.to_string().parse::<ConnectionInfo>()?;
-        // Since we are using reqwest::blocking::Client, we need to using
-        // tokio::task::spawn_blocking (see
-        // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
-        let info: Option<InstrumentInfo> =
-            tokio::task::spawn_blocking(move || info.ping().ok()).await?;
+            if i.to_string().contains("PXI")
+                || i.to_string().contains("SOCKET")
+                || i.to_string().contains("INTFC")
+            {
+                continue;
+            }
 
-        if let Some(info) = info {
-            trace!("Got info: {info:?}");
-            if !matches!(info.model, Model::Other(_)) {
-                if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
-                    io_type: IoType::Visa,
-                    instr_address: i.to_string(),
-                    manufacturer: info.vendor.to_string(),
-                    model: info.model.to_string(),
-                    serial_number: info.serial_number.to_string(),
-                    firmware_revision: info.firmware_rev.clone().unwrap_or("UNKNOWN".to_string()),
-                    instr_categ: model_category(&info.model.to_string()).to_string(),
-                }) {
-                    insert_disc_device(out_str.as_str())?;
+            let info = i.to_string().parse::<ConnectionInfo>()?;
+            // Since we are using reqwest::blocking::Client, we need to using
+            // tokio::task::spawn_blocking (see
+            // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
+            let info: Option<InstrumentInfo> =
+                tokio::task::spawn_blocking(move || info.ping().ok()).await?;
+
+            if let Some(info) = info {
+                trace!("Got info: {info:?}");
+                if !matches!(info.model, Model::Other(_)) {
+                    if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
+                        io_type: IoType::Visa,
+                        instr_address: i.to_string(),
+                        manufacturer: info.vendor.to_string(),
+                        model: info.model.to_string(),
+                        serial_number: info.serial_number.to_string(),
+                        firmware_revision: info
+                            .firmware_rev
+                            .clone()
+                            .unwrap_or("UNKNOWN".to_string()),
+                        instr_categ: model_category(&info.model.to_string()).to_string(),
+                    }) {
+                        insert_disc_device(out_str.as_str())?;
+                    }
+                    discovered_instruments.insert(info.clone());
                 }
-                discovered_instruments.insert(info.clone());
             }
         }
+        // Do this once, but break out if timeout isn't set or if the timeout has expired
+        if timeout.is_none() || (Instant::now() - start) >= timeout.unwrap() {
+            break;
+        }
     }
+
     Ok(discovered_instruments)
 }
 
