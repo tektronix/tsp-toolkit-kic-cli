@@ -119,20 +119,35 @@ end
 
 
 
-if tsplink.initialize == nil then
-  tsplink.reset(1)
-else
-  tsplink.initialize(1)
-end
+-- Safely check if tsplink is available
+local tsplink_available = false
+local has_initialize = false
+local has_reset = false
+local success, result = pcall(function()
+  if tsplink ~= nil then
+    has_initialize = tsplink.initialize ~= nil
+    has_reset = tsplink.reset ~= nil
+    return has_initialize or has_reset
+  end
+  return false
+end)
 
-if (tsplink.state == "online") then
-  updateNodes()
-end
+if success and result then
+  tsplink_available = true
+  if has_initialize then
+    tsplink.initialize(1)
+  elseif has_reset then
+    tsplink.reset(1)
+  end
 
+  if (tsplink.state == "online") then
+    updateNodes()
+  end
 
-newSystem.localNode = node[tsplink.master].model
-if (node[tsplink.master].model == MP5103) then
-  updateSlots(newSystem, node[tsplink.master])
+  newSystem.localNode = node[tsplink.master].model
+  if (node[tsplink.master].model == MP5103) then
+    updateSlots(newSystem, node[tsplink.master])
+  end
 end
 
 
