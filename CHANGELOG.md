@@ -15,6 +15,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.21.3]
+
+### Fixed
+- Fixed issue in fetching nodes for DMM6500 with no scan card installed
 
 ## [0.21.2]
 
