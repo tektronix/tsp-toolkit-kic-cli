@@ -453,6 +453,7 @@ impl Drop for Instrument {
         let _ = self.write_all(b"abort\n");
         // Make sure an abort is the last thing to run so the
         // instrument goes to local mode
+        let _ = self.write_all(b"logout\n");
     }
 }
 
