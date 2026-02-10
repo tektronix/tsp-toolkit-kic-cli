@@ -156,6 +156,14 @@ fn cmds() -> Command {
                     .hide(true)
                     .hide_long_help(true)
                     .value_parser(PathBufValueParser::new()),
+                    Arg::new("reset-and-clear-error-queue")
+                    .short('r')
+                    .long("reset-and-clear-error-queue")
+                    .help("Reset the instrument and clear the error queue before starting the session")
+                    .value_parser(value_parser!(bool))
+                    .default_value("false")
+                    .default_missing_value("false")
+                    .action(ArgAction::Set)
             ])
         })
         .subcommand({
@@ -716,6 +724,7 @@ fn pause_exit_on_error() {
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
     trace!("args: {args:?}");
+
     eprintln!(
         "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
@@ -793,6 +802,38 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         );
         pause_exit_on_error();
         return Err(e);
+    }
+
+    let should_reset = *args
+        .get_one::<bool>("reset-and-clear-error-queue")
+        .unwrap_or(&false);
+
+    trace!("print as reset-and-clear-error-queue?: {should_reset:?}");
+
+    if should_reset {
+        trace!("Resetting instrument");
+        if let Err(e) = instrument.reset() {
+            error!("Error resetting instrument: {e}");
+            eprintln!(
+                "{}",
+                format!("\nError resetting instrument: {e}\n\nUnrecoverable error. Closing.").red()
+            );
+            pause_exit_on_error();
+            return Err(e.into());
+        }
+    }
+
+    if should_reset {
+        trace!("Clearing error queue");
+        if let Err(e) = instrument.write_all(b"*CLS\n") {
+            error!("Error clearing error queue: {e}");
+            eprintln!(
+                "{}",
+                format!("\nError clearing error queue: {e}\n\nUnrecoverable error. Closing.").red()
+            );
+            pause_exit_on_error();
+            return Err(e.into());
+        }
     }
 
     trace!("Getting instrument information");
@@ -1125,7 +1166,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -1133,8 +1174,9 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
         }
     };
 
-    // dropping the instrument will reset it appropriately.
-    drop(instrument);
+    let _ = instrument.reset();
+    let _ = instrument.write_all(b"*CLS\n")?;
+
 
     info!("Instrument reset");
 
