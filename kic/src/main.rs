@@ -1175,8 +1175,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
     };
 
     let _ = instrument.reset();
-    let _ = instrument.write_all(b"*CLS\n")?;
-
+    instrument.write_all(b"*CLS\n")?;
 
     info!("Instrument reset");
 
