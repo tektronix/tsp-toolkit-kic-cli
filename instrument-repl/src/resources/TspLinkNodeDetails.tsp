@@ -148,6 +148,8 @@ if success and result then
   if (node[tsplink.master].model == MP5103) then
     updateSlots(newSystem, node[tsplink.master])
   end
+else
+  newSystem.localNode = localnode.model
 end
 
 
