@@ -156,10 +156,18 @@ fn cmds() -> Command {
                     .hide(true)
                     .hide_long_help(true)
                     .value_parser(PathBufValueParser::new()),
-                    Arg::new("reset-and-clear-error-queue")
+                    Arg::new("reset")
                     .short('r')
-                    .long("reset-and-clear-error-queue")
-                    .help("Reset the instrument and clear the error queue before starting the session")
+                    .long("reset")
+                    .help("Reset the instrument before starting the session")
+                    .value_parser(value_parser!(bool))
+                    .default_value("false")
+                    .default_missing_value("false")
+                    .action(ArgAction::Set),
+                    Arg::new("clear-error-queue")
+                    .short('c')
+                    .long("clear-error-queue")
+                    .help("Clear the error queue before starting the session")
                     .value_parser(value_parser!(bool))
                     .default_value("false")
                     .default_missing_value("false")
@@ -804,11 +812,8 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e);
     }
 
-    let should_reset = *args
-        .get_one::<bool>("reset-and-clear-error-queue")
-        .unwrap_or(&false);
-
-    trace!("print as reset-and-clear-error-queue?: {should_reset:?}");
+    let should_reset = *args.get_one::<bool>("reset").unwrap_or(&false);
+    let should_clear_error_queue = *args.get_one::<bool>("clear-error-queue").unwrap_or(&false);
 
     if should_reset {
         trace!("Resetting instrument");
@@ -823,9 +828,9 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
     }
 
-    if should_reset {
+    if should_clear_error_queue {
         trace!("Clearing error queue");
-        if let Err(e) = instrument.write_all(b"*CLS\n") {
+        if let Err(e) = instrument.write_all(b"errorqueue.clear()\n") {
             error!("Error clearing error queue: {e}");
             eprintln!(
                 "{}",
@@ -1175,7 +1180,6 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
     };
 
     let _ = instrument.reset();
-    instrument.write_all(b"*CLS\n")?;
 
     info!("Instrument reset");
 
