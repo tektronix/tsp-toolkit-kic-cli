@@ -828,19 +828,6 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         }
     }
 
-    if should_clear_error_queue {
-        trace!("Clearing error queue");
-        if let Err(e) = instrument.write_all(b"errorqueue.clear()\n") {
-            error!("Error clearing error queue: {e}");
-            eprintln!(
-                "{}",
-                format!("\nError clearing error queue: {e}\n\nUnrecoverable error. Closing.").red()
-            );
-            pause_exit_on_error();
-            return Err(e.into());
-        }
-    }
-
     trace!("Getting instrument information");
     let info = match instrument.info() {
         Ok(i) => i,
@@ -861,7 +848,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     let mut repl = repl::Repl::new(instrument);
 
     info!("Starting instrument REPL");
-    if let Err(e) = repl.start() {
+    if let Err(e) = repl.start(should_clear_error_queue) {
         error!("Error in REPL: {e}");
         eprintln!(
             "{}",
