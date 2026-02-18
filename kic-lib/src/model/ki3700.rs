@@ -234,7 +234,6 @@ impl Drop for Instrument {
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
 
-        let _ = self.reset();
         #[cfg(not(test))]
         //Allow reset to complete
         match clear_output_queue(self, 100, Duration::from_millis(100)) {
@@ -467,13 +466,6 @@ mod unit {
                 }
                 Ok(msg.len())
             });
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*CLS\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()

@@ -224,7 +224,7 @@ impl Repl {
     /// aren't limited to any errors possible from [`std::io::Read`] or [`std::io::Write`]
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)] //This is just going to be a long function
     #[instrument(skip(self))]
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self, clear_error: bool) -> Result<()> {
         info!("Starting REPL");
         let mut prev_state: Option<ReadState> = None;
         let mut state: Option<ReadState> = None;
@@ -247,9 +247,11 @@ impl Repl {
 
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let (errors, _) = self.get_errors()?;
-        for e in errors {
-            error!("TSP error: {e}");
-            Self::print_data(None, ParsedResponse::TspError(e.to_string()), None)?;
+        if !clear_error {
+            for e in errors {
+                error!("TSP error: {e}");
+                Self::print_data(None, ParsedResponse::TspError(e.to_string()), None)?;
+            }
         }
         let mut prompt = true;
         let mut abort = false;
