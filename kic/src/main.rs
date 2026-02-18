@@ -160,18 +160,12 @@ fn cmds() -> Command {
                     .short('r')
                     .long("reset")
                     .help("Reset the instrument before starting the session")
-                    .value_parser(value_parser!(bool))
-                    .default_value("false")
-                    .default_missing_value("false")
-                    .action(ArgAction::Set),
+                    .action(ArgAction::SetTrue),
                     Arg::new("clear-error-queue")
                     .short('c')
                     .long("clear-error-queue")
                     .help("Clear the error queue before starting the session")
-                    .value_parser(value_parser!(bool))
-                    .default_value("false")
-                    .default_missing_value("false")
-                    .action(ArgAction::Set)
+                    .action(ArgAction::SetTrue)
             ])
         })
         .subcommand({
