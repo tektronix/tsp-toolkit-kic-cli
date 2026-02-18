@@ -17,6 +17,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.21.3]
 
+### Added
+- Added subcommand option to skip reset and clear error queue on connect
+
 ### Fixed
 - Fixed issue in fetching nodes for DMM6500 with no scan card installed
 - Logout is not happening for MP5000 when connection is disconnected
