@@ -26,6 +26,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Fixed issue in fetching nodes for DMM6500 with no scan card installed
 - Logout is not happening for MP5000 when connection is disconnected
 
+### Changed
+- Removed `kic_` prefix from loaded user scripts
+
 ## [0.21.2]
 
 ### Added
