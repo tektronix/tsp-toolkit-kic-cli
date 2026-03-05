@@ -19,6 +19,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - Added subcommand option to skip reset and clear error queue on connect
+- Add `--save` and `--run <RUN_ENABLE>` args for `.script` command to allow users to
+  save scripts to non-volatile instrument memory
 
 ### Fixed
 - Fixed issue in fetching nodes for DMM6500 with no scan card installed
