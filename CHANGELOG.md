@@ -19,10 +19,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - Added subcommand option to skip reset and clear error queue on connect
+- Add `--save` and `--run <RUN_ENABLE>` args for `.script` command to allow users to
+  save scripts to non-volatile instrument memory
 
 ### Fixed
 - Fixed issue in fetching nodes for DMM6500 with no scan card installed
 - Logout is not happening for MP5000 when connection is disconnected
+
+### Changed
+- Removed `kic_` prefix from loaded user scripts
 
 ## [0.21.2]
 

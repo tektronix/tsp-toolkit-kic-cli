@@ -1056,9 +1056,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
     match re {
         Ok(re_res) => {
-            let result = re_res.replace_all(&stem, "_");
-
-            let script_name = format!("kic_{result}");
+            let script_name = re_res.replace_all(&stem, "_").to_string();
 
             let mut script_content: Vec<u8> = Vec::new();
 
