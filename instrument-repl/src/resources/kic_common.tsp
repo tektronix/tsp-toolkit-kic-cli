@@ -50,7 +50,7 @@ _KIC["toJson"] = function(o)
     return s
 end
 
-if errorqueue ~= nil then
+if errorqueue ~= nil and errorqueue.count ~= nil and errorqueue.next ~= nil then
     --- Encode messages from the errorqueue in a standardized JSON and sentinel format
     --- for TSP Toolkit to read
     --- @return string errors The string encoding the errors
@@ -66,7 +66,7 @@ if errorqueue ~= nil then
         errorstr = errorstr .. [[ERM>DONE]]
         return errorstr
     end
-elseif eventlog ~= nil then
+elseif eventlog ~= nil and eventlog.getcount ~= nil and eventlog.next ~= nil then
     --- Encode messages from the eventlog in a standardized JSON and sentinel format
     --- for TSP Toolkit to read
     --- @return string errors The string encoding the errors
