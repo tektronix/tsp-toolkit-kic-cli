@@ -185,7 +185,12 @@ impl Repl {
         Ok(())
     }
 
-    fn handle_script_request(&mut self, file: &Path) -> Result<(bool, bool)> {
+    fn handle_script_request(
+        &mut self,
+        file: &Path,
+        save: bool,
+        run: bool,
+    ) -> Result<(bool, bool)> {
         let re = Regex::new(r"[^A-Za-z\d_]");
         let prompt = false;
         let command_written = true;
@@ -208,7 +213,7 @@ impl Repl {
                 let script_name = format!("kic_{result}");
 
                 self.inst
-                    .write_script(script_name.as_bytes(), contents.as_bytes(), false, true)?;
+                    .write_script(script_name.as_bytes(), contents.as_bytes(), save, run)?;
             }
             Err(err_msg) => {
                 unreachable!("Issue with regex creation: {}", err_msg.to_string());
@@ -224,7 +229,7 @@ impl Repl {
     /// aren't limited to any errors possible from [`std::io::Read`] or [`std::io::Write`]
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)] //This is just going to be a long function
     #[instrument(skip(self))]
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self, clear_error: bool) -> Result<()> {
         info!("Starting REPL");
         let mut prev_state: Option<ReadState> = None;
         let mut state: Option<ReadState> = None;
@@ -247,9 +252,11 @@ impl Repl {
 
         self.inst.write_all(b"_KIC.prompts_enable(true)\n")?;
         let (errors, _) = self.get_errors()?;
-        for e in errors {
-            error!("TSP error: {e}");
-            Self::print_data(None, ParsedResponse::TspError(e.to_string()), None)?;
+        if !clear_error {
+            for e in errors {
+                error!("TSP error: {e}");
+                Self::print_data(None, ParsedResponse::TspError(e.to_string()), None)?;
+            }
         }
         let mut prompt = true;
         let mut abort = false;
@@ -431,7 +438,7 @@ impl Repl {
                                             .as_bytes(),
                                     )?;
                                     (prompt, command_written) =
-                                        self.handle_script_request(&file)?;
+                                        self.handle_script_request(&file, false, true)?;
                                 }
                                 SaveMethod::Buffers {
                                     names,
@@ -466,8 +473,9 @@ impl Repl {
                                 }
                             }
                         }
-                        Request::Script { file } => {
-                            (prompt, command_written) = self.handle_script_request(&file)?;
+                        Request::Script { file, save, run } => {
+                            (prompt, command_written) =
+                                self.handle_script_request(&file, save, run)?;
                         }
                         Request::TspLinkNodes { json_file } => {
                             self.set_lang_config_path(json_file.to_string_lossy().to_string());
@@ -832,6 +840,12 @@ impl Repl {
                         .required_unless_present("help")
                         .help("Path to the TSP script file to be sent to the instrument")
                 )
+                .arg(
+                    arg!(save: -s --save "Save the tsp script to non-volatile memory on the instrument").action(ArgAction::SetTrue)
+                )
+                .arg(
+                    arg!(run: -r --run <RUN_ENABLE> "Run the script after loading (defaults to true)").value_parser(value_parser!(bool)).default_value("true")
+                )
         )
         .subcommand(
             Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
@@ -955,7 +969,11 @@ impl Repl {
         let path = PathBuf::from(input.trim());
         if path.is_file() {
             trace!("Detected file path: {path:?}");
-            return Ok(Request::Script { file: path });
+            return Ok(Request::Script {
+                file: path,
+                save: false,
+                run: true,
+            });
         }
 
         if !Self::starts_with_command(input) {
@@ -1129,6 +1147,8 @@ impl Repl {
                             details: "expected file path, but none were provided".to_string(),
                         });
                     };
+                    let run: bool = *flags.get_one::<bool>("run").unwrap_or(&true);
+                    let save: bool = *flags.get_one::<bool>("save").unwrap_or(&false);
                     let file = PathBuf::from(file);
                     if !file.is_file() {
                         return Ok(Request::Usage(
@@ -1139,7 +1159,7 @@ impl Repl {
                             .to_string(),
                         ));
                     }
-                    Request::Script { file }
+                    Request::Script { file, save, run }
                 }
             },
             Some((".reset", flags)) => match flags.get_one::<bool>("help") {
