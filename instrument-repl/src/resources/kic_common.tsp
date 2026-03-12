@@ -109,15 +109,16 @@ end
 
 --- Print the given list of `fields` in the given list of `buffers` in a character delimited
 --- table (CSV-style) format with the given `delimiter` used as the separator
----@param buffers {name:string, b: table}[] the list of buffer variables that should be printed
+---@param buffers {name:string, b: table}|nil[] the list of buffer variables that should be printed
 ---@param fields string[] the list of buffer fields that should be printed
 ---@param delimiter string the string that should be printed to sepearate the values
 _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
     local data_string = ""
     for i, buf in ipairs(buffers) do
+        local success = pcall(buf)
         if string.len(data_string) ~= 0 then data_string = data_string .. "\n" end
         data_string = data_string .. "Buffer '" .. buf.name .. "'\n"
-        if buf.b == nil or buf.b.n == nil then
+        if ~success or buf.b == nil or buf.b.n == nil then
             data_string = data_string .. "DOES NOT EXIST\n"
         else
             local header = "n"
@@ -130,7 +131,14 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
             for r = 1, buf.b.n do
                 local row = tostring(r)
                 for k, f in ipairs(fields) do
-                    if buf.b[f] ~= nil then
+                    if string.find(f, "absolute_timestamp") ~= nil then
+                        row = row .. delimiter .. tostring(
+                            buf.b.basetimestampseconds
+                            + buf.b.basetimestampfractional
+                            + buf.b.timestamps[r])
+                    elseif string.find(f, "relative_timestamp") ~= nil then
+                        row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                    elseif buf.b[f] ~= nil then
                         row = row .. delimiter .. tostring(buf.b[f][r])
                     end
                 end
