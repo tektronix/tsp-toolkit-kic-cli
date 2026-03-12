@@ -59,9 +59,10 @@ if errorqueue ~= nil and errorqueue.count ~= nil and errorqueue.next ~= nil then
         for _err_num = 1, errorqueue.count do
             local error_code, message, severity, node_id = errorqueue.next()
             errorstr = errorstr ..
-            "ERM>" ..
-            _KIC.toJson({ error_code = error_code, message = escape_str(message), severity = severity, node_id = node_id, time = nil }) ..
-            "\n"
+                "ERM>" ..
+                _KIC.toJson({ error_code = error_code, message = escape_str(message), severity = severity, node_id =
+                node_id, time = nil }) ..
+                "\n"
         end
         errorstr = errorstr .. [[ERM>DONE]]
         return errorstr
@@ -86,7 +87,6 @@ elseif eventlog ~= nil and eventlog.getcount ~= nil and eventlog.next ~= nil the
         errorstr = errorstr .. [[ERM>DONE]]
         return errorstr
     end
-
 else
     --- Stub implementation for if an errorqueue or eventlog are not found. This will
     --- satisfy what TSP Toolkit is looking for so the user may continue on but will
@@ -97,14 +97,14 @@ else
         errorstr = errorstr ..
             [[ERM>]] .. _KIC.toJson({
                 error_code = -1000,
-                message = escape_str("TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
+                message = escape_str(
+                "TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
                 severity = 100,
                 node_id = 1,
             }) .. "\n"
         errorstr = errorstr .. [[ERM>DONE]]
         return errorstr
     end
-
 end
 
 --- Print the given list of `fields` in the given list of `buffers` in a character delimited
@@ -131,12 +131,12 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
             for r = 1, buf.b.n do
                 local row = tostring(r)
                 for k, f in ipairs(fields) do
-                    if string.find(f, "absolute_timestamp") ~= nil then
+                    if string.find(f, "absolute_timestamps") ~= nil then
                         row = row .. delimiter .. tostring(
                             buf.b.basetimestampseconds
                             + buf.b.basetimestampfractional
                             + buf.b.timestamps[r])
-                    elseif string.find(f, "relative_timestamp") ~= nil then
+                    elseif string.find(f, "relative_timestamps") ~= nil then
                         row = row .. delimiter .. tostring(buf.b.timestamps[r])
                     elseif buf.b[f] ~= nil then
                         row = row .. delimiter .. tostring(buf.b[f][r])
@@ -167,4 +167,3 @@ _KIC["cleanup"] = function()
     localnode.prompts = _KIC[".load_time_prompts"]
     _KIC = nil
 end
-
