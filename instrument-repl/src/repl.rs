@@ -465,7 +465,8 @@ impl Repl {
                                                 // name and the buffer variable reference
                                                 // example (lua):
                                                 //  {{name='slot[1].smu[1].defbuffer1',b=slot[1].smu[1].defbuffer1},{name='buf1',b=buf1}}
-                                                .map(|e| format!("{{name='{e}',b={e}}}"))
+                                                //.map(|e| format!("{{name='{e}',b={e}}}"))
+                                                .map(|e| format!("{{name='{e}',b=nil}}"))
                                                 .collect::<Vec<String>>()
                                                 .join(","),
                                             fields.join("','")).as_bytes())?;
