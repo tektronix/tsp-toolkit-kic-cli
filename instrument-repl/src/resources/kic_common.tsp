@@ -60,7 +60,7 @@ _KIC["error_message"] = function()
         [[ERM>]] .. _KIC.toJson({
             error_code = -1000,
             message = escape_str(
-            "TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
+                "TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
             severity = 100,
             node_id = 1,
         }) .. "\n"
@@ -95,11 +95,11 @@ if _KIC["error_count"] ~= nil and _KIC["error_next"] ~= nil then
         for _err_num = 1, _KIC.error_count() do
             local event_id, message, severity, node_id, secs, nanos = _KIC.error_next()
             local error_tab = {
-                    error_code = event_id,
-                    message = escape_str(message),
-                    severity = severity,
-                    node_id = node_id,
-                }
+                error_code = event_id,
+                message = escape_str(message),
+                severity = severity,
+                node_id = node_id,
+            }
             if secs ~= nil then
                 error_tab["time"] = { secs = secs }
                 if nanos ~= nil then
@@ -123,7 +123,7 @@ end
 _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
     local data_string = ""
     for i, buf in ipairs(buffers) do
-        local success, value = pcall(loadstring("return ".. buf.name))
+        local success, value = pcall(loadstring("return " .. buf.name))
         if success then buf.b = value end
         if string.len(data_string) ~= 0 then data_string = data_string .. "\n" end
         data_string = data_string .. "Buffer '" .. buf.name .. "'\n"
