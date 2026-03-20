@@ -141,10 +141,14 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
                 local row = tostring(r)
                 for k, f in ipairs(fields) do
                     if string.find(f, "absolute_timestamps") ~= nil then
-                        row = row .. delimiter .. tostring(
-                            buf.b.basetimestampseconds
-                            + buf.b.basetimestampfractional
-                            + buf.b.timestamps[r])
+                        if buf.b.basetimestampseconds ~= nil then
+                            row = row .. delimiter .. tostring(
+                                buf.b.basetimestampseconds
+                                + buf.b.basetimestampfractional
+                                + buf.b.timestamps[r])
+                        else
+                            row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                        end
                     elseif string.find(f, "relative_timestamps") ~= nil then
                         row = row .. delimiter .. tostring(buf.b.timestamps[r])
                     elseif buf.b[f] ~= nil then
