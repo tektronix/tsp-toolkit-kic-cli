@@ -208,9 +208,7 @@ impl Repl {
 
         match re {
             Ok(ref re_res) => {
-                let result = re_res.replace_all(name, "_");
-
-                let script_name = format!("kic_{result}");
+                let script_name = re_res.replace_all(name, "_");
 
                 self.inst
                     .write_script(script_name.as_bytes(), contents.as_bytes(), save, run)?;
