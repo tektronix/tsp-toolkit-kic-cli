@@ -8,6 +8,7 @@ _KIC[".load_time_prompts"] = localnode.prompts
 --- @param s string the string to escape
 --- @return string json_escaped_string the json-compatible, escaped string
 local function escape_str(s)
+    if s == nil then return "" end
     local in_char  = { '\\', '"', '/', '\b', '\f', '\n', '\r', '\t' }
     local out_char = { '\\', '"', '/', 'b', 'f', 'n', 'r', 't' }
     for i, c in ipairs(in_char) do
@@ -146,11 +147,21 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
                                 buf.b.basetimestampseconds
                                 + buf.b.basetimestampfractional
                                 + buf.b.timestamps[r])
+                        elseif buf.b.basetimestamp then
+                            row = row .. delimiter .. tostring(
+                                buf.b.basetimestamp
+                                + buf.b.timestamps[r])
                         else
+                            -- default to whatever timestamp we happen to have.
                             row = row .. delimiter .. tostring(buf.b.timestamps[r])
                         end
                     elseif string.find(f, "relative_timestamps") ~= nil then
-                        row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                        if buf.b.relativetimestamps ~= nil then
+                            row = row .. delimiter .. tostring(buf.b.relativetimestamps[r])
+                        else
+                            -- default to whatever timestamp we happen to have.
+                            row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                        end
                     elseif buf.b[f] ~= nil then
                         row = row .. delimiter .. tostring(buf.b[f][r])
                     end
