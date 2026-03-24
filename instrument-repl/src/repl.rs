@@ -208,9 +208,7 @@ impl Repl {
 
         match re {
             Ok(ref re_res) => {
-                let result = re_res.replace_all(name, "_");
-
-                let script_name = format!("kic_{result}");
+                let script_name = re_res.replace_all(name, "_");
 
                 self.inst
                     .write_script(script_name.as_bytes(), contents.as_bytes(), save, run)?;
@@ -465,7 +463,8 @@ impl Repl {
                                                 // name and the buffer variable reference
                                                 // example (lua):
                                                 //  {{name='slot[1].smu[1].defbuffer1',b=slot[1].smu[1].defbuffer1},{name='buf1',b=buf1}}
-                                                .map(|e| format!("{{name='{e}',b={e}}}"))
+                                                //.map(|e| format!("{{name='{e}',b={e}}}"))
+                                                .map(|e| format!("{{name='{e}',b=nil}}"))
                                                 .collect::<Vec<String>>()
                                                 .join(","),
                                             fields.join("','")).as_bytes())?;

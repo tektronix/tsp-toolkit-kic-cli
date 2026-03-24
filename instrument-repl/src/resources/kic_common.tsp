@@ -1,4 +1,4 @@
-if not _KIC then _KIC = {} end
+_KIC = {}
 
 _KIC["version"] = "!<!<VERSION>!>!"
 _KIC[".load_time_prompts"] = localnode.prompts
@@ -8,6 +8,7 @@ _KIC[".load_time_prompts"] = localnode.prompts
 --- @param s string the string to escape
 --- @return string json_escaped_string the json-compatible, escaped string
 local function escape_str(s)
+    if s == nil then return "" end
     local in_char  = { '\\', '"', '/', '\b', '\f', '\n', '\r', '\t' }
     local out_char = { '\\', '"', '/', 'b', 'f', 'n', 'r', 't' }
     for i, c in ipairs(in_char) do
@@ -50,96 +51,125 @@ _KIC["toJson"] = function(o)
     return s
 end
 
+--- Stub implementation for if an errorqueue or eventlog are not found. This will
+--- satisfy what TSP Toolkit is looking for so the user may continue on but will
+--- also notify the user that we won't be able to get any error information.
+--- @return string errors The string encoding the errors
+_KIC["error_message"] = function()
+    local errorstr = [[ERM>START]] .. '\n'
+    errorstr = errorstr ..
+        [[ERM>]] .. _KIC.toJson({
+            error_code = -1000,
+            message = escape_str(
+                "TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
+            severity = 100,
+            node_id = 1,
+        }) .. "\n"
+    errorstr = errorstr .. [[ERM>DONE]]
+    return errorstr
+end
+--- Get the number of errors
+---@type nil | fun(): number
+_KIC["error_count"] = nil
+--- Get the next error
+---@type nil | fun(): number, string, number, number, number|nil, number|nil
+_KIC["error_next"] = nil
+
 if errorqueue ~= nil and errorqueue.count ~= nil and errorqueue.next ~= nil then
+    _KIC["error_count"] = function() return errorqueue.count end
+    _KIC["error_next"] = function() return errorqueue.next() end
+elseif eventlog ~= nil and (eventlog.getcount ~= nil or eventlog.count ~= nil) and eventlog.next ~= nil then
+    if eventlog.getcount ~= nil then
+        _KIC["error_count"] = function() return eventlog.getcount(eventlog.SEV_ERROR) end
+    elseif eventlog.count ~= nil then
+        _KIC["error_count"] = function() return eventlog.count end
+    end
+    _KIC["error_next"] = function() return eventlog.next(eventlog.SEV_ERROR) end
+end
+
+if _KIC["error_count"] ~= nil and _KIC["error_next"] ~= nil then
     --- Encode messages from the errorqueue in a standardized JSON and sentinel format
     --- for TSP Toolkit to read
     --- @return string errors The string encoding the errors
     _KIC["error_message"] = function()
-        local errorstr = [[ERM>START]] .. "\n"
-        for _err_num = 1, errorqueue.count do
-            local error_code, message, severity, node_id = errorqueue.next()
+        local errorstr = [[ERM>START]] .. '\n'
+        for _err_num = 1, _KIC.error_count() do
+            local event_id, message, severity, node_id, secs, nanos = _KIC.error_next()
+            local error_tab = {
+                error_code = event_id,
+                message = escape_str(message),
+                severity = severity,
+                node_id = node_id,
+            }
+            if secs ~= nil then
+                error_tab["time"] = { secs = secs }
+                if nanos ~= nil then
+                    error_tab["time"]["nanos"] = nanos
+                end
+            end
             errorstr = errorstr ..
-            "ERM>" ..
-            _KIC.toJson({ error_code = error_code, message = escape_str(message), severity = severity, node_id = node_id, time = nil }) ..
-            "\n"
+                [[ERM>]] .. _KIC.toJson(error_tab) .. "\n"
         end
         errorstr = errorstr .. [[ERM>DONE]]
         return errorstr
     end
-elseif eventlog ~= nil and eventlog.getcount ~= nil and eventlog.next ~= nil then
-    --- Encode messages from the eventlog in a standardized JSON and sentinel format
-    --- for TSP Toolkit to read
-    --- @return string errors The string encoding the errors
-    _KIC["error_message"] = function()
-        local errorstr = [[ERM>START]] .. '\n'
-        for _err_num = 1, eventlog.getcount(eventlog.SEV_ERROR) do
-            local event_id, message, severity, node_id, secs, nanos = eventlog.next(eventlog.SEV_ERROR)
-            errorstr = errorstr ..
-                [[ERM>]] .. _KIC.toJson({
-                    error_code = event_id,
-                    message = escape_str(message),
-                    severity = severity,
-                    node_id = node_id,
-                    time = { secs = secs, nanos = nanos }
-                }) .. "\n"
-        end
-        errorstr = errorstr .. [[ERM>DONE]]
-        return errorstr
-    end
-
-else
-    --- Stub implementation for if an errorqueue or eventlog are not found. This will
-    --- satisfy what TSP Toolkit is looking for so the user may continue on but will
-    --- also notify the user that we won't be able to get any error information.
-    --- @return string errors The string encoding the errors
-    _KIC["error_message"] = function()
-        local errorstr = [[ERM>START]] .. '\n'
-        errorstr = errorstr ..
-            [[ERM>]] .. _KIC.toJson({
-                error_code = -1000,
-                message = escape_str("TSP Toolkit: No eventlog or erroqueue found on instrument. Will not be able to fetch error information."),
-                severity = 100,
-                node_id = 1,
-            }) .. "\n"
-        errorstr = errorstr .. [[ERM>DONE]]
-        return errorstr
-    end
-
 end
+
 
 --- Print the given list of `fields` in the given list of `buffers` in a character delimited
 --- table (CSV-style) format with the given `delimiter` used as the separator
----@param buffers {name:string, b: table}[] the list of buffer variables that should be printed
+---@param buffers {name:string, b: table|nil}|nil[] the list of buffer variables that should be printed
 ---@param fields string[] the list of buffer fields that should be printed
 ---@param delimiter string the string that should be printed to sepearate the values
 _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
-    local data_string = ""
     for i, buf in ipairs(buffers) do
-        if string.len(data_string) ~= 0 then data_string = data_string .. "\n" end
-        data_string = data_string .. "Buffer '" .. buf.name .. "'\n"
+        local success, value = pcall(loadstring("return " .. buf.name))
+        if success then buf.b = value end
+        print("Buffer '"..buf.name .. "'")
         if buf.b == nil or buf.b.n == nil then
-            data_string = data_string .. "DOES NOT EXIST\n"
+            print("DOES NOT EXIST")
         else
             local header = "n"
             for j, f in ipairs(fields) do
-                if buf.b[f] ~= nil then
+                if buf.b[f] ~= nil or string.find(f, "absolute_timestamps") ~= nil or string.find(f, "relative_timestamps") ~= nil then
                     header = header .. delimiter .. f
                 end
             end
-            data_string = data_string .. header .. "\n"
+            print(header)
+            local line = ""
             for r = 1, buf.b.n do
                 local row = tostring(r)
                 for k, f in ipairs(fields) do
-                    if buf.b[f] ~= nil then
+                    if string.find(f, "absolute_timestamps") ~= nil then
+                        if buf.b.basetimestampseconds ~= nil then
+                            row = row .. delimiter .. tostring(
+                                buf.b.basetimestampseconds
+                                + buf.b.basetimestampfractional
+                                + buf.b.timestamps[r])
+                        elseif buf.b.basetimestamp then
+                            row = row .. delimiter .. tostring(
+                                buf.b.basetimestamp
+                                + buf.b.timestamps[r])
+                        else
+                            -- default to whatever timestamp we happen to have.
+                            row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                        end
+                    elseif string.find(f, "relative_timestamps") ~= nil then
+                        if buf.b.relativetimestamps ~= nil then
+                            row = row .. delimiter .. tostring(buf.b.relativetimestamps[r])
+                        else
+                            -- default to whatever timestamp we happen to have.
+                            row = row .. delimiter .. tostring(buf.b.timestamps[r])
+                        end
+                    elseif buf.b[f] ~= nil then
                         row = row .. delimiter .. tostring(buf.b[f][r])
                     end
                 end
-                data_string = data_string .. row .. "\n"
+                print(row)
             end
         end
+        print() --print and extra line after printing all the data
     end
-
-    print(data_string)
 end
 
 _KIC["prompts_enable"] = function(enable)
@@ -159,4 +189,3 @@ _KIC["cleanup"] = function()
     localnode.prompts = _KIC[".load_time_prompts"]
     _KIC = nil
 end
-
