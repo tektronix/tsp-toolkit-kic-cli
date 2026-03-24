@@ -84,7 +84,7 @@ elseif eventlog ~= nil and (eventlog.getcount ~= nil or eventlog.count ~= nil) a
     elseif eventlog.count ~= nil then
         _KIC["error_count"] = function() return eventlog.count end
     end
-    _KIC["error_next"] = function() eventlog.next(eventlog.SEV_ERROR) end
+    _KIC["error_next"] = function() return eventlog.next(eventlog.SEV_ERROR) end
 end
 
 if _KIC["error_count"] ~= nil and _KIC["error_next"] ~= nil then
