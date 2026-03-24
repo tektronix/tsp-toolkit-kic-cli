@@ -436,8 +436,6 @@ impl Drop for Instrument {
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
 
-        let _ = self.reset();
-
         #[cfg(not(test))]
         //Allow reset to complete
         match clear_output_queue(self, 100, Duration::from_millis(100)) {
@@ -453,6 +451,7 @@ impl Drop for Instrument {
         let _ = self.write_all(b"abort\n");
         // Make sure an abort is the last thing to run so the
         // instrument goes to local mode
+        let _ = self.write_all(b"logout\n");
     }
 }
 
@@ -569,6 +568,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
@@ -720,13 +724,6 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*CLS\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"*IDN?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -785,6 +782,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(
@@ -1023,6 +1025,11 @@ mod unit {
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
@@ -1158,6 +1165,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(
@@ -1318,6 +1330,11 @@ mod unit {
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument = Instrument::new(

@@ -402,9 +402,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "cbc"
@@ -1382,7 +1382,7 @@ dependencies = [
 
 [[package]]
 name = "instrument-repl"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "chrono",
  "clap",
@@ -1525,7 +1525,7 @@ dependencies = [
 
 [[package]]
 name = "kic"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "kic-debug"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "kic-debug-visa"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1585,7 +1585,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1613,7 +1613,7 @@ dependencies = [
 
 [[package]]
 name = "kic-discover-visa"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1641,7 +1641,7 @@ dependencies = [
 
 [[package]]
 name = "kic-lib"
-version = "0.21.2"
+version = "0.21.3"
 dependencies = [
  "anyhow",
  "assert_matches",
