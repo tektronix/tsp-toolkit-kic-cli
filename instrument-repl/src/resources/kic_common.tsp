@@ -122,14 +122,12 @@ end
 ---@param fields string[] the list of buffer fields that should be printed
 ---@param delimiter string the string that should be printed to sepearate the values
 _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
-    local data_string = ""
     for i, buf in ipairs(buffers) do
         local success, value = pcall(loadstring("return " .. buf.name))
         if success then buf.b = value end
-        if string.len(data_string) ~= 0 then data_string = data_string .. "\n" end
-        data_string = data_string .. "Buffer '" .. buf.name .. "'\n"
+        print("Buffer '"..buf.name .. "'")
         if buf.b == nil or buf.b.n == nil then
-            data_string = data_string .. "DOES NOT EXIST\n"
+            print("DOES NOT EXIST")
         else
             local header = "n"
             for j, f in ipairs(fields) do
@@ -137,7 +135,8 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
                     header = header .. delimiter .. f
                 end
             end
-            data_string = data_string .. header .. "\n"
+            print(header)
+            local line = ""
             for r = 1, buf.b.n do
                 local row = tostring(r)
                 for k, f in ipairs(fields) do
@@ -166,12 +165,11 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
                         row = row .. delimiter .. tostring(buf.b[f][r])
                     end
                 end
-                data_string = data_string .. row .. "\n"
+                print(row)
             end
         end
+        print() --print and extra line after printing all the data
     end
-
-    print(data_string)
 end
 
 _KIC["prompts_enable"] = function(enable)
