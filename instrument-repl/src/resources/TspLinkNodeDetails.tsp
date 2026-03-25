@@ -117,39 +117,33 @@ local function tableToString(tbl, orderedKeys)
   return str
 end
 
+newSystem.localNode = localnode.model
 
-
--- Safely check if tsplink is available
-local tsplink_available = false
-local has_initialize = false
-local has_reset = false
-local success, result = pcall(function()
-  if tsplink ~= nil then
-    has_initialize = tsplink.initialize ~= nil
-    has_reset = tsplink.reset ~= nil
-    return has_initialize or has_reset
-  end
-  return false
-end)
-
-if success and result then
-  tsplink_available = true
-  if has_initialize then
-    tsplink.initialize(1)
-  elseif has_reset then
-    tsplink.reset(1)
-  end
-
-  if (tsplink.state == "online") then
-    updateNodes()
-  end
-
-  newSystem.localNode = node[tsplink.master].model
-  if (node[tsplink.master].model == MP5103) then
-    updateSlots(newSystem, node[tsplink.master])
-  end
+local check_tsp_link_nodes = false
+if available ~= nil then
+  check_tsp_link_nodes = available(tsplink)
 else
-  newSystem.localNode = localnode.model
+  check_tsp_link_nodes = true
+end
+
+
+if check_tsp_link_nodes then
+  pcall(function()
+    if tsplink.initialize then
+      tsplink.initialize(1)
+    elseif tsplink.reset then
+      tsplink.reset(1)
+    end
+
+    if (tsplink.state == "online") then
+      updateNodes()
+    end
+
+    newSystem.localNode = node[tsplink.master].model
+    if (node[tsplink.master].model == MP5103) then
+      updateSlots(newSystem, node[tsplink.master])
+    end
+  end)
 end
 
 
