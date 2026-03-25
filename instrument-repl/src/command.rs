@@ -31,6 +31,8 @@ pub enum Request {
     GetError,
     Script {
         file: PathBuf,
+        save: bool,
+        run: bool,
     },
     TspLinkNodes {
         json_file: PathBuf,
