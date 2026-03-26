@@ -1,4 +1,4 @@
-#![feature(rustdoc_missing_doc_code_examples, stmt_expr_attributes)]
+#![feature(stmt_expr_attributes)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with

@@ -147,9 +147,10 @@ impl Flash for Instrument {
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"prevflash\n")?;
 
-        #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
-        //visa
         let _ = self.set_nonblocking(false);
+
+        #[allow(irrefutable_let_patterns)]
+        //This is marked as irrefutable when building without visa
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
