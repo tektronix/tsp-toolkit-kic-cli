@@ -29,7 +29,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo fmt --check --verbose
+          just check-fmt
 
   lint:
     name: Lint
@@ -48,7 +48,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo clippy
+          just lint
 
   sbom:
     name: Generate CycloneDX
@@ -68,7 +68,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo cyclonedx --format json --all --describe crate -vvv
+          just sbom
       - name: Generate NPM BOM
         run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
@@ -76,7 +76,7 @@ jobs:
         with:
           name: software-bom
           path: |
-            **/*.cdx.json
+            sbom/*.cdx.json
 
   test:
     name: Test
@@ -105,21 +105,12 @@ jobs:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: "*"
-      - name: Prebuild
-        run: |
-          git config --global credential.helper store
-          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
       - name: Run Tests
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           mkdir -p "${{env.TEST_DIR}}"
-          LD_LIBRARY_PATH="$LD_LIBRARY_PATH}:$PWD" cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
-      - name: Process Test Results
-        run: |
-          cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
-          grcov ${{env.TEST_DIR}} --binary-path target/debug -s . -o "${{env.TEST_DIR}}" --ignore-not-existing --ignore '.cargo/*' --output-types cobertura
+          LD_LIBRARY_PATH="$LD_LIBRARY_PATH}:$PWD" just test-cov
       - name: Upload Results
         uses: actions/upload-artifact@v4
         if: ${{always()}}
@@ -146,7 +137,7 @@ jobs:
         uses: irongut/CodeCoverageSummary@v1.3.0
         continue-on-error: true
         with:
-          filename: test-results/cobertura.xml
+          filename: test-results/*.cobertura.xml
           badge: true
           format: markdown
           hide_branch_rate: true
@@ -201,28 +192,13 @@ jobs:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: "*"
-      - name: Build VISA
+      - name: Build
         if: ${{ matrix.runner != 'macos-latest' }}
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.triple}}" --release --package kic-discover-visa --package kic-debug-visa
-          cargo build --target "${{matrix.triple}}" --release --package kic --features visa
+          just build-release
         shell: bash
-      - name: Rename VISA Binary
-        if: ${{ matrix.runner != 'macos-latest' }}
-        run: |
-          if [ -f target/${{matrix.triple}}/release/kic ]; then
-            mv target/${{matrix.triple}}/release/kic target/${{matrix.triple}}/release/kic-visa
-          elif [ -f target/${{matrix.triple}}/release/kic.exe ]; then
-            mv target/${{matrix.triple}}/release/kic.exe target/${{matrix.triple}}/release/kic-visa.exe
-          fi
-        shell: bash
-      - name: Build LAN-only
-        run: |
-          git config --global credential.helper store
-          echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          cargo build --target "${{matrix.triple}}" --release --package kic --package kic-discover --package kic-debug
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -359,12 +335,7 @@ jobs:
         run: clamscan -v bin/*
       - name: npm Package
         run: |
-          npm pkg set "name=$(npm pkg get name | tr -d '"')-${{matrix.vscode-platform}}" --verbose
-          npm pkg set "os[0]=${{matrix.os}}" --verbose
-          npm pkg set "cpu[0]=${{matrix.arch}}" --verbose
-          cat package.json
-          npm pack
-
+          just package ${{matrix.vscode-platform}} ${{matrix.os}} ${{matrix.arch}}
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
