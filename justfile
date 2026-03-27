@@ -152,7 +152,15 @@ lint-rust: init-root
 # Build kic
 [group("build")]
 [group("rust")]
+[windows]
+[linux]
 build-rust triple=native-triple: (build-visa triple) (build-non-visa triple)
+
+# Build kic macos
+[group("build")]
+[group("rust")]
+[macos]
+build-rust triple=native-triple: (build-non-visa triple)
 
 [parallel]
 [private]
@@ -195,6 +203,14 @@ build-kic-discover-visa triple=native-triple release="":
 # Build Rust code in release mode
 [group("build-release")]
 [group("rust")]
+[windows]
+[linux]
+build-release-rust triple=native-triple: (build-visa triple "--release") (build-non-visa triple "--release")
+
+# Build Rust code in release mode for macOS
+[group("build-release")]
+[group("rust")]
+[macos]
 build-release-rust triple=native-triple: (build-visa triple "--release") (build-non-visa triple "--release")
 
 ################################################################################
