@@ -21,6 +21,7 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
+      - uses: taiki-e/install-action@just
       - name: Tool Versions
         run: cargo fmt --version
       - name: Checkout
@@ -40,6 +41,7 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
+      - uses: taiki-e/install-action@just
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
@@ -59,6 +61,7 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
+      - uses: taiki-e/install-action@just
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Tools
@@ -93,6 +96,7 @@ jobs:
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
+      - uses: taiki-e/install-action@just
       - name: Tool Versions
         run: |
           cargo --version
@@ -173,6 +177,7 @@ jobs:
       RUSTFLAGS: "-L ${{github.workspace}}"
       LIB_VISA_PATH: "${{github.workflow}}"
     steps:
+      - uses: taiki-e/install-action@just
       - name: Tool Setup
         # rustc regression: https://github.com/rust-lang/rust/issues/130769
         # Change to "update nightly" after resolved
@@ -270,6 +275,7 @@ jobs:
             os: darwin
             arch: arm64
     steps:
+      - uses: taiki-e/install-action@just
       - name: Update ClamAV
         run: freshclam
       - name: Tool Versions
