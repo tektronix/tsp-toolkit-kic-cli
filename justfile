@@ -224,7 +224,7 @@ test-rust:
     -rm -r "{{ env("TEST_DIR", "test-results") }}"
     -mkdir -p '{{ env("TEST_DIR", "test-results") }}'
     cargo nextest r --all --all-targets
-    @mv test-results/* "{{ env("TEST_DIR", "test-results") }}"
+    -mv test-results/* "{{ env("TEST_DIR", "test-results") }}"
 
 ################################################################################
 # TEST-COV #####################################################################
@@ -237,7 +237,6 @@ test-cov-rust $CARGO_TERM_VERBOSE="true":
     -rm -r "{{ env("TEST_DIR", "test-results") }}"
     -mkdir -p '{{ env("TEST_DIR", "test-results") }}'
     cargo llvm-cov nextest --cobertura --branch > "{{ env("TEST_DIR", "test-results") }}/kic-rust.cobertura.xml"
-    @mv test-results/* "{{ env("TEST_DIR", "test-results") }}"
 
 ################################################################################
 # SBOM #########################################################################
