@@ -435,8 +435,18 @@ impl Repl {
                                         format!("\nRunning Script: {}\n", file.display())
                                             .as_bytes(),
                                     )?;
-                                    (prompt, command_written) =
-                                        self.handle_script_request(&file, false, true)?;
+                                    (prompt, command_written) = match self
+                                        .handle_script_request(&file, false, true)
+                                    {
+                                        Ok((prompt, command_written)) => (prompt, command_written),
+                                        Err(e) => {
+                                            error!("unable to run script: {e}");
+                                            Self::println_error(&format!(
+                                                "Unable to run script: {e}"
+                                            ))?;
+                                            (true, true)
+                                        }
+                                    };
                                 }
                                 SaveMethod::Buffers {
                                     names,
@@ -474,7 +484,14 @@ impl Repl {
                         }
                         Request::Script { file, save, run } => {
                             (prompt, command_written) =
-                                self.handle_script_request(&file, save, run)?;
+                                match self.handle_script_request(&file, false, true) {
+                                    Ok((prompt, command_written)) => (prompt, command_written),
+                                    Err(e) => {
+                                        error!("unable to run script: {e}");
+                                        Self::println_error(&format!("Unable to run script: {e}"))?;
+                                        (true, true)
+                                    }
+                                };
                         }
                         Request::TspLinkNodes { json_file } => {
                             self.set_lang_config_path(json_file.to_string_lossy().to_string());
@@ -696,6 +713,12 @@ impl Repl {
 
     fn println_flush<D: Display>(string: &D) -> Result<()> {
         println!("{string}");
+        std::io::stdout().flush()?;
+        Ok(())
+    }
+
+    fn println_error<D: Display>(msg: &D) -> Result<()> {
+        println!("{}", msg.to_string().red());
         std::io::stdout().flush()?;
         Ok(())
     }
