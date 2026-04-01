@@ -2,16 +2,28 @@
 
 set windows-shell := ['powershell']
 
-vendor := if os() == 'windows' { "-pc" } else if os() == 'macos' { "-apple" } else { "-unknown" }
+arch := arch()
+vendor := if os() == 'windows' { "pc" } else if os() == 'macos' { "apple" } else { "unknown" }
+os := if os() == 'macos' { "darwin" } else { os() }
 build := if os() == 'windows' { "-msvc" } else if os() == 'macos' { "" } else { "-gnu" }
-vsc-os := if os() == 'windows' { "win32" } else if os() == 'macos' {"-darwin"} else { os() }
+
+vsc-os := if os() == 'windows' { "win32" } else if os() == 'macos' {"darwin"} else { os() }
 vsc-arch := if arch() == "x86_64" { "x64" } else { "arm64" }
+
 exe-extension := if os() == 'windows' { ".exe" } else { "" }
+
 package-name := replace_regex(`npm pkg get name`, "\"", "")
 orig-package-os := replace_regex(`npm pkg get os`, "\\{}", "")
 orig-package-cpu := replace_regex(`npm pkg get cpu`, "\\{}", "")
-native-triple := (arch() + vendor + "-" + os() + build)
+
+native-triple := (arch + "-" + vendor + "-" + os + build)
+# Linux: x86_64-unknown-linux-gnu
+# Windows: x86_64-pc-windows-msvc
+# MacOS: aarch64-apple-darwin
 native-vscode-platform := (vsc-os + "-" + vsc-arch)
+# MacOS: darwin-arm64
+# Linux: linux-x64
+# Windows: win32-x64
 
 # List all possible targets
 default triple=native-triple:
