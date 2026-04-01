@@ -198,7 +198,6 @@ jobs:
           latest: true
           fileName: "*"
       - name: Build
-        if: ${{ matrix.runner != 'macos-latest' }}
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
