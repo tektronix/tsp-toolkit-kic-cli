@@ -174,7 +174,7 @@ build-non-visa triple=native-triple release="": (build-kic triple release) (buil
 build-kic-visa triple=native-triple release="":
     -rm target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-visa{{ exe-extension }}
     cargo build -p kic -F visa --target {{ triple }} {{ release }}
-    mv target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic{{ exe-extension }} target/{{ triple }}/debug/kic-visa{{ exe-extension }}
+    mv target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic{{ exe-extension }} target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-visa{{ exe-extension }}
 
 [private]
 build-kic triple=native-triple release="":
