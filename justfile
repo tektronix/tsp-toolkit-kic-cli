@@ -211,7 +211,7 @@ build-release-rust triple=native-triple: (build-visa triple "--release") (build-
 [group("build-release")]
 [group("rust")]
 [macos]
-build-release-rust triple=native-triple: (build-visa triple "--release") (build-non-visa triple "--release")
+build-release-rust triple=native-triple: (build-non-visa triple "--release")
 
 ################################################################################
 # TEST #########################################################################
