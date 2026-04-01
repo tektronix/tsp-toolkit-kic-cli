@@ -2,9 +2,9 @@
 
 set windows-shell := ['powershell']
 
-vendor := if os() == 'windows' { "-pc" } else if os() == 'darwin' { "-apple" } else { "-unknown" }
-build := if os() == 'windows' { "-msvc" } else if os() == 'darwin' { "" } else { "-gnu" }
-vsc-os := if os() == 'windows' { "win32" } else { os() }
+vendor := if os() == 'windows' { "-pc" } else if os() == 'macos' { "-apple" } else { "-unknown" }
+build := if os() == 'windows' { "-msvc" } else if os() == 'macos' { "" } else { "-gnu" }
+vsc-os := if os() == 'windows' { "win32" } else if os() == 'macos' {"-darwin"} else { os() }
 vsc-arch := if arch() == "x86_64" { "x64" } else { "arm64" }
 exe-extension := if os() == 'windows' { ".exe" } else { "" }
 package-name := replace_regex(`npm pkg get name`, "\"", "")
