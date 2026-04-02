@@ -113,8 +113,7 @@ impl Debugger {
         let Some(file_name_str) = file else {
             return Err(DebugError::Other("Invalid File Name".to_string()));
         };
-        let file_name = Self::format_scriptname(file_name_str.to_string_lossy().to_string());
-        let mut script_name = format!("kic_{file_name}");
+        let mut script_name = Self::format_scriptname(file_name_str.to_string_lossy().to_string());
         self.debuggee_file_name = Some(script_name.clone());
         script_name.truncate(31);
         // script_name.truncate(255);

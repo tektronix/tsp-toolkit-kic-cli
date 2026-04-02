@@ -15,6 +15,26 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.21.3]
+
+### Added
+- Added subcommand option to skip reset and clear error queue on connect
+- Add `--save` and `--run <RUN_ENABLE>` args for `.script` command to allow users to
+  save scripts to non-volatile instrument memory
+- Add `absolute_timestamps` and `relative_timestamps` field options to `.save --buffer`
+  (`timestamps` field will still function)
+
+### Fixed
+- Fixed issue in fetching nodes for DMM6500 with no scan card installed
+- Logout is not happening for MP5000 when connection is disconnected
+- Correctly decide whether to use `eventlog` or `errorqueue` for `_KIC["error_messages"]()` in common script
+- Check if each buffer passed in `.save --buffer` has any `nil` references
+- If an error occurs when reading a script file (such as non-UTF8 files like JPEGs), print the error and continue
+- Correct upgrade message based on flash target (mainframe or instrument)
+
+
+### Changed
+- Removed `kic_` prefix from loaded user scripts
 
 ## [0.21.2]
 
