@@ -56,11 +56,11 @@ mod unit {
     fn parse_tti_instrument_time() {
         let input = r#"{"secs": 1773416437,"nanos": 4570421}"#;
         let expected = InstrumentTime {
-            secs: 1773416437,
-            nanos: { 4570421.0 * 1e-9 },
+            secs: 1_773_416_437,
+            nanos: { 4_570_421.0 * 1e-9 },
         };
         let actual: InstrumentTime =
-            serde_json::from_str(&input).expect("should parse instrument time");
+            serde_json::from_str(input).expect("should parse instrument time");
         assert_eq!(actual, expected);
     }
 
@@ -68,11 +68,11 @@ mod unit {
     fn parse_mp5000_instrument_time() {
         let input = r#"{"secs": 1773416437,"nanos": 0.4570421}"#;
         let expected = InstrumentTime {
-            secs: 1773416437,
-            nanos: { 0.4570421 },
+            secs: 1_773_416_437,
+            nanos: { 0.457_042_1 },
         };
         let actual: InstrumentTime =
-            serde_json::from_str(&input).expect("should parse instrument time");
+            serde_json::from_str(input).expect("should parse instrument time");
         assert_eq!(actual, expected);
     }
 
@@ -85,11 +85,11 @@ mod unit {
             severity: 20,
             node_id: 1,
             time: Some(InstrumentTime {
-                secs: 1773416437,
-                nanos: { 4570421.0 * 1e-9 },
+                secs: 1_773_416_437,
+                nanos: { 4_570_421.0 * 1e-9 },
             }),
         };
-        let actual: TspError = serde_json::from_str(&input).expect("should parse TspError");
+        let actual: TspError = serde_json::from_str(input).expect("should parse TspError");
         assert_eq!(actual, expected);
     }
 
@@ -102,11 +102,11 @@ mod unit {
             severity: 20,
             node_id: 1,
             time: Some(InstrumentTime {
-                secs: 1773416437,
-                nanos: 0.4570421,
+                secs: 1_773_416_437,
+                nanos: 0.457_042_1,
             }),
         };
-        let actual: TspError = serde_json::from_str(&input).expect("should parse TspError");
+        let actual: TspError = serde_json::from_str(input).expect("should parse TspError");
         assert_eq!(actual, expected);
     }
 
@@ -120,7 +120,7 @@ mod unit {
             node_id: 1,
             time: None,
         };
-        let actual: TspError = serde_json::from_str(&input).expect("should parse TspError");
+        let actual: TspError = serde_json::from_str(input).expect("should parse TspError");
         assert_eq!(actual, expected);
     }
 }
