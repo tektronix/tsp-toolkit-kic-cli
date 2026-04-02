@@ -14,6 +14,7 @@ use crate::{
     Flash, InstrumentError,
 };
 
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{error, trace, warn};
 
@@ -190,8 +191,15 @@ impl Flash for Instrument {
         if slot_number > 0 {
             is_module = true;
             trace!("Module upgrade requested: slot_number = {}", slot_number);
+            // Upgrading Module
+            println!(
+                "{}",
+                "Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 5 minutes)..."
+                    .bright_yellow()
+            );
         } else {
             trace!("Mainframe upgrade requested");
+            println!("{}", "Sending firmware file to mainframe. Please wait...".bright_yellow());
         }
         const NOT_EXISTS: &str = "NE";
         const EXISTS: &str = "SE";
