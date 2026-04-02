@@ -39,8 +39,8 @@ pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> 
     debug!("Sending abort");
     rw.write_all(b"abort\n")?;
     std::thread::sleep(Duration::from_millis(100));
-    debug!("Sending *CLS");
-    rw.write_all(b"*CLS\n")?;
+    // debug!("Sending *CLS");
+    // rw.write_all(b"*CLS\n")?;
     std::thread::sleep(Duration::from_millis(100));
     debug!("Sending *IDN?");
     rw.write_all(b"*IDN?\n")?;

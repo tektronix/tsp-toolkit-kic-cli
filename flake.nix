@@ -22,6 +22,7 @@
                     nativeBuildInputs = with pkgs; [
                         rustToolchain
                         pkg-config
+                        just
                     ];
                     buildInputs = with pkgs; [ ];
                 in
