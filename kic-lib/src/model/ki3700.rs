@@ -3,6 +3,7 @@ use std::{
     time::Duration,
 };
 
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{error, trace};
 
@@ -148,6 +149,11 @@ impl Flash for Instrument {
         self.write_all(b"prevflash\n")?;
 
         let _ = self.set_nonblocking(false);
+
+        println!(
+            "{}",
+            "Sending firmware file to instrument. Please wait...".bright_yellow()
+        );
 
         #[allow(irrefutable_let_patterns)]
         //This is marked as irrefutable when building without visa

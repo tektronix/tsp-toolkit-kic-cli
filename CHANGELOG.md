@@ -29,6 +29,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Logout is not happening for MP5000 when connection is disconnected
 - Correctly decide whether to use `eventlog` or `errorqueue` for `_KIC["error_messages"]()` in common script
 - Check if each buffer passed in `.save --buffer` has any `nil` references
+- Correct upgrade message based on flash target (mainframe or instrument)
 
 ### Changed
 - Removed `kic_` prefix from loaded user scripts
