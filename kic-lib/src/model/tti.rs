@@ -4,6 +4,7 @@ use std::{
 };
 
 use bytes::Buf;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{self, error, trace};
 
@@ -184,6 +185,10 @@ impl Flash for Instrument {
         #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
         //visa
         let _ = self.set_nonblocking(false);
+        println!(
+            "{}",
+            "Sending firmware file to instrument. Please wait...".bright_yellow()
+        );
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
@@ -280,8 +285,6 @@ impl Drop for Instrument {
         }
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
-
-        let _ = self.reset();
 
         #[cfg(not(test))]
         //Allow reset to complete
@@ -512,13 +515,6 @@ mod unit {
                 }
                 Ok(msg.len())
             });
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*CLS\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()
