@@ -199,7 +199,10 @@ impl Flash for Instrument {
             );
         } else {
             trace!("Mainframe upgrade requested");
-            println!("{}", "Sending firmware file to mainframe. Please wait...".bright_yellow());
+            println!(
+                "{}",
+                "Sending firmware file to mainframe. Please wait...".bright_yellow()
+            );
         }
         const NOT_EXISTS: &str = "NE";
         const EXISTS: &str = "SE";
