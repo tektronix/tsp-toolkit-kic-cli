@@ -532,18 +532,6 @@ impl Repl {
                                     )?;
                                 }
                             }
-                            if slot.is_some_and(|s| s > 0) {
-                                // Upgrading Module
-                                Self::println_flush(
-                                    &"Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 5 minutes)..."
-                                        .bright_yellow(),
-                                )?;
-                            } else {
-                                Self::println_flush(
-                                    &"Sending firmware file to mainframe. Please wait..."
-                                        .bright_yellow(),
-                                )?;
-                            }
                             match self.inst.flash_firmware(contents.as_ref(), slot) {
                                 Ok(()) => {
                                     let (errors, _) = self.get_errors()?;

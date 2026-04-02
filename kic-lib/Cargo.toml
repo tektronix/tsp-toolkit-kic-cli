@@ -8,6 +8,7 @@ repository = { workspace = true }
 
 [dependencies]
 bytes = { workspace = true }
+colored = { workspace = true }
 phf = { version = "0.11", features = ["macros"] }
 rpassword = { workspace = true }
 serde = { workspace = true }
