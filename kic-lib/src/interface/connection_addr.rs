@@ -196,15 +196,6 @@ impl ConnectionInfo {
             )));
         };
         let mut inst = rm.open(&string, AccessMode::NO_LOCK, TIMEOUT_INFINITE)?;
-        trace!("Writing `logout`");
-        inst.write_all(b"logout\n")?;
-        let buf = &mut [0u8; 128];
-        // Logout will write "SUCCESS: Logged out" to the output queue, we should try
-        // to read that, but if we don't get anything back, ignore it and continue on.
-        if let Ok(num_bytes) = inst.read(buf) {
-            let buf = &buf[..num_bytes];
-            trace!("read: {}", String::from_utf8_lossy(buf));
-        };
         trace!("Writing `abort`");
         inst.write_all(b"abort\n")?;
         trace!("Writing `*CLS`");
