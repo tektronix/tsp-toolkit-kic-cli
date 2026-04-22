@@ -199,6 +199,8 @@ impl ConnectionInfo {
         trace!("Writing `logout`");
         inst.write_all(b"logout\n")?;
         let buf = &mut [0u8; 128];
+        // Logout will write "SUCCESS: Logged out" to the output queue, we should try
+        // to read that, but if we don't get anything back, ignore it and continue on.
         if let Ok(num_bytes) = inst.read(buf) {
             let buf = &buf[..num_bytes];
             trace!("read: {}", String::from_utf8_lossy(buf));
@@ -207,11 +209,16 @@ impl ConnectionInfo {
         inst.write_all(b"abort\n")?;
         trace!("Writing `*CLS`");
         inst.write_all(b"*CLS\n")?;
+        // *CLS _should_ clear the output queue, but I have seen instances where it
+        // didn't, so try to clear it by popping messages off.
         clear_output_queue(&mut inst, 20, Duration::from_millis(20))?;
         std::thread::sleep(Duration::from_millis(100));
         trace!("Writing `*IDN?`");
         inst.write_all(b"*IDN?\n")?;
         let mut iterations = 0;
+        // Sometimes there might be other things in the instrument output queue, keep
+        // reading until we have a valid IDN string
+        // Try no more than 10 times
         loop {
             let buf = &mut [0u8; 128];
             let num_bytes = inst.read(buf)?;
