@@ -6,7 +6,7 @@ use std::{
 use bytes::Buf;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use tracing::{self, error, trace};
+use tracing::{self, debug, error, trace};
 
 use crate::{
     instrument::{
@@ -120,6 +120,7 @@ impl Language for Instrument {
 }
 
 impl Login for Instrument {
+    #[tracing::instrument(skip(self))]
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
         self.write_all(b"*TST?\n")?;
         for _i in 0..5 {
@@ -140,6 +141,7 @@ impl Login for Instrument {
             let resp = std::str::from_utf8(resp).unwrap_or("").trim();
 
             if resp.contains("SUCCESS: Logged in") || resp.contains('0') {
+                trace!("login successful or not necessary");
                 return Ok(instrument::State::NotNeeded);
             }
 

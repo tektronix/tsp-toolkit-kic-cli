@@ -31,7 +31,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Check if each buffer passed in `.save --buffer` has any `nil` references
 - If an error occurs when reading a script file (such as non-UTF8 files like JPEGs), print the error and continue
 - Correct upgrade message based on flash target (mainframe or instrument)
-
+- GPIB does not connect with latest kic-cli version.
 
 ### Changed
 - Removed `kic_` prefix from loaded user scripts
