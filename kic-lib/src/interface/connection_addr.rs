@@ -181,10 +181,13 @@ impl ConnectionInfo {
     }
 
     #[cfg(feature = "visa")]
+    #[tracing::instrument]
     fn get_gpib_info(string: &str) -> Result<InstrumentInfo, InstrumentError> {
         use std::io::{Read, Write};
 
         use visa_rs::{flags::AccessMode, AsResourceManager, DefaultRM, TIMEOUT_INFINITE};
+
+        use crate::instrument::clear_output_queue;
 
         let rm = DefaultRM::new()?;
         let Some(string) = VisaString::from_string(string.to_string()) else {
@@ -193,14 +196,34 @@ impl ConnectionInfo {
             )));
         };
         let mut inst = rm.open(&string, AccessMode::NO_LOCK, TIMEOUT_INFINITE)?;
+        trace!("Writing `abort`");
         inst.write_all(b"abort\n")?;
+        trace!("Writing `*CLS`");
         inst.write_all(b"*CLS\n")?;
+        // *CLS _should_ clear the output queue, but I have seen instances where it
+        // didn't, so try to clear it by popping messages off.
+        clear_output_queue(&mut inst, 20, Duration::from_millis(20))?;
         std::thread::sleep(Duration::from_millis(100));
+        trace!("Writing `*IDN?`");
         inst.write_all(b"*IDN?\n")?;
-        let buf = &mut [0u8; 128];
-        let num_bytes = inst.read(buf)?;
-        let buf = &buf[..num_bytes];
-        buf.try_into()
+        let mut iterations = 0;
+        // Sometimes there might be other things in the instrument output queue, keep
+        // reading until we have a valid IDN string
+        // Try no more than 10 times
+        loop {
+            let buf = &mut [0u8; 128];
+            let num_bytes = inst.read(buf)?;
+            let buf = &buf[..num_bytes];
+            trace!("Read {}", String::from_utf8_lossy(buf));
+            match InstrumentInfo::try_from(buf) {
+                Ok(info) => return Ok(info),
+                Err(e) if iterations >= 10 => return Err(e.into()),
+                _ => {
+                    iterations += 1;
+                    continue;
+                }
+            }
+        }
     }
 
     #[cfg(not(feature = "visa"))]

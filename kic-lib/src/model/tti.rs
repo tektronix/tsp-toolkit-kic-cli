@@ -4,8 +4,9 @@ use std::{
 };
 
 use bytes::Buf;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use tracing::{self, error, trace};
+use tracing::{self, debug, error, trace};
 
 use crate::{
     instrument::{
@@ -119,6 +120,7 @@ impl Language for Instrument {
 }
 
 impl Login for Instrument {
+    #[tracing::instrument(skip(self))]
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
         self.write_all(b"*TST?\n")?;
         for _i in 0..5 {
@@ -139,6 +141,7 @@ impl Login for Instrument {
             let resp = std::str::from_utf8(resp).unwrap_or("").trim();
 
             if resp.contains("SUCCESS: Logged in") || resp.contains('0') {
+                trace!("login successful or not necessary");
                 return Ok(instrument::State::NotNeeded);
             }
 
@@ -184,6 +187,10 @@ impl Flash for Instrument {
         #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
         //visa
         let _ = self.set_nonblocking(false);
+        println!(
+            "{}",
+            "Sending firmware file to instrument. Please wait...".bright_yellow()
+        );
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
@@ -280,8 +287,6 @@ impl Drop for Instrument {
         }
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
-
-        let _ = self.reset();
 
         #[cfg(not(test))]
         //Allow reset to complete
@@ -512,13 +517,6 @@ mod unit {
                 }
                 Ok(msg.len())
             });
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*CLS\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()

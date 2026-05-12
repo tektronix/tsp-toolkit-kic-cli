@@ -8,6 +8,7 @@ repository = { workspace = true }
 
 [dependencies]
 bytes = { workspace = true }
+colored = { workspace = true }
 phf = { version = "0.11", features = ["macros"] }
 rpassword = { workspace = true }
 serde = { workspace = true }
@@ -17,7 +18,7 @@ tracing = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 visa-rs = { version = "0.6.2", optional = true }
-indicatif = "0.17.11"
+indicatif = "0.18.4"
 roxmltree = { version = "0.20.0", default-features = false, features = ["std"] }
 keyring = { version = "3.6.2", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 
