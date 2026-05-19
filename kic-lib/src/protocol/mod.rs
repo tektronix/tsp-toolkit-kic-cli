@@ -187,29 +187,41 @@ impl Read for Protocol {
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         const WRITE_ATTEMPT_LIMIT: u16 = 10000;
-        trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
+        trace!("writing to instrument ({} bytes)", buf.len());
 
         let mut attempts = 0;
         loop {
-            let write_res = match self {
+            let res = match self {
                 Self::Raw(r) => r.write(buf),
 
                 #[cfg(feature = "visa")]
                 Self::Visa(v) => v.write(buf),
             };
 
-            attempts += 1;
-
-            match &write_res {
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    warn!("Encountered would-block (attempt {attempts})");
-                    std::thread::sleep(Duration::from_micros(1000));
-                    if attempts >= WRITE_ATTEMPT_LIMIT {
-                        error!("Unable to write after {attempts} attempts, giving up");
-                        return write_res;
-                    }
+            match res {
+                Ok(n) => {
+                    // Partial writes are valid — return immediately
+                    return Ok(n);
                 }
-                _ => return write_res,
+
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    attempts += 1;
+
+                    if attempts == 1 {
+                        trace!("write would-block: entering retry loop");
+                    }
+
+                    if attempts >= WRITE_ATTEMPT_LIMIT {
+                        error!("Write failed after {} attempts (WouldBlock)", attempts);
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::WouldBlock,
+                            "write retry limit exceeded",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_micros(1000));
+                }
+
+                Err(e) => return Err(e),
             }
         }
     }
@@ -230,7 +242,8 @@ impl Write for Protocol {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        // fit as much into a 1000-byte message as possible (For USBTMC)
+        use std::io::{Error, ErrorKind, Write};
+        use std::time::Duration;
 
         let mut start: usize = 0;
 
@@ -254,7 +267,13 @@ impl Write for Protocol {
                     // Only make progress bar for VISA connections and for messages > 100_000 bytes
                     let pb = ProgressBar::new(buf.len().try_into().unwrap_or_default());
                     #[allow(clippy::literal_string_with_formatting_args)] // This is a template for ProgressStyle that requires this syntax
-                    pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:10.cyan/blue}] {bytes}/{total_bytes} (ETA: {eta}) {msg}").unwrap().with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()));
+                    pb.set_style(
+                        ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:10.cyan/blue}] {bytes}/{total_bytes} (ETA: {eta}) {msg}")
+                            .unwrap()
+                            .with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| {
+                                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+                            }),
+                    );
                     pb.set_message("Loading to instrument...");
                     Some(pb)
                 }
@@ -267,7 +286,7 @@ impl Write for Protocol {
             //Here we are trusting that a single line will not be more than 1000-bytes long
             let mut last_newline = end;
             // if the file is NOT a ZIP file, look for lines, otherwise, just obey chunking
-            if buf[0..4] != [0x50, 0x4B, 0x03, 0x04] {
+            if buf.len() >= 4 && buf[0..4] != [0x50, 0x4B, 0x03, 0x04] {
                 while buf[last_newline] != b'\n' && last_newline > start {
                     last_newline = last_newline.saturating_sub(1);
                 }
@@ -277,10 +296,31 @@ impl Write for Protocol {
                 end = last_newline;
             }
 
-            self.write(&buf[start..=end])?;
+            // Count bytes to ensure entire chunk is written
+            let mut offset = 0;
+            let chunk = &buf[start..=end];
 
+            while offset < chunk.len() {
+                match self.write(&chunk[offset..]) {
+                    Ok(0) => {
+                        return Err(Error::new(
+                            ErrorKind::WriteZero,
+                            "failed to write to underlying transport",
+                        ));
+                    }
+                    Ok(n) => {
+                        offset += n;
+                    }
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+
+            // progress only advances after full chunk written
             if let Some(p) = pb.as_ref() {
-                p.set_position(end.try_into().unwrap_or_default());
+                p.set_position((end + 1).try_into().unwrap_or_default());
             }
             start = end.saturating_add(1);
             end = if start.saturating_add(step) < buf.len() {
@@ -290,14 +330,28 @@ impl Write for Protocol {
             };
         }
 
-        //  write the last chunk
-        if !buf.is_empty() {
-            if start == end {
-                self.write(&[buf[start]])?;
-            } else {
-                self.write(&buf[start..=end])?;
+        // write the final chunk safely
+        if !buf.is_empty() && start < buf.len() {
+            let chunk = &buf[start..=end];
+            let mut offset = 0;
+
+            while offset < chunk.len() {
+                match self.write(&chunk[offset..]) {
+                    Ok(0) => {
+                        return Err(Error::new(
+                            ErrorKind::WriteZero,
+                            "failed to write final chunk",
+                        ));
+                    }
+                    Ok(n) => offset += n,
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(e) => return Err(e),
+                }
             }
         }
+
         if let Some(p) = pb {
             p.set_style(
                 ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
