@@ -1,3 +1,6 @@
+# Ignore personalized settings for VSCode
+.vscode/
+
 # Unused `tree-sitter-cli generate` artifacts
 **/bindings/node
 **/binding.gyp
