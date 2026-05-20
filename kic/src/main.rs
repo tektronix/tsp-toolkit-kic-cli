@@ -1,4 +1,4 @@
-#![feature(rustdoc_missing_doc_code_examples, stmt_expr_attributes)]
+#![feature(stmt_expr_attributes)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with
@@ -156,6 +156,16 @@ fn cmds() -> Command {
                     .hide(true)
                     .hide_long_help(true)
                     .value_parser(PathBufValueParser::new()),
+                    Arg::new("reset")
+                    .short('r')
+                    .long("reset")
+                    .help("Reset the instrument before starting the session")
+                    .action(ArgAction::SetTrue),
+                    Arg::new("clear-error-queue")
+                    .short('c')
+                    .long("clear-error-queue")
+                    .help("Clear the error queue before starting the session")
+                    .action(ArgAction::SetTrue)
             ])
         })
         .subcommand({
@@ -716,6 +726,7 @@ fn pause_exit_on_error() {
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
     trace!("args: {args:?}");
+
     eprintln!(
         "\nTektronix TSP Shell\nType {} for more commands.\n",
         ".help".bold()
@@ -795,6 +806,22 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e);
     }
 
+    let should_reset = *args.get_one::<bool>("reset").unwrap_or(&false);
+    let should_clear_error_queue = *args.get_one::<bool>("clear-error-queue").unwrap_or(&false);
+
+    if should_reset {
+        trace!("Resetting instrument");
+        if let Err(e) = instrument.reset() {
+            error!("Error resetting instrument: {e}");
+            eprintln!(
+                "{}",
+                format!("\nError resetting instrument: {e}\n\nUnrecoverable error. Closing.").red()
+            );
+            pause_exit_on_error();
+            return Err(e.into());
+        }
+    }
+
     trace!("Getting instrument information");
     let info = match instrument.info() {
         Ok(i) => i,
@@ -815,7 +842,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     let mut repl = repl::Repl::new(instrument);
 
     info!("Starting instrument REPL");
-    if let Err(e) = repl.start() {
+    if let Err(e) = repl.start(should_clear_error_queue) {
         error!("Error in REPL: {e}");
         eprintln!(
             "{}",
@@ -1029,9 +1056,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
 
     match re {
         Ok(re_res) => {
-            let result = re_res.replace_all(&stem, "_");
-
-            let script_name = format!("kic_{result}");
+            let script_name = re_res.replace_all(&stem, "_").to_string();
 
             let mut script_content: Vec<u8> = Vec::new();
 
@@ -1125,7 +1150,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
 
     let auth = auth_type(conn, args);
 
-    let instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
+    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
         Ok(i) => i,
         Err(e) => {
             error!("Error connecting to sync instrument: {e}");
@@ -1133,8 +1158,7 @@ fn reset(args: &ArgMatches) -> anyhow::Result<()> {
         }
     };
 
-    // dropping the instrument will reset it appropriately.
-    drop(instrument);
+    let _ = instrument.reset();
 
     info!("Instrument reset");
 
