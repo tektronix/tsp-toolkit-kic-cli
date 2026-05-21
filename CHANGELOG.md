@@ -15,6 +15,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.21.4]
+
+### Added
+
+### Fixed
+- Improved reliability of sending firmware updates, particularly affecting Linux
+
+
 ## [0.21.3]
 
 ### Added
