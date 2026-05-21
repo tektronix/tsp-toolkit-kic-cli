@@ -187,7 +187,7 @@ impl Read for Protocol {
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         const WRITE_ATTEMPT_LIMIT: u16 = 10000;
-        trace!("writing to instrument ({} bytes)", buf.len());
+        trace!("writing to instrument ({} bytes): '{}'", buf.len(), String::from_utf8_lossy(buf));
 
         let mut attempts = 0;
         loop {
@@ -212,7 +212,7 @@ impl Write for Protocol {
                     }
 
                     if attempts >= WRITE_ATTEMPT_LIMIT {
-                        error!("Write failed after {} attempts (WouldBlock)", attempts);
+                        error!("Write failed after {attempts} attempts (WouldBlock)");
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::WouldBlock,
                             "write retry limit exceeded",
