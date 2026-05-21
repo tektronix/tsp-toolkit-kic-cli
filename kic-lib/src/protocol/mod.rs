@@ -187,7 +187,11 @@ impl Read for Protocol {
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         const WRITE_ATTEMPT_LIMIT: u16 = 10000;
-        trace!("writing to instrument ({} bytes): '{}'", buf.len(), String::from_utf8_lossy(buf));
+        trace!(
+            "writing to instrument ({} bytes): '{}'",
+            buf.len(),
+            String::from_utf8_lossy(buf)
+        );
 
         let mut attempts = 0;
         loop {
