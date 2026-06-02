@@ -427,26 +427,36 @@ impl Repl {
                                         )
                                         .yellow()
                                     );
-                                    Self::write_to_file(
+
+                                    (prompt, command_written) = match Self::write_to_file(
                                         &save.as_ref().map_or_else(
                                             || "./SCRIPT_OUTPUT.txt".into(),
                                             |d| d.output.clone(),
                                         ),
                                         format!("\nRunning Script: {}\n", file.display())
                                             .as_bytes(),
-                                    )?;
-                                    (prompt, command_written) = match self
-                                        .handle_script_request(&file, false, true)
-                                    {
-                                        Ok((prompt, command_written)) => (prompt, command_written),
+                                    ) {
+                                        Ok(()) => {
+                                            match self.handle_script_request(&file, false, true) {
+                                                Ok((prompt, command_written)) => {
+                                                    (prompt, command_written)
+                                                }
+                                                Err(e) => {
+                                                    error!("unable to run script: {e}");
+                                                    Self::println_error(&format!(
+                                                        "Unable to run script: {e}"
+                                                    ))?;
+                                                    (true, true)
+                                                }
+                                            }
+                                        }
                                         Err(e) => {
-                                            error!("unable to run script: {e}");
                                             Self::println_error(&format!(
-                                                "Unable to run script: {e}"
+                                                "\nUnable to save to file: {e}"
                                             ))?;
                                             (true, true)
                                         }
-                                    };
+                                    }
                                 }
                                 SaveMethod::Buffers {
                                     names,

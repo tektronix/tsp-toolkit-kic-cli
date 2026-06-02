@@ -15,9 +15,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
-## [0.21.4]
 
-### Added
+## [0.21.5]
+
+### Fixed
+- Fixed issue where attempting to save script output to a locked file can cause a crash
+
+
+## [0.21.4]
 
 ### Fixed
 - Improved reliability of sending firmware updates, particularly affecting Linux
