@@ -1,3 +1,5 @@
+use rustls::ClientConnection;
+
 use crate::{
     error::Result,
     instrument::{
@@ -40,3 +42,17 @@ impl Info for TcpStream {
 }
 
 impl Interface for TcpStream {}
+
+impl NonBlock for rustls::StreamOwned<ClientConnection, TcpStream> {
+    fn set_nonblocking(&mut self, enable: bool) -> Result<()> {
+        Ok(TcpStream::set_nonblocking(&self.sock, enable)?)
+    }
+}
+
+impl Info for rustls::StreamOwned<ClientConnection, TcpStream> {
+    fn info(&mut self) -> Result<InstrumentInfo> {
+        get_info(self)
+    }
+}
+
+impl Interface for rustls::StreamOwned<ClientConnection, TcpStream> {}
