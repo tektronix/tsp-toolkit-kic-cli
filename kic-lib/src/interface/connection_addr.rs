@@ -22,7 +22,10 @@ use crate::InstrumentError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionInfo {
     /// A raw socket connection.
-    Lan { addr: SocketAddr },
+    Lan {
+        tls_addr: Option<SocketAddr>,
+        addr: SocketAddr,
+    },
     /// A VXI-11 connection (requires VISA to use)
     Vxi11 { string: String, addr: Ipv4Addr },
 
@@ -46,7 +49,13 @@ pub enum ConnectionInfo {
 impl Display for ConnectionInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::Lan { addr } => addr.to_string(),
+            Self::Lan { tls_addr, addr } => {
+                if let Some(tls) = tls_addr {
+                    tls.to_string()
+                } else {
+                    addr.to_string()
+                }
+            }
             Self::Vxi11 { string, .. }
             | Self::HiSlip { string, .. }
             | Self::VisaSocket { string, .. }
@@ -117,7 +126,7 @@ impl ConnectionInfo {
     pub fn get_info(&self) -> Result<InstrumentInfo, InstrumentError> {
         trace!("getting instrument info");
         let xml = match self {
-            Self::Lan { addr } if addr.ip().is_loopback() => {
+            Self::Lan { addr, .. } if addr.ip().is_loopback() => {
                 trace!("getting info over loopback");
                 //Special case for TSPop
                 let mut inst = TcpStream::connect(addr)?;
@@ -217,7 +226,7 @@ impl ConnectionInfo {
             trace!("Read {}", String::from_utf8_lossy(buf));
             match InstrumentInfo::try_from(buf) {
                 Ok(info) => return Ok(info),
-                Err(e) if iterations >= 10 => return Err(e.into()),
+                Err(e) if iterations >= 10 => return Err(e),
                 _ => {
                     iterations += 1;
                     continue;
@@ -246,7 +255,7 @@ impl ConnectionInfo {
         // number via a different route (i.e. `*IDN?` or from the resource string)
         // should return directly from the associated match arm.
         let xml = match self {
-            Self::Lan { addr } => {
+            Self::Lan { addr, .. } => {
                 // We don't know whether the instrument serves `https` or not, but if
                 // it does it will redirect, so just use `http`
                 client
@@ -306,12 +315,18 @@ fn parse_raw_socket(s: &str) -> Option<ConnectionInfo> {
     // If the user supplied an IP address has a port number on it...
     let ip = s.parse::<SocketAddr>();
     if let Ok(ip) = ip {
-        return Some(ConnectionInfo::Lan { addr: ip });
+        // TODO: check LXI ID page for `<InstrumentAddressString>`
+        return Some(ConnectionInfo::Lan {
+            addr: ip,
+            tls_addr: None,
+        });
     }
-    // If the user supplied an IP address with NO port number, default to port 5025
+    // If the user supplied an IP address with NO port number, default to port 5026 (the default TLS port)
     let ip = s.parse::<IpAddr>();
     if let Ok(ip) = ip {
+        // TODO: check LXI ID page for `<InstrumentAddressString>`
         return Some(ConnectionInfo::Lan {
+            tls_addr: Some(SocketAddr::new(ip, 5026)),
             addr: SocketAddr::new(ip, 5025),
         });
     }
@@ -497,18 +512,29 @@ pub mod unit {
             (
                 "192.168.0.1",
                 ConnectionInfo::Lan {
+                    tls_addr: Some(SocketAddr::new(
+                        IpAddr::V4(Ipv4Addr::new(192, 168, 0, 1)),
+                        5026,
+                    )),
                     addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 1)), 5025),
                 },
             ),
             (
                 "192.168.0.1:5",
                 ConnectionInfo::Lan {
+                    tls_addr: None,
                     addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 1)), 5),
                 },
             ),
             (
                 "2001:0db8:0000:0000:0000:ff00:0042:8329",
                 ConnectionInfo::Lan {
+                    tls_addr: Some(SocketAddr::new(
+                        IpAddr::V6(Ipv6Addr::new(
+                            0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
+                        )),
+                        5026,
+                    )),
                     addr: SocketAddr::new(
                         IpAddr::V6(Ipv6Addr::new(
                             0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
@@ -520,6 +546,12 @@ pub mod unit {
             (
                 "2001:db8:0:0:0:ff00:42:8329",
                 ConnectionInfo::Lan {
+                    tls_addr: Some(SocketAddr::new(
+                        IpAddr::V6(Ipv6Addr::new(
+                            0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
+                        )),
+                        5026,
+                    )),
                     addr: SocketAddr::new(
                         IpAddr::V6(Ipv6Addr::new(
                             0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
@@ -531,6 +563,12 @@ pub mod unit {
             (
                 "2001:db8::ff00:42:8329",
                 ConnectionInfo::Lan {
+                    tls_addr: Some(SocketAddr::new(
+                        IpAddr::V6(Ipv6Addr::new(
+                            0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
+                        )),
+                        5026,
+                    )),
                     addr: SocketAddr::new(
                         IpAddr::V6(Ipv6Addr::new(
                             0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
@@ -542,6 +580,7 @@ pub mod unit {
             (
                 "[2001:db8::ff00:42:8329]:3",
                 ConnectionInfo::Lan {
+                    tls_addr: None,
                     addr: SocketAddr::new(
                         IpAddr::V6(Ipv6Addr::new(
                             0x2001, 0x0db8, 0x0, 0x0, 0x0, 0xff00, 0x0042, 0x8329,
