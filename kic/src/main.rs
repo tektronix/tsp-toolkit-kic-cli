@@ -1226,7 +1226,7 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
         .into());
     };
     let mut conn = match conn {
-        ConnectionInfo::VisaSocket { addr, .. } | ConnectionInfo::Lan { addr } => {
+        ConnectionInfo::VisaSocket { addr, .. } | ConnectionInfo::Lan { addr, .. } => {
             let addr = addr.ip();
             let socket = SocketAddr::new(addr, 5030);
             TcpStream::connect(socket)?
