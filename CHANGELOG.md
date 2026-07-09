@@ -22,6 +22,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - TLS communication over raw sockets are now supported by default
 - Add support for forthcoming 2601C-PULSE and 2605C-PULSE
 
+### Fixed
+- Cache IDN string with literal model number rather than reproducing the IDN from parsed model numbers
+
 ## [0.21.5]
 
 ### Fixed
