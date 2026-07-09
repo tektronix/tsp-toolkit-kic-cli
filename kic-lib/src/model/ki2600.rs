@@ -8,10 +8,12 @@ use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{error, trace};
 
+#[cfg(not(test))]
+use crate::instrument::clear_output_queue;
 use crate::{
     instrument::{
-        self, authenticate::Authentication, clear_output_queue, info::InstrumentInfo, language,
-        Abort, Info, Login, Reset, Script,
+        self, authenticate::Authentication, info::InstrumentInfo, language, Abort, Info, Login,
+        Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
