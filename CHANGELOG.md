@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - TLS communication over raw sockets are now supported by default
+- Add support for forthcoming 2601C-PULSE and 2605C-PULSE
 
 ## [0.21.5]
 
