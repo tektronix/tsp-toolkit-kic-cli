@@ -21,6 +21,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 - TLS communication over raw sockets are now supported by default
 
+### Fixed
+- Normalize CLI arguments for Terminate to match the rest of the CLI args
+
 ## [0.21.5]
 
 ### Fixed
