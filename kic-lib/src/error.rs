@@ -146,6 +146,9 @@ pub enum InstrumentError {
     #[error("authentication failure: {0}")]
     AuthenticationFailure(String),
 
+    #[error("TLS connection error: {0}")]
+    TlsError(#[from] rustls::Error),
+
     /// An uncategorized error.
     #[error("{0}")]
     Other(String),

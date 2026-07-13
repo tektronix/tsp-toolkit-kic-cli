@@ -417,7 +417,7 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving output of script '{}' to {}",
                                             file.display(),
                                             save.as_ref().map_or_else(
@@ -466,10 +466,10 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving contents of buffer(s) {} to {}",
                                             names.join(","),
-                                            &save.as_ref().map_or_else(
+                                            save.as_ref().map_or_else(
                                                 || "UNABLE TO GET OUTPUT".to_string(),
                                                 |d| d.output.display().to_string()
                                             ),
