@@ -20,6 +20,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - TLS communication over raw sockets are now supported by default
+- Add support for forthcoming 2601C-PULSE and 2605C-PULSE
+
+### Fixed
+- Cache IDN string with literal model number rather than reproducing the IDN from parsed model numbers
 
 ### Fixed
 - Normalize CLI arguments for Terminate to match the rest of the CLI args

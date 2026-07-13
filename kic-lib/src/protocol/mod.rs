@@ -170,6 +170,8 @@ impl Protocol {
     fn try_tls_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
         trace!("Trying TLS connection");
         let mut sock = TcpStream::connect(addr)?;
+        sock.set_write_timeout(Some(Duration::from_millis(1000)))?;
+        sock.set_read_timeout(Some(Duration::from_millis(1000)))?;
 
         let config = rustls::ClientConfig::builder()
             .dangerous()
@@ -185,8 +187,6 @@ impl Protocol {
         trace!("comp_read: {comp_read}, comp_write: {comp_write}");
 
         sock.set_nonblocking(true)?;
-        sock.set_write_timeout(Some(Duration::from_millis(1000)))?;
-        sock.set_read_timeout(Some(Duration::from_millis(1000)))?;
         Ok(Self::Raw(Raw::new(rustls::StreamOwned::new(conn, sock))))
     }
 

@@ -157,6 +157,7 @@ impl ConnectionInfo {
             } => {
                 trace!("deriving information from USB resource string");
                 return Ok(InstrumentInfo {
+                    orig_idn: format!("{vendor},MODEL {model},{serial},UNKNOWN"),
                     vendor: vendor.clone(),
                     model: model.clone(),
                     serial_number: serial.clone(),

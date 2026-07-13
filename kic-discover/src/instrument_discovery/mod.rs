@@ -42,17 +42,25 @@ impl InstrumentDiscovery {
 
 impl From<LxiDeviceInfo> for InstrumentInfo {
     fn from(lxi_info: LxiDeviceInfo) -> Self {
+        let vendor = lxi_info
+            .manufacturer
+            .parse::<Vendor>()
+            .expect("should have parsed manufacturer");
+        let model = lxi_info
+            .model
+            .parse::<Model>()
+            .expect("should have parsed model");
+        let serial_number = lxi_info.serial_number;
+        let firmware_rev = Some(lxi_info.firmware_revision);
         Self {
-            vendor: lxi_info
-                .manufacturer
-                .parse::<Vendor>()
-                .expect("should have parsed manufacturer"),
-            model: lxi_info
-                .model
-                .parse::<Model>()
-                .expect("should have parsed model"),
-            serial_number: lxi_info.serial_number,
-            firmware_rev: Some(lxi_info.firmware_revision),
+            orig_idn: format!(
+                "{vendor},MODEL {model},{serial_number},{}",
+                firmware_rev.clone().unwrap_or("UNKNOWN".to_string())
+            ),
+            vendor,
+            model,
+            serial_number,
+            firmware_rev,
         }
     }
 }

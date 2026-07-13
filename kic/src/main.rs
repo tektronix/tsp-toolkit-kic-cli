@@ -1096,7 +1096,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
                 let buf = &buf[..first_null];
                 let buf = String::from_utf8_lossy(buf);
                 if !buf.is_empty() {
-                    accumulate = format!("{accumulate}{}", &buf);
+                    accumulate = format!("{accumulate}{}", buf);
                 }
                 let buf = buf
                     .split("TSP>")
