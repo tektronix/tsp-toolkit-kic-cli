@@ -1,10 +1,7 @@
 use anyhow::Context;
 use async_std::{path::PathBuf, task::sleep};
-use jsonrpsee::{
-    server::{Server, ServerHandle},
-    RpcModule,
-};
 use kic_discover_visa::instrument_discovery::InstrumentDiscovery;
+use kic_discover_visa::DiscoveredPrinter;
 use kic_lib::instrument::info::InstrumentInfo;
 use tracing::{error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
@@ -19,8 +16,6 @@ use std::{
 };
 
 use clap::{command, Args, Command, FromArgMatches, Parser, Subcommand};
-
-use kic_discover_visa::DISC_INSTRUMENTS;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -234,101 +229,45 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
 
     eprintln!("Tektronix Instrument Discovery");
-    let close_handle = init_rpc()
-        .await
-        .context("Unable to start JSON RPC server")?;
 
     let is_exit_timer = require_exit_timer(&sub);
 
-    let instruments = match &sub {
+    let (printer, tx) = DiscoveredPrinter::start();
+
+    match &sub {
         SubCli::Lan(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let lan_instruments = match discover_lan(args.clone()).await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in LAN discovery: {e}");
-                    return Err(e);
-                }
-            };
+            discover_lan(args.clone(), tx.clone()).await?;
             info!("LAN Discovery complete");
-            trace!("Discovered {} LAN instruments", lan_instruments.len());
-            println!("Discovered {} LAN instruments", lan_instruments.len());
-            trace!("Discovered instruments: {lan_instruments:?}");
-            lan_instruments
         }
         SubCli::Visa(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
             info!("Discovering VISA instruments");
             #[allow(clippy::mutable_key_type)]
-            let visa_instruments = match discover_visa(args.clone()).await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in VISA discovery: {e}");
-                    return Err(e);
-                }
-            };
+            discover_visa(args.clone(), tx.clone()).await?;
             info!("VISA Discovery complete");
-            trace!("Discovered {} VISA instruments", visa_instruments.len());
-            trace!("Discovered instruments: {visa_instruments:?}");
-            visa_instruments
         }
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
 
             info!("Discovering VISA instruments");
             #[allow(clippy::mutable_key_type)]
-            let visa_instruments = match discover_visa(args.clone()).await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in VISA discovery: {e}");
-                    return Err(e);
-                }
-            };
+            discover_visa(args.clone(), tx.clone()).await?;
             info!("VISA Discovery complete");
-            trace!("Discovered {} VISA instruments", visa_instruments.len());
-            println!("Discovered {} VISA instruments", visa_instruments.len());
-            trace!("Discovered VISA instruments: {visa_instruments:?}");
 
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
-            let mut lan_instruments = match discover_lan(args.clone()).await {
-                Ok(i) => i,
-                Err(e) => {
-                    error!("Error in LAN discovery: {e}");
-                    return Err(e);
-                }
-            };
+            discover_lan(args.clone(), tx.clone()).await?;
             info!("LAN Discovery complete");
-            trace!("Discovered {} LAN instruments", lan_instruments.len());
-            println!("Discovered {} LAN instruments", lan_instruments.len());
-            trace!("Discovered LAN instruments: {lan_instruments:?}");
-
-            lan_instruments.extend(visa_instruments);
-            lan_instruments
         }
     };
 
-    for i in instruments {
-        println!(
-            "{}",
-            match sub {
-                SubCli::Lan(ref args) | SubCli::Visa(ref args) | SubCli::All(ref args) => {
-                    if args.json {
-                        serde_json::to_string(&i)?
-                    } else {
-                        i.to_string()
-                    }
-                }
-            }
-        );
-    }
-
     if is_exit_timer {
         sleep(Duration::from_secs(5)).await;
+        printer.stop().await;
     }
-    close_handle.stop()?;
 
     info!("Discovery complete");
 
@@ -344,43 +283,24 @@ const fn require_exit_timer(sub: &SubCli) -> bool {
     false
 }
 
-async fn init_rpc() -> anyhow::Result<ServerHandle> {
-    let server = Server::builder().build("127.0.0.1:3030").await?;
-
-    let mut module = RpcModule::new(());
-    module.register_method("get_instr_list", |_, ()| {
-        let mut new_out_str = String::new();
-
-        if let Ok(db) = DISC_INSTRUMENTS.lock() {
-            db.iter()
-                .for_each(|item| new_out_str = format!("{new_out_str}{item}\n"));
-        };
-
-        #[cfg(debug_assertions)]
-        eprintln!("newoutstr = {new_out_str}");
-
-        serde_json::Value::String(new_out_str)
-    })?;
-
-    let handle = server.start(module);
-
-    tokio::spawn(handle.clone().stopped());
-
-    Ok(handle)
-}
-
-async fn discover_lan(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
+async fn discover_lan(
+    args: DiscoverCmd,
+    tx: std::sync::mpsc::Sender<String>,
+) -> anyhow::Result<()> {
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.lan_discover().await?;
+    discover_instance.lan_discover(tx.clone()).await?;
 
-    Ok(instruments)
+    Ok(())
 }
 
-async fn discover_visa(args: DiscoverCmd) -> anyhow::Result<HashSet<InstrumentInfo>> {
+async fn discover_visa(
+    args: DiscoverCmd,
+    tx: std::sync::mpsc::Sender<String>,
+) -> anyhow::Result<()> {
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
-    let instruments = discover_instance.visa_discover().await?;
+    discover_instance.visa_discover(tx.clone()).await?;
 
-    Ok(instruments)
+    Ok(())
 }

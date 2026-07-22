@@ -42,25 +42,16 @@ impl InstrumentDiscovery {
     ///
     /// # Errors
     /// If [`LxiDeviceInfo::discover`] fails, an error will be returned
-    pub async fn lan_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
-        let mut discovery_results: HashSet<InstrumentInfo> = HashSet::new();
-
-        match LxiDeviceInfo::discover(self.timeout).await {
-            Ok(instrs) => {
-                for inst in instrs {
-                    discovery_results.insert(inst.into());
-                }
-            }
-            Err(e) => {
-                eprintln!("Unable to discover LXI devices: {e}"); //TODO add color
-                return Err(e);
-            }
-        };
-        Ok(discovery_results)
+    pub async fn lan_discover(&self, tx: std::sync::mpsc::Sender<String>) -> anyhow::Result<()> {
+        LxiDeviceInfo::discover(self.timeout, tx).await?;
+        Ok(())
     }
 
-    pub async fn visa_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
-        visa_discover(self.timeout).await
+    pub async fn visa_discover(
+        &self,
+        tx: std::sync::mpsc::Sender<String>,
+    ) -> anyhow::Result<HashSet<InstrumentInfo>> {
+        visa_discover(self.timeout, tx.clone()).await
     }
 }
 
