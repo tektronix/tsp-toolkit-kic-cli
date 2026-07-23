@@ -4,6 +4,7 @@ use kic_lib::instrument::info::InstrumentInfo;
 use kic_lib::model::{Model, Vendor};
 
 use crate::ethernet::LxiDeviceInfo;
+use crate::visa::visa_discover;
 
 #[derive(Debug)]
 pub struct InstrumentDiscovery {
@@ -18,25 +19,39 @@ impl InstrumentDiscovery {
         }
     }
 
+    // pub async fn discover<T>(&self) -> anyhow::Result<HashSet<DiscoveryInfo>>
+    // where
+    //     T: Discover,
+    // {
+    //     let mut discovery_results: HashSet<DiscoveryInfo> = HashSet::new();
+    //     match T::discover(self.timeout).await {
+    //         Ok(instrs) => {
+    //             for inst in instrs {
+    //                 discovery_results.insert(inst);
+    //             }
+    //         }
+    //         Err(e) => {
+    //             eprintln!("Unable to discover LXI devices: {e}"); //TODO add color
+    //             return Err(e);
+    //         }
+    //     };
+    //     Ok(discovery_results)
+    // }
+
     /// Discover instruments on the network.
     ///
     /// # Errors
     /// If [`LxiDeviceInfo::discover`] fails, an error will be returned
-    pub async fn lan_discover(&self) -> anyhow::Result<HashSet<InstrumentInfo>> {
-        let mut discovery_results: HashSet<InstrumentInfo> = HashSet::new();
+    pub async fn lan_discover(&self, tx: std::sync::mpsc::Sender<String>) -> anyhow::Result<()> {
+        LxiDeviceInfo::discover(self.timeout, tx).await?;
+        Ok(())
+    }
 
-        match LxiDeviceInfo::discover(self.timeout).await {
-            Ok(instrs) => {
-                for inst in instrs {
-                    discovery_results.insert(inst.into());
-                }
-            }
-            Err(e) => {
-                eprintln!("Unable to discover LXI devices: {e}"); //TODO add color
-                return Err(e);
-            }
-        };
-        Ok(discovery_results)
+    pub async fn visa_discover(
+        &self,
+        tx: std::sync::mpsc::Sender<String>,
+    ) -> anyhow::Result<HashSet<InstrumentInfo>> {
+        visa_discover(self.timeout, tx.clone()).await
     }
 }
 

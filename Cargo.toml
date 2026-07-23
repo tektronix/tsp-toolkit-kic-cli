@@ -4,7 +4,6 @@ members = [
     "kic-debug",
     "kic-debug-visa",
     "kic-discover",
-    "kic-discover-visa",
     "instrument-repl",
     "kic-lib",
 ]

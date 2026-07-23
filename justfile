@@ -206,7 +206,9 @@ build-kic-discover triple=native-triple release="":
 
 [private]
 build-kic-discover-visa triple=native-triple release="":
-    cargo build -p kic-discover-visa --target {{ triple }} {{ release }}
+    -rm target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover-visa{{ exe-extension }}
+    cargo build -p kic-discover -F visa --target {{ triple }} {{ release }}
+    mv target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover{{ exe-extension }} target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover-visa{{ exe-extension }}
 
 ################################################################################
 # BUILD-RELEASE ################################################################

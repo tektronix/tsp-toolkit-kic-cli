@@ -1784,34 +1784,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "kic-discover-visa"
-version = "0.22.0"
-dependencies = [
- "anyhow",
- "async-std",
- "async-trait",
- "clap",
- "colored",
- "futures",
- "futures-util",
- "jsonrpsee",
- "kic-lib",
- "lazy_static",
- "local-ip-address",
- "mdns",
- "minidom",
- "reqwest",
- "rpassword",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
  "visa-rs",
 ]
 
