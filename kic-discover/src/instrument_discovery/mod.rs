@@ -4,6 +4,8 @@ use kic_lib::instrument::info::InstrumentInfo;
 use kic_lib::model::{Model, Vendor};
 
 use crate::ethernet::LxiDeviceInfo;
+
+#[cfg(feature = "visa")]
 use crate::visa::visa_discover;
 
 #[derive(Debug)]
@@ -47,6 +49,7 @@ impl InstrumentDiscovery {
         Ok(())
     }
 
+    #[cfg(feature = "visa")]
     pub async fn visa_discover(
         &self,
         tx: std::sync::mpsc::Sender<String>,
