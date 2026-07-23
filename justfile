@@ -31,7 +31,7 @@ default triple=native-triple:
     @just --list
 
 # Prepare for a PR by initializing, formatting, linting, building, testing, and packaging the project
-pr triple=native-triple: init fmt lint (build triple) test (package triple)
+pr triple=native-triple: init fmt lint (build triple) test (package triple) sbom
 
 # Initialize all tooling
 init: init-rust init-root
@@ -121,7 +121,6 @@ clean-sbom:
     -rm kic-debug/*.cdx.*
     -rm kic-debug-visa/*.cdx.*
     -rm kic-discover/*.cdx.*
-    -rm kic-discover-visa/*.cdx.*
     -rm kic-lib/*.cdx.*
 
 # Clean up Rust files
@@ -268,7 +267,6 @@ sbom-rust:
     mv kic-debug/*.cdx.json {{ env("SBOM_DIR", "sbom") }}
     mv kic-debug-visa/*.cdx.json {{ env("SBOM_DIR", "sbom") }}
     mv kic-discover/*.cdx.json {{ env("SBOM_DIR", "sbom") }}
-    mv kic-discover-visa/*.cdx.json {{ env("SBOM_DIR", "sbom") }}
     mv kic-lib/*.cdx.json {{ env("SBOM_DIR", "sbom") }}
 
 ################################################################################
