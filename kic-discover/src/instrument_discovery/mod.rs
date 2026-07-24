@@ -1,3 +1,5 @@
+#[cfg(feature = "visa")]
+use std::collections::HashSet;
 use std::time::Duration;
 
 use kic_lib::instrument::info::InstrumentInfo;
