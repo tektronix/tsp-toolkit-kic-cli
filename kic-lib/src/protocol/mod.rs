@@ -20,11 +20,7 @@ use crate::{InstrumentError, Interface};
 #[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
-use rustls::{
-    crypto::{aws_lc_rs, verify_tls12_signature, verify_tls13_signature, CryptoProvider},
-    server::VerifierBuilderError,
-    RootCertStore,
-};
+use rustls::crypto::{aws_lc_rs, verify_tls12_signature, verify_tls13_signature, CryptoProvider};
 #[allow(unused_imports)] // warn is only used in 'visa' feature
 use tracing::{debug, error, trace, warn};
 
@@ -354,7 +350,7 @@ impl Write for Protocol {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        use std::io::{Error, ErrorKind, Write};
+        use std::io::{Error, ErrorKind};
         use std::time::Duration;
 
         let mut start: usize = 0;

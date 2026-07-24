@@ -7,8 +7,8 @@ use minidom::Element;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
-use std::{collections::HashSet, time::Duration};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use std::time::Duration;
+use tracing::debug;
 
 use crate::{model_category, IoType};
 
@@ -111,7 +111,10 @@ impl LxiDeviceInfo {
                     port_split[port_split.len().saturating_sub(1)].to_string()
                 };
 
-                if manufacturer.to_ascii_lowercase().contains("keithley") && is_supported(&model) {
+                if (manufacturer.to_ascii_lowercase().contains("keithley")
+                    || manufacturer.to_ascii_lowercase().contains("tektronix"))
+                    && is_supported(&model)
+                {
                     let device = Self {
                         io_type: IoType::Lan,
                         instr_address: instr_addr,
@@ -158,14 +161,12 @@ impl LxiDeviceInfo {
             Err(e) => return Err(Box::new(e).into()),
         };
 
-        'interface_loop: for (name, ip) in interfaces {
-            for service_name in SERVICE_NAMES {
-                #[cfg(debug_assertions)]
-                eprintln!("Looking for {service_name} on {name} ({ip})");
-                if let IpAddr::V4(ip) = ip {
+        for (name, ip) in interfaces {
+            if let IpAddr::V4(ip) = ip {
+                for service_name in SERVICE_NAMES {
+                    #[cfg(debug_assertions)]
+                    debug!("Looking for {service_name} on {name} ({ip})");
                     discover_futures.push(Self::discover_devices(service_name, ip, tx.clone()));
-                } else {
-                    continue 'interface_loop;
                 }
             }
         }

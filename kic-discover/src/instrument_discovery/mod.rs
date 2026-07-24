@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use kic_lib::instrument::info::InstrumentInfo;
 use kic_lib::model::{Model, Vendor};
@@ -20,25 +20,6 @@ impl InstrumentDiscovery {
             timeout: Some(timeout),
         }
     }
-
-    // pub async fn discover<T>(&self) -> anyhow::Result<HashSet<DiscoveryInfo>>
-    // where
-    //     T: Discover,
-    // {
-    //     let mut discovery_results: HashSet<DiscoveryInfo> = HashSet::new();
-    //     match T::discover(self.timeout).await {
-    //         Ok(instrs) => {
-    //             for inst in instrs {
-    //                 discovery_results.insert(inst);
-    //             }
-    //         }
-    //         Err(e) => {
-    //             eprintln!("Unable to discover LXI devices: {e}"); //TODO add color
-    //             return Err(e);
-    //         }
-    //     };
-    //     Ok(discovery_results)
-    // }
 
     /// Discover instruments on the network.
     ///

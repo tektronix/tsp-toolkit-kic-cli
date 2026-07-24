@@ -1,4 +1,4 @@
-use std::{hash::Hash, sync::mpsc::TryRecvError, thread::JoinHandle};
+use std::{hash::Hash, sync::mpsc::TryRecvError};
 
 use kic_lib::{ki2600, model::ki3700, tti, versatest};
 
@@ -11,7 +11,6 @@ pub mod visa;
 /// A utility struct that, after initialized
 pub struct DiscoveredPrinter {
     cancel_tx: std::sync::mpsc::Sender<()>,
-    jh: Option<JoinHandle<()>>,
 }
 
 impl DiscoveredPrinter {
@@ -20,7 +19,7 @@ impl DiscoveredPrinter {
     pub fn start() -> (DiscoveredPrinter, std::sync::mpsc::Sender<String>) {
         let (tx, rx) = std::sync::mpsc::channel::<String>();
         let (cancel_tx, cancel_rx) = std::sync::mpsc::channel::<()>();
-        let jh = std::thread::spawn(move || loop {
+        let _jh = std::thread::spawn(move || loop {
             if cancel_rx.try_recv().is_ok() {
                 return;
             }
@@ -32,13 +31,7 @@ impl DiscoveredPrinter {
             }
         });
 
-        (
-            Self {
-                jh: Some(jh),
-                cancel_tx,
-            },
-            tx,
-        )
+        (Self { cancel_tx }, tx)
     }
 
     pub async fn stop(&self) {

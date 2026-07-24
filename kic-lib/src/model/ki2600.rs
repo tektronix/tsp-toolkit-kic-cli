@@ -858,7 +858,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_run() {
+    fn _write_script_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();
 
@@ -1038,7 +1038,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_save_run() {
+    fn _write_script_save_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();
         interface
