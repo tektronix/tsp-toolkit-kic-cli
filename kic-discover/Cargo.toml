@@ -8,6 +8,9 @@ repository = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+visa = ["kic-lib/visa", "dep:visa-rs"]
+
 [dependencies]
 anyhow = { workspace = true }
 async-std = "1.12.0"
@@ -30,5 +33,5 @@ tokio = { version = "1.36.0", features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 kic-lib = { workspace = true, features = [] }
-windows-sys = { workspace = true }
+visa-rs = { version = "0.6.2", optional = true }
 

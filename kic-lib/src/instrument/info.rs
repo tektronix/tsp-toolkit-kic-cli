@@ -16,6 +16,7 @@ use std::{
 #[allow(clippy::module_name_repetitions)]
 #[derive(serde::Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct InstrumentInfo {
+    pub orig_idn: String,
     /// The human-readable name of the vendor that makes the instrument
     pub vendor: Vendor,
     /// The model of the instrument
@@ -130,6 +131,7 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                     };
 
                     return Ok(Self {
+                        orig_idn: String::from_utf8_lossy(line).to_string(),
                         vendor: vendor.parse::<Vendor>()?,
                         model: model.parse::<Model>()?,
                         serial_number,
@@ -181,6 +183,10 @@ impl TryFrom<&String> for InstrumentInfo {
         let firmware_rev = Some(parse_xml_info_field(&xml, "FirmwareRevision")?);
 
         Ok(Self {
+            orig_idn: format!(
+                "{vendor},MODEL {model},{serial_number},{}",
+                firmware_rev.clone().unwrap_or("UNKNOWN".to_string())
+            ),
             vendor,
             model,
             serial_number,
@@ -193,18 +199,7 @@ impl TryFrom<&String> for InstrumentInfo {
 
 impl Display for InstrumentInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let vendor = self.vendor.to_string();
-
-        let model: String = self.model.to_string();
-
-        let sn: String = self.serial_number.to_string();
-
-        let fw_rev = self
-            .firmware_rev
-            .clone()
-            .unwrap_or_else(|| String::from("<UNKNOWN FIRMWARE REVISION>"));
-
-        write!(f, "{vendor},MODEL {model},{sn},{fw_rev}")
+        write!(f, "{}", self.orig_idn)
     }
 }
 
@@ -220,6 +215,7 @@ mod unit {
 KEITHLEY INSTRUMENTS,MODEL 2461,04331961,1.7.12b
 TSP>";
         let expected = InstrumentInfo {
+            orig_idn: "KEITHLEY INSTRUMENTS,MODEL 2461,04331961,1.7.12b".to_string(),
             vendor: Vendor::Keithley,
             model: Model::_2461,
             serial_number: "04331961".to_string(),
