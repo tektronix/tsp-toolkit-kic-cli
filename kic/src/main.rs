@@ -12,8 +12,7 @@ use crate::error::KicError;
 use crate::process::Process;
 use anyhow::Context;
 use clap::{
-    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Args,
-    Command, Subcommand,
+    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Command,
 };
 use colored::Colorize;
 use instrument_repl::repl::{self};

@@ -492,7 +492,11 @@ impl Repl {
                                 }
                             }
                         }
-                        Request::Script { file, save, run } => {
+                        Request::Script {
+                            file,
+                            save: _,
+                            run: _,
+                        } => {
                             (prompt, command_written) =
                                 match self.handle_script_request(&file, false, true) {
                                     Ok((prompt, command_written)) => (prompt, command_written),
