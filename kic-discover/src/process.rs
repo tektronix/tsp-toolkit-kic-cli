@@ -1,4 +1,3 @@
-
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -80,4 +79,3 @@ mod imp {
         Err(command.exec().into()) // Exec replaces the current application's program memory, therefore execution will
     }
 }
-

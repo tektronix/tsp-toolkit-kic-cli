@@ -229,6 +229,7 @@ async fn main() -> anyhow::Result<()> {
 
             if let Some(kv) = kic_discover_visa_exe {
                 if kv.exists() {
+                    use anyhow::Context;
                     use kic_discover::process::Process;
 
                     Process::new(kv.clone(), std::env::args().skip(1))
