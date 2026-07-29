@@ -165,7 +165,7 @@ impl Protocol {
     #[tracing::instrument]
     fn try_tls_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
         trace!("Trying TLS connection");
-        let mut sock = TcpStream::connect(addr)?;
+        let mut sock = TcpStream::connect_timeout(addr, Duration::from_millis(500))?;
         sock.set_write_timeout(Some(Duration::from_millis(1000)))?;
         sock.set_read_timeout(Some(Duration::from_millis(1000)))?;
 
