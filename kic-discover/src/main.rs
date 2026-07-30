@@ -207,6 +207,42 @@ fn start_logger(
 #[tokio::main]
 #[instrument]
 async fn main() -> anyhow::Result<()> {
+    // automatically call into kic-discover-visa if visa is installed and kic-discover-visa exists
+    // This only needs to happen if this is NOT the VISA version.
+    #[cfg(not(feature = "visa"))]
+    {
+        let parent_dir: Option<std::path::PathBuf> = std::env::current_exe().map_or(None, |path| {
+            path.canonicalize()
+                .expect("should have canonicalized path")
+                .parent()
+                .map(std::convert::Into::into)
+        });
+
+        if kic_lib::is_visa_installed() {
+            #[cfg(target_os = "windows")]
+            let kic_discover_visa_exe: Option<std::path::PathBuf> =
+                parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
+
+            #[cfg(target_family = "unix")]
+            let kic_discover_visa_exe: Option<std::path::PathBuf> =
+                parent_dir.clone().map(|d| d.join("kic-discover-visa"));
+
+            if let Some(kv) = kic_discover_visa_exe {
+                if kv.exists() {
+                    use anyhow::Context;
+                    use kic_discover::process::Process;
+
+                    Process::new(kv.clone(), std::env::args().skip(1))
+                        .exec_replace()
+                        .context(format!(
+                            "{} should have been launched because VISA was detected",
+                            kv.display(),
+                        ))?;
+                    return Ok(());
+                }
+            }
+        }
+    }
     let cmd = command!()
         .propagate_version(true)
         .subcommand_required(true)

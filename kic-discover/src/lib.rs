@@ -5,6 +5,9 @@ use kic_lib::{ki2600, model::ki3700, tti, versatest};
 pub mod ethernet;
 pub mod instrument_discovery;
 
+#[cfg(not(feature = "visa"))]
+pub mod process;
+
 #[cfg(feature = "visa")]
 pub mod visa;
 
