@@ -53,7 +53,11 @@ pub async fn visa_discover(
                 continue;
             };
 
-            if i.to_string().contains("PXI")
+            // Tektronix instruments currently only support HiSLIP/VXI-11 (TCPIP), GPIB, and USBTMC (USB) connections
+            // KIC lacks support for TCPIP::*::SOCKET and *::INTFC connections
+            if !(i.to_string().contains("TCPIP")
+                || i.to_string().contains("GPIB")
+                || i.to_string().contains("USB"))
                 || i.to_string().contains("SOCKET")
                 || i.to_string().contains("INTFC")
             {
