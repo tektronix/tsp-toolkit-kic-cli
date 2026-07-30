@@ -64,7 +64,9 @@ pub async fn visa_discover(
                 continue;
             }
 
-            let info = i.to_string().parse::<ConnectionInfo>()?;
+            let Ok(info) = i.to_string().parse::<ConnectionInfo>() else {
+                continue;
+            };
             // Since we are using reqwest::blocking::Client, we need to using
             // tokio::task::spawn_blocking (see
             // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
