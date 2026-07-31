@@ -6,7 +6,7 @@ use std::{
 use bytes::Buf;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use tracing::{self, debug, error, trace};
+use tracing::{self, error, trace};
 
 use crate::{
     instrument::{
@@ -1057,7 +1057,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_run() {
+    fn _write_script_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
             (*b"*RST\n").into(),
@@ -1166,7 +1166,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_save_run() {
+    fn _write_script_save_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
             (*b"*RST\n").into(),

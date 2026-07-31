@@ -36,7 +36,7 @@ fn find_first_of(input: &[u8], search: &[Vec<u8>]) -> Option<usize> {
         let temp = input
             .windows(i.len())
             .position(|w| w == i)
-            .map_or(lowest_pos, |x| x);
+            .unwrap_or(lowest_pos);
         if temp < lowest_pos {
             lowest_pos = temp;
         }
