@@ -55,16 +55,15 @@ pub async fn visa_discover(
 
             // Tektronix instruments currently only support HiSLIP/VXI-11 (TCPIP), GPIB, and USBTMC (USB) connections
             // KIC lacks support for TCPIP::*::SOCKET and *::INTFC connections
-            if !(i.to_string().contains("TCPIP")
-                || i.to_string().contains("GPIB")
-                || i.to_string().contains("USB"))
-                || i.to_string().contains("SOCKET")
-                || i.to_string().contains("INTFC")
+            let s = i.to_string();
+            if !(s.contains("TCPIP") || s.contains("GPIB") || s.contains("USB"))
+                || s.contains("SOCKET")
+                || s.contains("INTFC")
             {
                 continue;
             }
 
-            let Ok(info) = i.to_string().parse::<ConnectionInfo>() else {
+            let Ok(info) = s.parse::<ConnectionInfo>() else {
                 continue;
             };
             // Since we are using reqwest::blocking::Client, we need to using
