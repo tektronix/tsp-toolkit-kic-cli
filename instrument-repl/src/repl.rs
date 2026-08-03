@@ -524,7 +524,7 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
-                        Request::Upgrade { file, slot } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
                             if contents.is_empty() {
@@ -571,7 +571,7 @@ impl Repl {
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
-                                            &"Module upgrade complete.".bright_yellow(),
+                                            &"Module update complete.".bright_yellow(),
                                         )?;
                                     } else {
                                         Self::println_flush(
@@ -584,7 +584,7 @@ impl Repl {
                                         }
                                     }
                                 }
-                                Err(InstrumentError::FwUpgradeFailure(msg)) => {
+                                Err(InstrumentError::FwUpdateFailure(msg)) => {
                                     error!("{msg}");
                                     Self::println_flush(&msg.red())?;
                                 }
@@ -872,7 +872,7 @@ impl Repl {
                 )
         )
         .subcommand(
-            Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
+            Command::new(".update").about("Update the firmware on the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
@@ -1213,9 +1213,9 @@ impl Repl {
                     Request::TspLinkNodes { json_file }
                 }
             },
-            Some((".upgrade", flags)) => match flags.get_one::<bool>("help") {
+            Some((".update", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
-                    sub_cmd: Some(".upgrade".to_string()),
+                    sub_cmd: Some(".update".to_string()),
                 },
                 _ => {
                     let Some(file) = flags.get_one::<String>("path") else {
@@ -1237,7 +1237,7 @@ impl Repl {
                     }
 
                     let slot = flags.get_one::<u16>("slot").copied();
-                    Request::Upgrade { file, slot }
+                    Request::Update { file, slot }
                 }
             },
             _ => Request::Tsp(input.trim().to_string()),

@@ -203,8 +203,8 @@ fn cmds() -> Command {
             ])
         })
         .subcommand({
-            let cmd = Command::new("upgrade")
-                .about("Upgrade the firmware of an instrument or module.");
+            let cmd = Command::new("update")
+                .about("Update the firmware of an instrument or module.");
 
             add_connection_subcommands(cmd, [
                     Arg::new("file")
@@ -444,8 +444,8 @@ fn main() -> anyhow::Result<()> {
         Some(("dump", sub_matches)) => {
             return dump(sub_matches);
         }
-        Some(("upgrade", sub_matches)) => {
-            return upgrade(sub_matches);
+        Some(("update", sub_matches)) => {
+            return update(sub_matches);
         }
         Some(("terminate", sub_matches)) => {
             return terminate(sub_matches);
@@ -888,7 +888,7 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 #[instrument(skip(args))]
-fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
+fn update(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Upgrading instrument");
     trace!("args: {args:?}");
     eprintln!("\nTektronix TSP Shell\n");
@@ -965,7 +965,7 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     }
     eprintln!("Flashing instrument firmware completed. Instrument will restart.");
-    info!("Instrument upgrade complete");
+    info!("Instrument update complete");
     Ok(())
 }
 

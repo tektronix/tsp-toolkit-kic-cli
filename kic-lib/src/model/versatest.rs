@@ -190,15 +190,15 @@ impl Flash for Instrument {
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
             is_module = true;
-            trace!("Module upgrade requested: slot_number = {}", slot_number);
+            trace!("Module update requested: slot_number = {}", slot_number);
             // Upgrading Module
             println!(
                 "{}",
-                "Sending firmware file to mainframe. Please wait for module upgrade to complete (up to 5 minutes)..."
+                "Sending firmware file to mainframe. Please wait for module update to complete (up to 5 minutes)..."
                     .bright_yellow()
             );
         } else {
-            trace!("Mainframe upgrade requested");
+            trace!("Mainframe update requested");
             println!(
                 "{}",
                 "Sending firmware file to mainframe. Please wait...".bright_yellow()
@@ -221,20 +221,20 @@ impl Flash for Instrument {
                 }
                 Ok(s) if s.contains(NOT_EXISTS) => {
                     trace!("Slot {} does not exist or is not populated", slot_number);
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        format!("Unable to upgrade module: ensure slot[{slot_number}] is populated and turned on")
+                    return Err(InstrumentError::FwUpdateFailure(
+                        format!("Unable to update module: ensure slot[{slot_number}] is populated and turned on")
                     ));
                 }
                 Ok(s) => {
                     trace!("Unexpected response when checking slot: {s}");
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        "Upgrade status unknown: did not receive expected response".to_string(),
+                    return Err(InstrumentError::FwUpdateFailure(
+                        "Update status unknown: did not receive expected response".to_string(),
                     ));
                 }
                 Err(InstrumentError::Other(s)) if s == String::default() => {
                     trace!("Error: did not read back expected string when checking slot");
-                    return Err(InstrumentError::FwUpgradeFailure(
-                        "Upgrade status unknown: unable to read slot existance due to error: did not read back expected string".to_string(),
+                    return Err(InstrumentError::FwUpdateFailure(
+                        "Update status unknown: unable to read slot existance due to error: did not read back expected string".to_string(),
                     ));
                 }
                 Err(e) => {
@@ -329,7 +329,7 @@ impl Flash for Instrument {
             }
             Err(InstrumentError::Other(_)) => {
                 trace!("Timeout: Writing image took longer than 20 minutes");
-                return Err(InstrumentError::FwUpgradeFailure(
+                return Err(InstrumentError::FwUpdateFailure(
                     "Writing image took longer than 20 minutes. Check your connection and try again."
                         .to_string(),
                 ));
@@ -356,20 +356,20 @@ impl Flash for Instrument {
             }
             Ok(s) if s == FW_NOT_VALID => {
                 trace!("Firmware was invalid");
-                return Err(InstrumentError::FwUpgradeFailure(
-                    "Unable to upgrade mainframe: Firmware was invalid".to_string(),
+                return Err(InstrumentError::FwUpdateFailure(
+                    "Unable to update mainframe: Firmware was invalid".to_string(),
                 ));
             }
             Ok(_) => {
                 trace!("Firmware validity superposition detected! 😱");
-                return Err(InstrumentError::FwUpgradeFailure(
-                    "Upgrade status unknown: unable to read firmware validity".to_string(),
+                return Err(InstrumentError::FwUpdateFailure(
+                    "Update status unknown: unable to read firmware validity".to_string(),
                 ));
             }
             Err(InstrumentError::Other(s)) if s == String::default() => {
                 trace!("Did not read back expected string for firmware validity");
-                return Err(InstrumentError::FwUpgradeFailure(
-                    "Upgrade status unknown: unable to read firmware validity".to_string(),
+                return Err(InstrumentError::FwUpdateFailure(
+                    "Update status unknown: unable to read firmware validity".to_string(),
                 ));
             }
             Err(e) => {
@@ -381,7 +381,7 @@ impl Flash for Instrument {
         if is_module {
             if let Some(pb) = &spinner {
                 pb.set_message(
-                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                    "Firmware file transferred successfully. Update running on instrument.",
                 );
             }
             trace!("Starting module firmware update for slot[{}]", slot_number);
@@ -395,7 +395,7 @@ impl Flash for Instrument {
                 }
                 Err(InstrumentError::Other(_)) => {
                     trace!("Timeout: Upgrading module firmware took longer than 5 minutes");
-                    return Err(InstrumentError::FwUpgradeFailure(
+                    return Err(InstrumentError::FwUpdateFailure(
                         "Upgrading module firmware took longer than 10 minutes. Check your hardware and try again."
                             .to_string(),
                     ));
@@ -406,7 +406,7 @@ impl Flash for Instrument {
                 }
             }
             if let Some(pb) = spinner {
-                pb.finish_with_message("Module firmware upgrade complete.");
+                pb.finish_with_message("Module firmware update complete.");
             }
         } else {
             //Update Mainframe
@@ -415,7 +415,7 @@ impl Flash for Instrument {
             self.write_all(b"firmware.update()\n")?;
             if let Some(pb) = spinner {
                 pb.finish_with_message(
-                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                    "Firmware file transferred successfully. Update running on instrument.",
                 );
             }
         }

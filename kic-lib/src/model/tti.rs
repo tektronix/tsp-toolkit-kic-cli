@@ -212,7 +212,7 @@ impl Flash for Instrument {
         let mut image = image.reader();
 
         self.write_all(b"localnode.prompts=localnode.DISABLE\n")?;
-        self.write_all(b"if ki.upgrade ~= nil and ki.upgrade.noacklater ~= nil then ki.upgrade.noacklater() end\n")?;
+        self.write_all(b"if ki.update ~= nil and ki.update.noacklater ~= nil then ki.update.noacklater() end\n")?;
         self.write_all(b"prevflash\n")?;
 
         self.write_all(image.fill_buf().unwrap())?;
@@ -225,10 +225,10 @@ impl Flash for Instrument {
 
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
 
@@ -1244,7 +1244,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"if ki.upgrade ~= nil and ki.upgrade.noacklater ~= nil then ki.upgrade.noacklater() end\n")
+            .withf(|buf: &[u8]| buf == b"if ki.update ~= nil and ki.update.noacklater ~= nil then ki.update.noacklater() end\n")
             .returning(|buf: &[u8]| Ok(buf.len()) );
 
         interface
