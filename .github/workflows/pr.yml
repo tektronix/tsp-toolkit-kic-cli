@@ -179,9 +179,7 @@ jobs:
     steps:
       - uses: taiki-e/install-action@just
       - name: Tool Setup
-        # rustc regression: https://github.com/rust-lang/rust/issues/130769
-        # Change to "update nightly" after resolved
-        run: rustup set profile complete && rustup install nightly && rustup default nightly
+        run: rustup set profile complete && rustup install stable && rustup default stable
       - name: Install DBUS (linux only)
         if: ${{ matrix.runner == 'ubuntu-latest' }}
         run: sudo apt update && sudo apt install -y libdbus-1-dev

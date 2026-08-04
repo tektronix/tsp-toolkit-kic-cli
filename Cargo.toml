@@ -7,15 +7,14 @@ members = [
     "instrument-repl",
     "kic-lib",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 version = "0.22.0"
 authors = ["Tektronix, Inc."]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"
-#TODO Minimum Supported Rust Version Reasoning:
-# * Optional dependencies in feature flags was introduced in 1.60
+rust-version = "1.97"
 
 
 [workspace.dependencies]

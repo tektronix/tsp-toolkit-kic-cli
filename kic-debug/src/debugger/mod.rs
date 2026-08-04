@@ -380,7 +380,7 @@ impl Debugger {
                                 .trim_start_matches(['\'', '"']),
                         );
 
-                        if let Ok(_file) = fs::File::open(file_path) {
+                        match fs::File::open(file_path) { Ok(_file) => {
                             self.debuggee_file_path = Some(file_path.to_path_buf());
                             let file_contents = fs::read_to_string(file_path)?;
                             let script_name = file_path
@@ -391,14 +391,14 @@ impl Debugger {
                                 .unwrap()
                                 .replace(' ', "_");
                             self.start_debugger(&script_name, &file_contents, break_points)?;
-                        } else {
+                        } _ => {
                             return Err(DebugError::IOError {
                                 source: Error::new(
                                     std::io::ErrorKind::NotFound,
                                     "Error: Could not locate file".to_string(),
                                 ),
                             });
-                        }
+                        }}
                     }
                     Request::Run => {
                         self.continue_debugging()?;
