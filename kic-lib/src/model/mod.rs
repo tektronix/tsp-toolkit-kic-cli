@@ -334,14 +334,14 @@ pub enum Family {
 define_models! {
     pub enum Model[InstrumentError, Family] {
         //2600
-        _2601A <- ["2601"] #Family::_26xx,
-        _2602A <- ["2602"] #Family::_26xx,
-        _2611A <- ["2611"] #Family::_26xx,
-        _2612A <- ["2612"] #Family::_26xx,
-        _2635A <- ["2635"] #Family::_26xx,
-        _2636A <- ["2636"] #Family::_26xx,
-        _2651A <- ["2651"] #Family::_26xx,
-        _2657A <- ["2657"] #Family::_26xx,
+        _2601A <- ["2601A"] #Family::_26xx,
+        _2602A <- ["2602A"] #Family::_26xx,
+        _2611A <- ["2611A"] #Family::_26xx,
+        _2612A <- ["2612A"] #Family::_26xx,
+        _2635A <- ["2635A"] #Family::_26xx,
+        _2636A <- ["2636A"] #Family::_26xx,
+        _2651A <- ["2651A"] #Family::_26xx,
+        _2657A <- ["2657A"] #Family::_26xx,
         _2601B[0x2601] <- ["2601B"] #Family::_26xx,
         _2601BPulse[0x26F1] <- ["2601B-PULSE", "2601C-PULSE"] #Family::_26xx,
         _2602B[0x2602] <- ["2602B"] #Family::_26xx,
