@@ -34,8 +34,18 @@ where
         save_script: bool,
         run_script: bool,
     ) -> Result<()> {
+        // The first character of a script name cannot be a number, if it is, prepend an `_` to the name
+        let name = if name[0].is_ascii_digit() {
+            let mut with_underscore = vec![b'_'];
+            with_underscore.extend(name);
+            with_underscore
+        } else {
+            name.to_vec()
+        };
         // Truncate name otherwise we risk a Fatal Error (NS-2201)
-        let name = String::from_utf8_lossy(Buf::take(name, 31).chunk()).to_string();
+        let name =
+            String::from_utf8_lossy(name.as_slice().chunks(31).next().unwrap_or(b"user_script"))
+                .to_string();
         let mut script = script.reader(); //String::from_utf8_lossy(script.as_ref()).to_string();
         self.write_all(b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")?;
         self.flush()?;

@@ -4,14 +4,13 @@ members = [
     "kic-debug",
     "kic-debug-visa",
     "kic-discover",
-    "kic-discover-visa",
     "instrument-repl",
     "kic-lib",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.21.5"
+version = "0.22.0"
 authors = ["Tektronix, Inc."]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-cli"

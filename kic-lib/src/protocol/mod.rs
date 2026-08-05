@@ -4,7 +4,8 @@ use std::{
     error::Error,
     fmt::Display,
     io::{Read, Write},
-    net::TcpStream,
+    net::{SocketAddr, TcpStream},
+    sync::Arc,
     time::Duration,
 };
 
@@ -19,6 +20,7 @@ use crate::{InstrumentError, Interface};
 #[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
+use rustls::crypto::{aws_lc_rs, verify_tls12_signature, verify_tls13_signature, CryptoProvider};
 #[allow(unused_imports)] // warn is only used in 'visa' feature
 use tracing::{debug, error, trace, warn};
 
@@ -90,6 +92,62 @@ use crate::protocol::visa::Visa;
 
 pub mod raw;
 
+/// A struct to not do any Certificate validation since the instruments create
+/// self-signed certs that don't have a known certificate authority.
+#[derive(Debug)]
+struct NoCertificateVerification(CryptoProvider);
+
+impl NoCertificateVerification {
+    fn new(provider: CryptoProvider) -> Self {
+        Self(provider)
+    }
+}
+
+impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        self.0.signature_verification_algorithms.supported_schemes()
+    }
+}
+
 pub enum Protocol {
     Raw(Raw),
 
@@ -104,6 +162,38 @@ impl Protocol {
         Self::Raw(Raw::new(interface))
     }
 
+    #[tracing::instrument]
+    fn try_tls_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
+        trace!("Trying TLS connection");
+        let mut sock = TcpStream::connect_timeout(addr, Duration::from_millis(500))?;
+        sock.set_write_timeout(Some(Duration::from_millis(1000)))?;
+        sock.set_read_timeout(Some(Duration::from_millis(1000)))?;
+
+        let config = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(NoCertificateVerification::new(
+                aws_lc_rs::default_provider(),
+            )))
+            .with_no_client_auth();
+
+        let conn = Arc::new(config);
+        let mut conn = rustls::ClientConnection::new(conn, addr.ip().into())?;
+        let (comp_read, comp_write) = conn.complete_io(&mut sock)?;
+
+        trace!("comp_read: {comp_read}, comp_write: {comp_write}");
+
+        sock.set_nonblocking(true)?;
+        Ok(Self::Raw(Raw::new(rustls::StreamOwned::new(conn, sock))))
+    }
+
+    fn try_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
+        let stream = TcpStream::connect(addr)?;
+        stream.set_nonblocking(true)?;
+        stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
+        stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
+        Ok(Self::Raw(Raw::new(stream)))
+    }
+
     /// Connects to the appropriate interface given a connection
     ///
     /// # Errors
@@ -112,12 +202,26 @@ impl Protocol {
     pub fn connect(info: &ConnectionInfo) -> Result<Self, InstrumentError> {
         #[allow(unused_variables)]
         match info {
-            ConnectionInfo::Lan { addr } => {
-                let stream = TcpStream::connect(addr)?;
-                stream.set_nonblocking(true)?;
-                stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
-                stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
-                Ok(Self::Raw(Raw::new(stream)))
+            ConnectionInfo::Lan { tls_addr, addr } => {
+                // Attempt to connect with a tls addr (normally port 5026) if available
+                if let Some(tls) = tls_addr {
+                    match Self::try_tls_lan_connection(tls) {
+                        Ok(tls_stream) => {
+                            trace!("TLS connection succeeded");
+                            Ok(tls_stream)
+                        }
+                        Err(e) => {
+                            trace!(
+                                "TLS connection failed: {e}, falling back to non-TLS connection"
+                            );
+                            // If TLS fails, use TcpStream
+                            Ok(Self::try_lan_connection(addr)?)
+                        }
+                    }
+                } else {
+                    trace!("No TLS address supplied, connecting without TLS");
+                    Ok(Self::try_lan_connection(addr)?)
+                }
             }
             ConnectionInfo::Vxi11 { string, .. }
             | ConnectionInfo::HiSlip { string, .. }
@@ -246,7 +350,7 @@ impl Write for Protocol {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        use std::io::{Error, ErrorKind, Write};
+        use std::io::{Error, ErrorKind};
         use std::time::Duration;
 
         let mut start: usize = 0;

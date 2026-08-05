@@ -417,7 +417,7 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving output of script '{}' to {}",
                                             file.display(),
                                             save.as_ref().map_or_else(
@@ -466,10 +466,10 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving contents of buffer(s) {} to {}",
                                             names.join(","),
-                                            &save.as_ref().map_or_else(
+                                            save.as_ref().map_or_else(
                                                 || "UNABLE TO GET OUTPUT".to_string(),
                                                 |d| d.output.display().to_string()
                                             ),
@@ -494,7 +494,7 @@ impl Repl {
                         }
                         Request::Script { file, save, run } => {
                             (prompt, command_written) =
-                                match self.handle_script_request(&file, false, true) {
+                                match self.handle_script_request(&file, save, run) {
                                     Ok((prompt, command_written)) => (prompt, command_written),
                                     Err(e) => {
                                         error!("unable to run script: {e}");
