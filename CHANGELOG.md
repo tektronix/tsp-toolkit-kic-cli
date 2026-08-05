@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.23.0]
+
+### Changed
+- Rename 'Upgrade' firmware to 'Update' firmware.
+
+
 ## [0.22.0]
 
 ### Added
