@@ -24,6 +24,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 - Cache IDN string with literal model number rather than reproducing the IDN from parsed model numbers
+- Fix 26xxA model strings
+- Honor the`.script` `--save` and `--run` flags
 
 ### Fixed
 - Normalize CLI arguments for Terminate to match the rest of the CLI args
