@@ -131,8 +131,8 @@ pub enum InstrumentError {
     #[error("visa parse error: {0}")]
     VisaParseError(String),
 
-    #[error("Instrument upgrade failed: {0}")]
-    FwUpgradeFailure(String),
+    #[error("Instrument update failed: {0}")]
+    FwUpdateFailure(String),
 
     #[error("unknown vendor error: {0}")]
     UnknownVendor(String),
