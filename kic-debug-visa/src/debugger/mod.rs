@@ -380,25 +380,28 @@ impl Debugger {
                                 .trim_start_matches(['\'', '"']),
                         );
 
-                        match fs::File::open(file_path) { Ok(_file) => {
-                            self.debuggee_file_path = Some(file_path.to_path_buf());
-                            let file_contents = fs::read_to_string(file_path)?;
-                            let script_name = file_path
-                                .file_stem()
-                                .unwrap()
-                                .to_os_string()
-                                .into_string()
-                                .unwrap()
-                                .replace(' ', "_");
-                            self.start_debugger(&script_name, &file_contents, break_points)?;
-                        } _ => {
-                            return Err(DebugError::IOError {
-                                source: Error::new(
-                                    std::io::ErrorKind::NotFound,
-                                    "Error: Could not locate file".to_string(),
-                                ),
-                            });
-                        }}
+                        match fs::File::open(file_path) {
+                            Ok(_file) => {
+                                self.debuggee_file_path = Some(file_path.to_path_buf());
+                                let file_contents = fs::read_to_string(file_path)?;
+                                let script_name = file_path
+                                    .file_stem()
+                                    .unwrap()
+                                    .to_os_string()
+                                    .into_string()
+                                    .unwrap()
+                                    .replace(' ', "_");
+                                self.start_debugger(&script_name, &file_contents, break_points)?;
+                            }
+                            _ => {
+                                return Err(DebugError::IOError {
+                                    source: Error::new(
+                                        std::io::ErrorKind::NotFound,
+                                        "Error: Could not locate file".to_string(),
+                                    ),
+                                });
+                            }
+                        }
                     }
                     Request::Run => {
                         self.continue_debugging()?;
