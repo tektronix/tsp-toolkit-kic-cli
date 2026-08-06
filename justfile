@@ -249,7 +249,7 @@ test-rust:
 test-cov-rust $CARGO_TERM_VERBOSE="true":
     -rm -r "{{ env("TEST_DIR", "test-results") }}"
     -mkdir -p '{{ env("TEST_DIR", "test-results") }}'
-    cargo llvm-cov nextest --cobertura --branch > "{{ env("TEST_DIR", "test-results") }}/kic-rust.cobertura.xml"
+    cargo +nightly llvm-cov nextest --cobertura --branch --output-path "{{ env("TEST_DIR", "test-results") }}/kic-rust.cobertura.xml"
 
 ################################################################################
 # SBOM #########################################################################
