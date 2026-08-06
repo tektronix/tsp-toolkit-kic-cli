@@ -16,6 +16,7 @@ jobs:
     name: Style
     runs-on: ubuntu-latest
     steps:
+      - run: sudo apt install -yqq libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           components:
@@ -40,6 +41,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
+      - run: sudo apt install -yqq libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           components:
@@ -62,6 +64,7 @@ jobs:
     name: Generate CycloneDX
     runs-on: ubuntu-latest
     steps:
+      - run: sudo apt install -yqq libdbus-1-dev pkg-config
       - uses: taiki-e/install-action@v2
         with:
           tool: |
@@ -106,6 +109,7 @@ jobs:
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
+      - run: sudo apt install -yqq libdbus-1-dev pkg-config
       # Nightly required for branch coverage:
       # - https://github.com/taiki-e/cargo-llvm-cov/issues/8
       # - https://github.com/rust-lang/rust/issues/124118
@@ -207,6 +211,7 @@ jobs:
         with:
           tool: |
             just
+      - run: sudo apt install -yqq libdbus-1-dev pkg-config
       - name: Tool Setup
         run: rustup set profile default && rustup install stable && rustup default stable
       - name: Install DBUS (linux only)
