@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace};
 use visa_rs::AsResourceManager;
 
-use crate::{ethernet::LxiDeviceInfo, insert_disc_device, model_category, IoType};
+use crate::{ethernet::LxiDeviceInfo, model_category, IoType};
 
 /// Extract the IP address from the resource string and then get the [`LxiDeviceInfo`]
 /// which can be converted to [`InstrumentInfo`].
@@ -27,7 +27,10 @@ pub async fn visa_tcpip_info(rsc: String) -> Option<InstrumentInfo> {
 }
 
 #[tracing::instrument]
-pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<InstrumentInfo>> {
+pub async fn visa_discover(
+    timeout: Option<Duration>,
+    tx: std::sync::mpsc::Sender<String>,
+) -> anyhow::Result<HashSet<InstrumentInfo>> {
     let start = Instant::now();
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
 
@@ -50,14 +53,19 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
                 continue;
             };
 
-            if i.to_string().contains("PXI")
-                || i.to_string().contains("SOCKET")
-                || i.to_string().contains("INTFC")
+            // Tektronix instruments currently only support HiSLIP/VXI-11 (TCPIP), GPIB, and USBTMC (USB) connections
+            // KIC lacks support for TCPIP::*::SOCKET and *::INTFC connections
+            let s = i.to_string();
+            if !(s.contains("TCPIP") || s.contains("GPIB") || s.contains("USB"))
+                || s.contains("SOCKET")
+                || s.contains("INTFC")
             {
                 continue;
             }
 
-            let info = i.to_string().parse::<ConnectionInfo>()?;
+            let Ok(info) = s.parse::<ConnectionInfo>() else {
+                continue;
+            };
             // Since we are using reqwest::blocking::Client, we need to using
             // tokio::task::spawn_blocking (see
             // https://docs.rs/reqwest/0.12.22/reqwest/blocking/index.html for more information)
@@ -79,7 +87,7 @@ pub async fn visa_discover(timeout: Option<Duration>) -> anyhow::Result<HashSet<
                             .unwrap_or("UNKNOWN".to_string()),
                         instr_categ: model_category(&info.model.to_string()).to_string(),
                     }) {
-                        insert_disc_device(out_str.as_str())?;
+                        tx.send(out_str.to_string())?;
                     }
                     discovered_instruments.insert(info.clone());
                 }
