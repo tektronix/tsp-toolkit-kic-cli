@@ -492,13 +492,9 @@ impl Repl {
                                 }
                             }
                         }
-                        Request::Script {
-                            file,
-                            save: _,
-                            run: _,
-                        } => {
+                        Request::Script { file, save, run } => {
                             (prompt, command_written) =
-                                match self.handle_script_request(&file, false, true) {
+                                match self.handle_script_request(&file, save, run) {
                                     Ok((prompt, command_written)) => (prompt, command_written),
                                     Err(e) => {
                                         error!("unable to run script: {e}");
