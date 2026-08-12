@@ -8,10 +8,12 @@ use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{error, trace};
 
+#[cfg(not(test))]
+use crate::instrument::clear_output_queue;
 use crate::{
     instrument::{
-        self, authenticate::Authentication, clear_output_queue, info::InstrumentInfo, language,
-        Abort, Info, Login, Reset, Script,
+        self, authenticate::Authentication, info::InstrumentInfo, language, Abort, Info, Login,
+        Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
@@ -177,10 +179,10 @@ impl Flash for Instrument {
         std::thread::sleep(Duration::from_secs(180));
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
         Ok(())
@@ -856,7 +858,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_run() {
+    fn _write_script_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();
 
@@ -1036,7 +1038,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_save_run() {
+    fn _write_script_save_run() {
         let mut interface = MockInterface::new();
         let mut seq = Sequence::new();
         interface

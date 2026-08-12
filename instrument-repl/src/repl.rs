@@ -417,7 +417,7 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving output of script '{}' to {}",
                                             file.display(),
                                             save.as_ref().map_or_else(
@@ -466,10 +466,10 @@ impl Repl {
                                     save = Some(s);
                                     eprintln!(
                                         "{}",
-                                        &format!(
+                                        format!(
                                             "Saving contents of buffer(s) {} to {}",
                                             names.join(","),
-                                            &save.as_ref().map_or_else(
+                                            save.as_ref().map_or_else(
                                                 || "UNABLE TO GET OUTPUT".to_string(),
                                                 |d| d.output.display().to_string()
                                             ),
@@ -494,7 +494,7 @@ impl Repl {
                         }
                         Request::Script { file, save, run } => {
                             (prompt, command_written) =
-                                match self.handle_script_request(&file, false, true) {
+                                match self.handle_script_request(&file, save, run) {
                                     Ok((prompt, command_written)) => (prompt, command_written),
                                     Err(e) => {
                                         error!("unable to run script: {e}");
@@ -520,7 +520,7 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
-                        Request::Upgrade { file, slot } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
                             if contents.is_empty() {
@@ -567,7 +567,7 @@ impl Repl {
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
-                                            &"Module upgrade complete.".bright_yellow(),
+                                            &"Module update complete.".bright_yellow(),
                                         )?;
                                     } else {
                                         Self::println_flush(
@@ -580,7 +580,7 @@ impl Repl {
                                         }
                                     }
                                 }
-                                Err(InstrumentError::FwUpgradeFailure(msg)) => {
+                                Err(InstrumentError::FwUpdateFailure(msg)) => {
                                     error!("{msg}");
                                     Self::println_flush(&msg.red())?;
                                 }
@@ -868,7 +868,7 @@ impl Repl {
                 )
         )
         .subcommand(
-            Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
+            Command::new(".update").about("Update the firmware on the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
@@ -1209,9 +1209,9 @@ impl Repl {
                     Request::TspLinkNodes { json_file }
                 }
             },
-            Some((".upgrade", flags)) => match flags.get_one::<bool>("help") {
+            Some((".update", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
-                    sub_cmd: Some(".upgrade".to_string()),
+                    sub_cmd: Some(".update".to_string()),
                 },
                 _ => {
                     let Some(file) = flags.get_one::<String>("path") else {
@@ -1233,7 +1233,7 @@ impl Repl {
                     }
 
                     let slot = flags.get_one::<u16>("slot").copied();
-                    Request::Upgrade { file, slot }
+                    Request::Update { file, slot }
                 }
             },
             _ => Request::Tsp(input.trim().to_string()),

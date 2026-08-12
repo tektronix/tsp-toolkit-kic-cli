@@ -6,7 +6,7 @@ use std::{
 use bytes::Buf;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use tracing::{self, debug, error, trace};
+use tracing::{self, error, trace};
 
 use crate::{
     instrument::{
@@ -225,10 +225,10 @@ impl Flash for Instrument {
 
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
 
@@ -1057,7 +1057,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_run() {
+    fn _write_script_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
             (*b"*RST\n").into(),
@@ -1166,7 +1166,7 @@ mod unit {
     }
 
     //#[test]
-    fn write_script_save_run() {
+    fn _write_script_save_run() {
         let optional_writes: Vec<Vec<u8>> = vec![
             (*b"logout\n").into(),
             (*b"*RST\n").into(),
