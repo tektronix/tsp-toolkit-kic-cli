@@ -70,7 +70,7 @@ mod imp {
 
 #[cfg(unix)]
 mod imp {
-    use crate::Process;
+    use super::Process;
     use std::os::unix::process::CommandExt;
 
     pub(super) fn exec_replace(process: &Process) -> anyhow::Result<()> {

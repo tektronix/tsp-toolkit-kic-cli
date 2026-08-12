@@ -12,8 +12,7 @@ use crate::error::KicError;
 use crate::process::Process;
 use anyhow::Context;
 use clap::{
-    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Args,
-    Command, Subcommand,
+    arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Command,
 };
 use colored::Colorize;
 use instrument_repl::repl::{self};
@@ -38,23 +37,6 @@ use kic_lib::{
     model::connect_to,
     ConnectionInfo,
 };
-
-#[derive(Debug, Subcommand)]
-enum TerminateType {
-    /// Perform the given action over a LAN connection.
-    Lan(LanTerminateArgs),
-}
-
-#[derive(Debug, Args)]
-struct LanTerminateArgs {
-    /// The port to which to connect in order to terminate all other connections to the
-    /// instrument
-    #[arg(long, short = 'p', default_value = "5030")]
-    port: Option<u16>,
-
-    /// The IP address of the instrument to connect to.
-    ip_addr: IpAddr,
-}
 
 // hack to make sure we rebuild if either Cargo.toml changes, since `clap` gets
 // information from there.
@@ -266,7 +248,7 @@ fn cmds() -> Command {
         .subcommand({
             let cmd = Command::new("terminate")
                 .about("Terminate all the connections on the given instrument. Only supports LAN.");
-            TerminateType::augment_subcommands(cmd)
+            add_connection_subcommands(cmd, [])
         })
         .subcommand({
             let cmd = Command::new("abort")
@@ -1113,7 +1095,7 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
                 let buf = &buf[..first_null];
                 let buf = String::from_utf8_lossy(buf);
                 if !buf.is_empty() {
-                    accumulate = format!("{accumulate}{}", &buf);
+                    accumulate = format!("{accumulate}{}", buf);
                 }
                 let buf = buf
                     .split("TSP>")
@@ -1226,7 +1208,7 @@ fn terminate(args: &ArgMatches) -> anyhow::Result<()> {
         .into());
     };
     let mut conn = match conn {
-        ConnectionInfo::VisaSocket { addr, .. } | ConnectionInfo::Lan { addr } => {
+        ConnectionInfo::VisaSocket { addr, .. } | ConnectionInfo::Lan { addr, .. } => {
             let addr = addr.ip();
             let socket = SocketAddr::new(addr, 5030);
             TcpStream::connect(socket)?
