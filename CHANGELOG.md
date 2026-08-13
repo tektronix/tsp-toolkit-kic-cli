@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - Rename 'Upgrade' firmware to 'Update' firmware.
+- Run LAN and VISA discovery in parallel
 
 
 ## [0.22.0]

@@ -1,6 +1,7 @@
 use async_std::{path::PathBuf, task::sleep};
 use kic_discover::instrument_discovery::InstrumentDiscovery;
 use kic_discover::DiscoveredPrinter;
+use tokio::task::JoinSet;
 use tracing::{info, instrument, level_filters::LevelFilter, trace};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
@@ -287,18 +288,25 @@ async fn main() -> anyhow::Result<()> {
         SubCli::All(args) => {
             start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
 
+            let mut join_set: JoinSet<anyhow::Result<()>> = JoinSet::new();
             #[cfg(feature = "visa")]
             {
                 info!("Discovering VISA instruments");
+                let visa_args = args.clone();
+                let visa_tx = tx.clone();
                 #[allow(clippy::mutable_key_type)]
-                discover_visa(args.clone(), tx.clone()).await?;
+                join_set.spawn(async move { discover_visa(visa_args, visa_tx).await });
                 info!("VISA Discovery complete");
             }
 
             info!("Discovering LAN instruments");
+            let lan_args = args.clone();
+            let lan_tx = tx.clone();
             #[allow(clippy::mutable_key_type)]
-            discover_lan(args.clone(), tx.clone()).await?;
+            join_set.spawn(async move { discover_lan(lan_args, lan_tx).await });
             info!("LAN Discovery complete");
+
+            let _ = join_set.join_all().await;
         }
     };
 
@@ -325,7 +333,7 @@ async fn discover_lan(
     args: DiscoverCmd,
     tx: std::sync::mpsc::Sender<String>,
 ) -> anyhow::Result<()> {
-    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
+    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     discover_instance.lan_discover(tx.clone()).await?;
 
@@ -337,7 +345,7 @@ async fn discover_visa(
     args: DiscoverCmd,
     tx: std::sync::mpsc::Sender<String>,
 ) -> anyhow::Result<()> {
-    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
+    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     discover_instance.visa_discover(tx.clone()).await?;
 
