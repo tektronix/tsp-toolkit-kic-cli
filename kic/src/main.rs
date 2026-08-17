@@ -1,4 +1,3 @@
-#![feature(stmt_expr_attributes)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with
@@ -299,7 +298,8 @@ fn main() -> anyhow::Result<()> {
     let matches = cmd.clone().get_matches();
 
     if matches.get_flag("no-color") {
-        set_var("NO_COLOR", "1");
+        // SAFETY: The environment access only happens in single-threaded code.
+        unsafe { set_var("NO_COLOR", "1") };
     }
 
     let verbose: bool = matches.get_flag("verbose");
@@ -1313,7 +1313,7 @@ fn find_subcommands_from_path(
     mut cmd: Command,
 ) -> anyhow::Result<FindSubcommands> {
     let mut lut = HashMap::new();
-    if let Some(ref dir) = path {
+    if let Some(dir) = path {
         let contents: Vec<PathBuf> = dir.read_dir()?.map(|de| de.unwrap().path()).collect();
 
         for path in contents {
