@@ -291,6 +291,11 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     needs: build
+    # Every matrix leg computes the same version, so it is safe to surface it as a
+    # job output for the downstream-notification job to consume.
+    outputs:
+      version: ${{steps.lasttag.outputs.version}}
+      cl_version: ${{steps.lasttag.outputs.cl_version}}
     strategy:
       matrix:
         include:
@@ -417,6 +422,76 @@ jobs:
           done
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+  notify-downstream:
+    name: Notify Downstream Repositories
+    # Ask consuming repositories to open a dependency-bump PR for the version that
+    # was just published. Only runs for a completed release (a PR merged into
+    # `main`), not for the release-candidate builds published from open PRs.
+    runs-on: ubuntu-latest
+    needs:
+      - package
+      - publish
+    if: ${{github.event.pull_request.merged == true && github.base_ref == 'main'}}
+    strategy:
+      # Never cancel the remaining repositories if one dispatch fails.
+      fail-fast: false
+      matrix:
+        include:
+          - repo: tektronix/tsp-toolkit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Get Changelog for this Version
+        id: changelog
+        # A missing or unparsable changelog section must not stop the version bump
+        # from going out; the downstream PR just won't carry changelog entries.
+        continue-on-error: true
+        uses: coditory/changelog-parser@v1
+        with:
+          version: ${{needs.package.outputs.cl_version}}
+      - name: Request Dependency Bump
+        env:
+          # This is an organization Secret. It needs `contents: write` and
+          # `pull-requests: write` on every repository listed in the matrix above.
+          # `secrets.GITHUB_TOKEN` cannot be used here: it is not allowed to
+          # dispatch events to other repositories.
+          GH_TOKEN: ${{secrets.TSP_TOOLKIT_DEP_BUMP_PAT}}
+          VERSION: ${{needs.package.outputs.version}}
+          CHANGELOG: ${{steps.changelog.outputs.description}}
+          REPO: ${{matrix.repo}}
+          RUN_URL: ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
+        run: |
+          jq -n \
+            --arg version "${VERSION#v}" \
+            --arg changelog "$CHANGELOG" \
+            --arg source_ref "${{github.head_ref}}" \
+            --arg run_url "$RUN_URL" \
+            '{
+              event_type: "dependency-bump",
+              client_payload: {
+                name: "kic-cli",
+                source_repo: "tsp-toolkit-kic-cli",
+                packages: [
+                  "@tektronix/kic-cli-darwin-arm64",
+                  "@tektronix/kic-cli-linux-x64",
+                  "@tektronix/kic-cli-win32-x64"
+                ],
+                version: $version,
+                changelog: $changelog,
+                source_ref: $source_ref,
+                run_url: $run_url
+              }
+            }' > payload.json
+
+          cat payload.json
+
+          curl --fail-with-body -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${{github.api_url}}/repos/${REPO}/dispatches" \
+            -d @payload.json
 
   release:
     name: Release
