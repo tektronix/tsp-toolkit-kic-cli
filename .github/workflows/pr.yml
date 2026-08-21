@@ -461,8 +461,6 @@ jobs:
           CHANGELOG: ${{steps.changelog.outputs.description}}
           REPO: ${{matrix.repo}}
           RUN_URL: ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
-          # Read through the environment, never interpolated into the script body:
-          # a branch name may legally contain shell metacharacters.
           SOURCE_REF: ${{github.head_ref}}
         run: |
           jq -n \
