@@ -291,6 +291,10 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     needs: build
+    outputs:
+      version: ${{ steps.lasttag.outputs.version }}
+      cl_version: ${{ steps.lasttag.outputs.cl_version }}
+      commit: ${{ steps.lasttag.outputs.commit }}
     strategy:
       matrix:
         include:
