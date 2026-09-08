@@ -16,6 +16,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.23.0]
+
+### Fixed
+- Fix issue with fetching nodes config from a large system of instruments that produces a configuration longer than 1013 bytes
+
+### Changed
+- Rename 'Upgrade' firmware to 'Update' firmware.
+- Run LAN and VISA discovery in parallel
+
+
 ## [0.22.0]
 
 ### Added

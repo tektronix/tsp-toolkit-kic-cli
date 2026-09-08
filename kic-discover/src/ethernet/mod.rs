@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::{model_category, IoType};
 
@@ -52,12 +52,12 @@ impl LxiDeviceInfo {
 
         while let Some(Ok(response)) = stream.next().await {
             #[cfg(debug_assertions)]
-            eprintln!("Found Instrument: {response:?}");
+            trace!("Found Instrument: {response:?}");
             let addr: Option<IpAddr> = response.records().find_map(Self::to_ip_addr);
 
             if let Some(addr) = addr {
                 #[cfg(debug_assertions)]
-                eprintln!("Querying for LXI identification XML page for {addr}");
+                trace!("Querying for LXI identification XML page for {addr}");
                 if let Some(xmlstr) = Self::query_lxi_xml(addr).await {
                     if let Some(instr) = Self::parse_lxi_xml(&xmlstr, addr) {
                         if let Ok(out_str) = serde_json::to_string(&instr) {

@@ -18,11 +18,17 @@
                     pkgs = import nixpkgs {
                         inherit system overlays;
                     };
-                    rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+                    rustToolchain = pkgs.pkgsBuildHost.rust-bin.stable.default ++ pkgs.pkgsBuildHost.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+                        extensions = ["llvm-tool-preview"]
+                    });
                     nativeBuildInputs = with pkgs; [
                         rustToolchain
                         pkg-config
                         just
+                        cargo-llvm-cov
+                        cargo-nextest
+                        cargo-cyclonedx
+                        # DBUS???
                     ];
                     buildInputs = with pkgs; [ ];
                 in

@@ -184,13 +184,13 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
-        //visa
         let _ = self.set_nonblocking(false);
         println!(
             "{}",
             "Sending firmware file to instrument. Please wait...".bright_yellow()
         );
+        //This is marked as irrefutable when building without visa
+        #[allow(irrefutable_let_patterns)]
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
@@ -225,10 +225,10 @@ impl Flash for Instrument {
 
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
 
