@@ -22,7 +22,10 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use kic_lib::{instrument::Instrument, InstrumentError};
+use kic_lib::{
+    instrument::{read_until, Instrument},
+    InstrumentError,
+};
 
 use crate::{
     command::{Request, Save, SaveMethod},
@@ -153,7 +156,8 @@ impl Repl {
                     }
                     Action::GetNodeDetails => {
                         trace!("Update node configuration file");
-                        Self::update_node_config_json(&self.lang_cong_file_path, &response);
+                        let file_path = self.lang_cong_file_path.clone();
+                        self.update_node_config_json(&file_path, &response);
                     }
 
                     Action::None => {
@@ -749,17 +753,48 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(file_path: &str, resp: &ParsedResponse) {
+    fn update_node_config_json(&mut self, file_path: &str, resp: &ParsedResponse) -> bool {
         if let ParsedResponse::Data(d) = &resp {
-            if let Err(e) =
-                Self::write_json_data(file_path.to_string(), String::from_utf8_lossy(d).as_ref())
-            {
+            let mut resp = String::from_utf8_lossy(d).to_string();
+            // If response doesn't contain then ending sentinel, keep reading until we find one.
+            if !resp.contains("NODE>END") {
+                let read = &read_until(
+                    &mut self.inst,
+                    &[
+                        "NODE>END".to_string(),
+                        "TSP>".to_string(),
+                        "TSP?".to_string(),
+                    ],
+                    1000,
+                    Duration::from_millis(10),
+                );
+                resp += match read {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("Unable to get configuration from instrument: {e}");
+                        return false;
+                    }
+                }
+            }
+            if let Err(e) = Self::write_json_data(
+                file_path.to_string(),
+                &resp
+                    .replace("\tNODE>END", "")
+                    .replace("TSP>", "")
+                    .replace("TSP?", ""),
+            ) {
                 eprintln!("Unable to write configuration: {e}");
             }
+
+            resp.contains("TSP>") || resp.contains("TSP?")
+        } else {
+            false
         }
     }
 
+    #[tracing::instrument(skip(input_line))]
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        trace!("{input_line}");
         let path = PathBuf::from(file_path.clone());
         let Some(path) = path.parent() else {
             return Err(InstrumentReplError::IOError {
