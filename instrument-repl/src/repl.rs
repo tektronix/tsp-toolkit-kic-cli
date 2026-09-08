@@ -22,7 +22,10 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use kic_lib::{instrument::Instrument, InstrumentError};
+use kic_lib::{
+    instrument::{read_until, Instrument},
+    InstrumentError,
+};
 
 use crate::{
     command::{Request, Save, SaveMethod},
@@ -153,7 +156,8 @@ impl Repl {
                     }
                     Action::GetNodeDetails => {
                         trace!("Update node configuration file");
-                        Self::update_node_config_json(&self.lang_cong_file_path, &response);
+                        let file_path = self.lang_cong_file_path.clone();
+                        self.update_node_config_json(&file_path, &response);
                     }
 
                     Action::None => {
@@ -520,7 +524,7 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
-                        Request::Upgrade { file, slot } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
                             if contents.is_empty() {
@@ -567,7 +571,7 @@ impl Repl {
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
-                                            &"Module upgrade complete.".bright_yellow(),
+                                            &"Module update complete.".bright_yellow(),
                                         )?;
                                     } else {
                                         Self::println_flush(
@@ -580,7 +584,7 @@ impl Repl {
                                         }
                                     }
                                 }
-                                Err(InstrumentError::FwUpgradeFailure(msg)) => {
+                                Err(InstrumentError::FwUpdateFailure(msg)) => {
                                     error!("{msg}");
                                     Self::println_flush(&msg.red())?;
                                 }
@@ -749,17 +753,48 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(file_path: &str, resp: &ParsedResponse) {
+    fn update_node_config_json(&mut self, file_path: &str, resp: &ParsedResponse) -> bool {
         if let ParsedResponse::Data(d) = &resp {
-            if let Err(e) =
-                Self::write_json_data(file_path.to_string(), String::from_utf8_lossy(d).as_ref())
-            {
+            let mut resp = String::from_utf8_lossy(d).to_string();
+            // If response doesn't contain then ending sentinel, keep reading until we find one.
+            if !resp.contains("NODE>END") {
+                let read = &read_until(
+                    &mut self.inst,
+                    &[
+                        "NODE>END".to_string(),
+                        "TSP>".to_string(),
+                        "TSP?".to_string(),
+                    ],
+                    1000,
+                    Duration::from_millis(10),
+                );
+                resp += match read {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("Unable to get configuration from instrument: {e}");
+                        return false;
+                    }
+                }
+            }
+            if let Err(e) = Self::write_json_data(
+                file_path.to_string(),
+                &resp
+                    .replace("\tNODE>END", "")
+                    .replace("TSP>", "")
+                    .replace("TSP?", ""),
+            ) {
                 eprintln!("Unable to write configuration: {e}");
             }
+
+            resp.contains("TSP>") || resp.contains("TSP?")
+        } else {
+            false
         }
     }
 
+    #[tracing::instrument(skip(input_line))]
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        trace!("{input_line}");
         let path = PathBuf::from(file_path.clone());
         let Some(path) = path.parent() else {
             return Err(InstrumentReplError::IOError {
@@ -868,7 +903,7 @@ impl Repl {
                 )
         )
         .subcommand(
-            Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
+            Command::new(".update").about("Update the firmware on the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
@@ -1209,9 +1244,9 @@ impl Repl {
                     Request::TspLinkNodes { json_file }
                 }
             },
-            Some((".upgrade", flags)) => match flags.get_one::<bool>("help") {
+            Some((".update", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
-                    sub_cmd: Some(".upgrade".to_string()),
+                    sub_cmd: Some(".update".to_string()),
                 },
                 _ => {
                     let Some(file) = flags.get_one::<String>("path") else {
@@ -1233,7 +1268,7 @@ impl Repl {
                     }
 
                     let slot = flags.get_one::<u16>("slot").copied();
-                    Request::Upgrade { file, slot }
+                    Request::Update { file, slot }
                 }
             },
             _ => Request::Tsp(input.trim().to_string()),
