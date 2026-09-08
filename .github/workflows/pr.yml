@@ -417,7 +417,7 @@ jobs:
       - name: publish package
         run: |
           for f in *.tgz; do
-            npm publish "$f" --tag "${{needs.package.outputs.version}}"
+            npm publish "$f" --tag "${{needs.package.outputs.cl_version}}"
           done
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
