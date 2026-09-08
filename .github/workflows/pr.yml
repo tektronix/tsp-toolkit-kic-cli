@@ -15,15 +15,21 @@ jobs:
   style:
     name: Style
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
     steps:
-      - uses: taiki-e/install-action@just
+      - name: Install DBUS and pkgconfig (linux only)
+        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components:
+            rustfmt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            just
       - name: Tool Versions
-        run: cargo fmt --version
+        run: |
+          cargo fmt --version
+          just --version
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check Style
@@ -35,13 +41,17 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
     steps:
-      - uses: taiki-e/install-action@just
+      - name: Install DBUS and pkgconfig (linux only)
+        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components:
+            clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            just
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
@@ -55,18 +65,24 @@ jobs:
   sbom:
     name: Generate CycloneDX
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
     steps:
-      - uses: taiki-e/install-action@just
+      - name: Install DBUS and pkgconfig (linux only)
+        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            just
+            cargo-cyclonedx
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@tektronix"
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Tools
         run: |
-          npm ci --devDependencies
+          npm ci
       - name: Generate Rust BOM
         run: |
           git config --global credential.helper store
@@ -96,11 +112,29 @@ jobs:
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
-      - uses: taiki-e/install-action@just
+      - name: Install DBUS and pkgconfig (linux only)
+        if: ${{ matrix.runner == 'ubuntu-latest' }}
+        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
+      # Nightly required for branch coverage:
+      # - https://github.com/taiki-e/cargo-llvm-cov/issues/8
+      # - https://github.com/rust-lang/rust/issues/124118
+      # - https://github.com/rust-lang/rust/issues/79649
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components:
+            llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            just
+            cargo-llvm-cov
+            cargo-nextest
       - name: Tool Versions
         run: |
           cargo --version
-          grcov --version
+          just --version
+          cargo llvm-cov --version
+          cargo nextest --version
       - name: Checkout
         uses: actions/checkout@v4
       - name: Get Latest VISA Stub Release
@@ -177,14 +211,16 @@ jobs:
       RUSTFLAGS: "-L ${{github.workspace}}"
       LIB_VISA_PATH: "${{github.workflow}}"
     steps:
-      - uses: taiki-e/install-action@just
-      - name: Tool Setup
-        # rustc regression: https://github.com/rust-lang/rust/issues/130769
-        # Change to "update nightly" after resolved
-        run: rustup set profile complete && rustup install nightly && rustup default nightly
-      - name: Install DBUS (linux only)
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Other Tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            just
+      - name: Install DBUS and pkgconfig (linux only)
         if: ${{ matrix.runner == 'ubuntu-latest' }}
-        run: sudo apt update && sudo apt install -y libdbus-1-dev
+        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
       - name: Ensure Correct Target is Installed
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
@@ -255,6 +291,10 @@ jobs:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
     needs: build
+    outputs:
+      version: ${{ steps.lasttag.outputs.version }}
+      cl_version: ${{ steps.lasttag.outputs.cl_version }}
+      commit: ${{ steps.lasttag.outputs.commit }}
     strategy:
       matrix:
         include:
@@ -359,21 +399,14 @@ jobs:
       - package
       - sbom
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
-      #https://github.com/actions/runner/issues/2033#issuecomment-1598547465
-      options: --user 1001
     steps:
-      - name: Tool Versions
-        run: npm --version
       - uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
+          node-version: "24.x"
           registry-url: "https://npm.pkg.github.com"
           scope: "@tektronix"
+      - name: Tool Versions
+        run: npm --version
       - name: Checkout
         uses: actions/checkout@v4
       - name: Get Artifacts
@@ -384,7 +417,7 @@ jobs:
       - name: publish package
         run: |
           for f in *.tgz; do
-            npm publish "$f"
+            npm publish "$f" --tag "${{needs.package.outputs.version}}"
           done
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
