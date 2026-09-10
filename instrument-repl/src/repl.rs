@@ -22,10 +22,7 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use kic_lib::{
-    instrument::Instrument,
-    InstrumentError,
-};
+use kic_lib::{instrument::Instrument, InstrumentError};
 
 use crate::{
     command::{Request, Save, SaveMethod},
@@ -164,15 +161,13 @@ impl Repl {
                         );
                         self.node_data_buffer.clear();
                     }
-                    Action::AccumulateNodeData => {
-                        match response {
-                            ParsedResponse::NodeStart => self.node_data_buffer.clear(),
-                            ParsedResponse::Data(data) => {
-                                self.node_data_buffer.extend_from_slice(&data);
-                            }
-                            _ => {}
+                    Action::AccumulateNodeData => match response {
+                        ParsedResponse::NodeStart => self.node_data_buffer.clear(),
+                        ParsedResponse::Data(data) => {
+                            self.node_data_buffer.extend_from_slice(&data);
                         }
-                    }
+                        _ => {}
+                    },
 
                     Action::None => {
                         trace!("No action required based on data");
@@ -1388,9 +1383,7 @@ impl Repl {
                     | ReadState::FileLoading,
                     ReadState::Init,
                 )
-                | (
-                    _, ReadState::DataReadEnd | ReadState::ErrorReadEnd
-                ) => Action::Prompt,
+                | (_, ReadState::DataReadEnd | ReadState::ErrorReadEnd) => Action::Prompt,
                 //Action::Prompt
                 (_, ReadState::NodeDataReadEnd) => Action::GetNodeDetails,
                 (
