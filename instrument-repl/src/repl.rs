@@ -1449,7 +1449,7 @@ mod node_data_tests {
             let next = state.next_state(response).expect("valid node transition");
             let action = Repl::state_action(previous, Some(next));
             if matches!(action, Action::AccumulateNodeData) {
-                if let ParsedResponse::NodeStart = response {
+                if matches!(response, ParsedResponse::NodeStart) {
                     node_data.clear();
                 } else if let ParsedResponse::Data(data) = response {
                     node_data.extend_from_slice(data);
