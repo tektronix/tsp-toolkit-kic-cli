@@ -525,7 +525,7 @@ impl Repl {
                                 false,
                                 true,
                             )?;
-                            prompt = true;
+                            prompt = false;
                             command_written = true;
                         }
                         Request::Info { .. } => {
