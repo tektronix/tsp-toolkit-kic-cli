@@ -22,10 +22,7 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use kic_lib::{
-    instrument::{read_until, Instrument},
-    InstrumentError,
-};
+use kic_lib::{instrument::Instrument, InstrumentError};
 
 use crate::{
     command::{Request, Save, SaveMethod},
@@ -40,6 +37,7 @@ pub struct Repl {
     inst: Box<dyn Instrument>,
     command: Command,
     lang_cong_file_path: String,
+    node_data_buffer: Vec<u8>,
 }
 
 fn accumulate_and_search(accumulator: &mut String, buf: &[u8], needle: &str) -> bool {
@@ -104,6 +102,7 @@ impl Repl {
             inst,
             command: Self::cli(),
             lang_cong_file_path: String::new(),
+            node_data_buffer: Vec::new(),
         }
     }
 
@@ -156,9 +155,19 @@ impl Repl {
                     }
                     Action::GetNodeDetails => {
                         trace!("Update node configuration file");
-                        let file_path = self.lang_cong_file_path.clone();
-                        self.update_node_config_json(&file_path, &response);
+                        Self::update_node_config_json(
+                            &self.lang_cong_file_path,
+                            &self.node_data_buffer,
+                        );
+                        self.node_data_buffer.clear();
                     }
+                    Action::AccumulateNodeData => match response {
+                        ParsedResponse::NodeStart => self.node_data_buffer.clear(),
+                        ParsedResponse::Data(data) => {
+                            self.node_data_buffer.extend_from_slice(&data);
+                        }
+                        _ => {}
+                    },
 
                     Action::None => {
                         trace!("No action required based on data");
@@ -516,7 +525,7 @@ impl Repl {
                                 false,
                                 true,
                             )?;
-                            prompt = true;
+                            prompt = false;
                             command_written = true;
                         }
                         Request::Info { .. } => {
@@ -753,42 +762,15 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(&mut self, file_path: &str, resp: &ParsedResponse) -> bool {
-        if let ParsedResponse::Data(d) = &resp {
-            let mut resp = String::from_utf8_lossy(d).to_string();
-            // If response doesn't contain then ending sentinel, keep reading until we find one.
-            if !resp.contains("NODE>END") {
-                let read = &read_until(
-                    &mut self.inst,
-                    &[
-                        "NODE>END".to_string(),
-                        "TSP>".to_string(),
-                        "TSP?".to_string(),
-                    ],
-                    1000,
-                    Duration::from_millis(10),
-                );
-                resp += match read {
-                    Ok(r) => r,
-                    Err(e) => {
-                        eprintln!("Unable to get configuration from instrument: {e}");
-                        return false;
-                    }
-                }
-            }
-            if let Err(e) = Self::write_json_data(
-                file_path.to_string(),
-                &resp
-                    .replace("\tNODE>END", "")
-                    .replace("TSP>", "")
-                    .replace("TSP?", ""),
-            ) {
-                eprintln!("Unable to write configuration: {e}");
-            }
-
-            resp.contains("TSP>") || resp.contains("TSP?")
-        } else {
-            false
+    fn update_node_config_json(file_path: &str, node_data: &[u8]) {
+        if node_data.is_empty() {
+            return;
+        }
+        if let Err(e) = Self::write_json_data(
+            file_path.to_string(),
+            String::from_utf8_lossy(node_data).trim(),
+        ) {
+            eprintln!("Unable to write configuration: {e}");
         }
     }
 
@@ -1349,9 +1331,9 @@ impl Repl {
 
                 ReadState::ErrorReadContinue => Action::PrintError,
                 ReadState::NodeDataReadStart | ReadState::NodeDataReadContinue => {
-                    Action::GetNodeDetails
+                    Action::AccumulateNodeData
                 }
-                ReadState::NodeDataReadEnd => Action::Prompt,
+                ReadState::NodeDataReadEnd => Action::GetNodeDetails,
 
                 ReadState::ErrorReadStart | ReadState::FileLoading => Action::None,
             },
@@ -1363,7 +1345,7 @@ impl Repl {
 
                 (_, ReadState::DataReadEndPendingError) => Action::GetError,
 
-                //Action::GetNodeDetails
+                //Action::AccumulateNodeData
                 (
                     ReadState::Init
                     | ReadState::TextDataReadStart
@@ -1371,10 +1353,11 @@ impl Repl {
                     | ReadState::DataReadEnd
                     | ReadState::ErrorReadEnd
                     | ReadState::FileLoading
-                    | ReadState::NodeDataReadStart,
+                    | ReadState::NodeDataReadStart
+                    | ReadState::NodeDataReadContinue,
                     ReadState::NodeDataReadContinue,
-                ) => Action::GetNodeDetails,
-                //Action::GetNodeDetails
+                ) => Action::AccumulateNodeData,
+                //Action::AccumulateNodeData
 
                 //Action::PrintText
                 (
@@ -1400,11 +1383,9 @@ impl Repl {
                     | ReadState::FileLoading,
                     ReadState::Init,
                 )
-                | (
-                    _,
-                    ReadState::DataReadEnd | ReadState::ErrorReadEnd | ReadState::NodeDataReadEnd,
-                ) => Action::Prompt,
+                | (_, ReadState::DataReadEnd | ReadState::ErrorReadEnd) => Action::Prompt,
                 //Action::Prompt
+                (_, ReadState::NodeDataReadEnd) => Action::GetNodeDetails,
                 (
                     ReadState::Init | ReadState::DataReadEnd | ReadState::ErrorReadEnd,
                     ReadState::Init,
@@ -1442,5 +1423,57 @@ enum Action {
     PrintText,
     PrintError,
     GetNodeDetails,
+    AccumulateNodeData,
     None,
+}
+
+#[cfg(test)]
+mod node_data_tests {
+    use super::{Action, Repl};
+    use crate::{instrument::ParsedResponse, state_machine::ReadState};
+
+    #[test]
+    fn node_data_is_accumulated_until_node_end() {
+        let responses = [
+            ParsedResponse::NodeStart,
+            ParsedResponse::Data(b"{\"node\":\"".to_vec()),
+            ParsedResponse::Data(br#"unit"}"#.to_vec()),
+            ParsedResponse::NodeEnd,
+        ];
+        let mut state = ReadState::default();
+        let mut previous = None;
+        let mut node_data = Vec::new();
+        let mut actions = Vec::new();
+
+        for response in &responses {
+            let next = state.next_state(response).expect("valid node transition");
+            let action = Repl::state_action(previous, Some(next));
+            if matches!(action, Action::AccumulateNodeData) {
+                if matches!(response, ParsedResponse::NodeStart) {
+                    node_data.clear();
+                } else if let ParsedResponse::Data(data) = response {
+                    node_data.extend_from_slice(data);
+                }
+            }
+            if matches!(action, Action::GetNodeDetails) {
+                let parsed: serde_json::Value =
+                    serde_json::from_slice(&node_data).expect("complete node JSON");
+                assert_eq!(parsed["node"], "unit");
+            }
+            actions.push(action);
+            previous = Some(next);
+            state = next;
+        }
+
+        assert_eq!(
+            actions,
+            vec![
+                Action::AccumulateNodeData,
+                Action::AccumulateNodeData,
+                Action::AccumulateNodeData,
+                Action::GetNodeDetails,
+            ]
+        );
+        assert_eq!(state, ReadState::NodeDataReadEnd);
+    }
 }
