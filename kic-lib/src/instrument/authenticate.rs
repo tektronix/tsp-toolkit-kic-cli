@@ -111,7 +111,6 @@ impl Authentication {
                     username: username.take(),
                     password: Some(password.clone()),
                 };
-                eprintln!("Enter Password (characters hidden):");
                 Ok(Some(password))
             }
             Self::PromptPartial { password, .. } if password.is_some() => Ok(password.clone()),

@@ -68,6 +68,10 @@ impl Display for ConnectionInfo {
 }
 
 impl ConnectionInfo {
+    pub(crate) const fn uses_status_byte(&self) -> bool {
+        !matches!(self, Self::VisaSocket { .. })
+    }
+
     /// Check to see if this instrument can be connected to.
     ///
     /// # Errors
@@ -618,5 +622,14 @@ pub mod unit {
                 },
             ),
         ]);
+    }
+
+    #[test]
+    fn visa_socket_does_not_use_status_byte() {
+        let socket = "TCPIP::10.233.225.19::5025::SOCKET"
+            .parse::<ConnectionInfo>()
+            .expect("raw socket resource string should parse");
+
+        assert!(!socket.uses_status_byte());
     }
 }

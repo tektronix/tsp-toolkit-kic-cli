@@ -232,7 +232,7 @@ impl Protocol {
                 {
                     use crate::interface::NonBlock;
 
-                    let mut visa = Visa::new(string)?;
+                    let mut visa = Visa::new(string, info.uses_status_byte())?;
                     visa.set_nonblocking(true)?;
                     Ok(Self::Visa(visa))
                 }
@@ -492,7 +492,10 @@ impl ReadStb for Protocol {
             Self::Raw(_) => Ok(stb::Stb::NotSupported),
 
             #[cfg(feature = "visa")]
-            Self::Visa(v) => Ok(stb::Stb::Stb(v.read_stb()?)),
+            Self::Visa(v) if v.uses_status_byte() => Ok(stb::Stb::Stb(v.read_stb()?)),
+
+            #[cfg(feature = "visa")]
+            Self::Visa(_) => Ok(stb::Stb::NotSupported),
         }
     }
 }
