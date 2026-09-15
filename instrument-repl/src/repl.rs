@@ -37,6 +37,7 @@ pub struct Repl {
     inst: Box<dyn Instrument>,
     command: Command,
     lang_cong_file_path: String,
+    node_data_buffer: Vec<u8>,
 }
 
 fn accumulate_and_search(accumulator: &mut String, buf: &[u8], needle: &str) -> bool {
@@ -101,6 +102,7 @@ impl Repl {
             inst,
             command: Self::cli(),
             lang_cong_file_path: String::new(),
+            node_data_buffer: Vec::new(),
         }
     }
 
@@ -153,8 +155,19 @@ impl Repl {
                     }
                     Action::GetNodeDetails => {
                         trace!("Update node configuration file");
-                        Self::update_node_config_json(&self.lang_cong_file_path, &response);
+                        Self::update_node_config_json(
+                            &self.lang_cong_file_path,
+                            &self.node_data_buffer,
+                        );
+                        self.node_data_buffer.clear();
                     }
+                    Action::AccumulateNodeData => match response {
+                        ParsedResponse::NodeStart => self.node_data_buffer.clear(),
+                        ParsedResponse::Data(data) => {
+                            self.node_data_buffer.extend_from_slice(&data);
+                        }
+                        _ => {}
+                    },
 
                     Action::None => {
                         trace!("No action required based on data");
@@ -512,7 +525,7 @@ impl Repl {
                                 false,
                                 true,
                             )?;
-                            prompt = true;
+                            prompt = false;
                             command_written = true;
                         }
                         Request::Info { .. } => {
@@ -520,7 +533,7 @@ impl Repl {
                             prompt = true;
                             command_written = true;
                         }
-                        Request::Upgrade { file, slot } => {
+                        Request::Update { file, slot } => {
                             let mut contents: Vec<u8> = Vec::new();
                             let _ = File::open(&file)?.read_to_end(&mut contents)?;
                             if contents.is_empty() {
@@ -567,7 +580,7 @@ impl Repl {
                                     if slot.is_some_and(|s| s > 0) {
                                         // Upgrading Module
                                         Self::println_flush(
-                                            &"Module upgrade complete.".bright_yellow(),
+                                            &"Module update complete.".bright_yellow(),
                                         )?;
                                     } else {
                                         Self::println_flush(
@@ -580,7 +593,7 @@ impl Repl {
                                         }
                                     }
                                 }
-                                Err(InstrumentError::FwUpgradeFailure(msg)) => {
+                                Err(InstrumentError::FwUpdateFailure(msg)) => {
                                     error!("{msg}");
                                     Self::println_flush(&msg.red())?;
                                 }
@@ -749,17 +762,21 @@ impl Repl {
         }
     }
 
-    fn update_node_config_json(file_path: &str, resp: &ParsedResponse) {
-        if let ParsedResponse::Data(d) = &resp {
-            if let Err(e) =
-                Self::write_json_data(file_path.to_string(), String::from_utf8_lossy(d).as_ref())
-            {
-                eprintln!("Unable to write configuration: {e}");
-            }
+    fn update_node_config_json(file_path: &str, node_data: &[u8]) {
+        if node_data.is_empty() {
+            return;
+        }
+        if let Err(e) = Self::write_json_data(
+            file_path.to_string(),
+            String::from_utf8_lossy(node_data).trim(),
+        ) {
+            eprintln!("Unable to write configuration: {e}");
         }
     }
 
+    #[tracing::instrument(skip(input_line))]
     fn write_json_data(file_path: String, input_line: &str) -> Result<()> {
+        trace!("{input_line}");
         let path = PathBuf::from(file_path.clone());
         let Some(path) = path.parent() else {
             return Err(InstrumentReplError::IOError {
@@ -868,7 +885,7 @@ impl Repl {
                 )
         )
         .subcommand(
-            Command::new(".upgrade").about("Upgrade the firmware on the connected instrument")
+            Command::new(".update").about("Update the firmware on the connected instrument")
                 .help_template(SUBCMD_TEMPLATE)
                 .disable_help_flag(true)
                 .arg(
@@ -1209,9 +1226,9 @@ impl Repl {
                     Request::TspLinkNodes { json_file }
                 }
             },
-            Some((".upgrade", flags)) => match flags.get_one::<bool>("help") {
+            Some((".update", flags)) => match flags.get_one::<bool>("help") {
                 Some(help) if *help => Request::Help {
-                    sub_cmd: Some(".upgrade".to_string()),
+                    sub_cmd: Some(".update".to_string()),
                 },
                 _ => {
                     let Some(file) = flags.get_one::<String>("path") else {
@@ -1233,7 +1250,7 @@ impl Repl {
                     }
 
                     let slot = flags.get_one::<u16>("slot").copied();
-                    Request::Upgrade { file, slot }
+                    Request::Update { file, slot }
                 }
             },
             _ => Request::Tsp(input.trim().to_string()),
@@ -1314,9 +1331,9 @@ impl Repl {
 
                 ReadState::ErrorReadContinue => Action::PrintError,
                 ReadState::NodeDataReadStart | ReadState::NodeDataReadContinue => {
-                    Action::GetNodeDetails
+                    Action::AccumulateNodeData
                 }
-                ReadState::NodeDataReadEnd => Action::Prompt,
+                ReadState::NodeDataReadEnd => Action::GetNodeDetails,
 
                 ReadState::ErrorReadStart | ReadState::FileLoading => Action::None,
             },
@@ -1328,7 +1345,7 @@ impl Repl {
 
                 (_, ReadState::DataReadEndPendingError) => Action::GetError,
 
-                //Action::GetNodeDetails
+                //Action::AccumulateNodeData
                 (
                     ReadState::Init
                     | ReadState::TextDataReadStart
@@ -1336,10 +1353,11 @@ impl Repl {
                     | ReadState::DataReadEnd
                     | ReadState::ErrorReadEnd
                     | ReadState::FileLoading
-                    | ReadState::NodeDataReadStart,
+                    | ReadState::NodeDataReadStart
+                    | ReadState::NodeDataReadContinue,
                     ReadState::NodeDataReadContinue,
-                ) => Action::GetNodeDetails,
-                //Action::GetNodeDetails
+                ) => Action::AccumulateNodeData,
+                //Action::AccumulateNodeData
 
                 //Action::PrintText
                 (
@@ -1365,11 +1383,9 @@ impl Repl {
                     | ReadState::FileLoading,
                     ReadState::Init,
                 )
-                | (
-                    _,
-                    ReadState::DataReadEnd | ReadState::ErrorReadEnd | ReadState::NodeDataReadEnd,
-                ) => Action::Prompt,
+                | (_, ReadState::DataReadEnd | ReadState::ErrorReadEnd) => Action::Prompt,
                 //Action::Prompt
+                (_, ReadState::NodeDataReadEnd) => Action::GetNodeDetails,
                 (
                     ReadState::Init | ReadState::DataReadEnd | ReadState::ErrorReadEnd,
                     ReadState::Init,
@@ -1407,5 +1423,57 @@ enum Action {
     PrintText,
     PrintError,
     GetNodeDetails,
+    AccumulateNodeData,
     None,
+}
+
+#[cfg(test)]
+mod node_data_tests {
+    use super::{Action, Repl};
+    use crate::{instrument::ParsedResponse, state_machine::ReadState};
+
+    #[test]
+    fn node_data_is_accumulated_until_node_end() {
+        let responses = [
+            ParsedResponse::NodeStart,
+            ParsedResponse::Data(b"{\"node\":\"".to_vec()),
+            ParsedResponse::Data(br#"unit"}"#.to_vec()),
+            ParsedResponse::NodeEnd,
+        ];
+        let mut state = ReadState::default();
+        let mut previous = None;
+        let mut node_data = Vec::new();
+        let mut actions = Vec::new();
+
+        for response in &responses {
+            let next = state.next_state(response).expect("valid node transition");
+            let action = Repl::state_action(previous, Some(next));
+            if matches!(action, Action::AccumulateNodeData) {
+                if matches!(response, ParsedResponse::NodeStart) {
+                    node_data.clear();
+                } else if let ParsedResponse::Data(data) = response {
+                    node_data.extend_from_slice(data);
+                }
+            }
+            if matches!(action, Action::GetNodeDetails) {
+                let parsed: serde_json::Value =
+                    serde_json::from_slice(&node_data).expect("complete node JSON");
+                assert_eq!(parsed["node"], "unit");
+            }
+            actions.push(action);
+            previous = Some(next);
+            state = next;
+        }
+
+        assert_eq!(
+            actions,
+            vec![
+                Action::AccumulateNodeData,
+                Action::AccumulateNodeData,
+                Action::AccumulateNodeData,
+                Action::GetNodeDetails,
+            ]
+        );
+        assert_eq!(state, ReadState::NodeDataReadEnd);
+    }
 }

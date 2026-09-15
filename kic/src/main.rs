@@ -1,4 +1,3 @@
-#![feature(stmt_expr_attributes)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The `kic` executable is a command-line tool that will allow a user to interact with
@@ -203,8 +202,8 @@ fn cmds() -> Command {
             ])
         })
         .subcommand({
-            let cmd = Command::new("upgrade")
-                .about("Upgrade the firmware of an instrument or module.");
+            let cmd = Command::new("update")
+                .about("Update the firmware of an instrument or module.");
 
             add_connection_subcommands(cmd, [
                     Arg::new("file")
@@ -299,7 +298,8 @@ fn main() -> anyhow::Result<()> {
     let matches = cmd.clone().get_matches();
 
     if matches.get_flag("no-color") {
-        set_var("NO_COLOR", "1");
+        // SAFETY: The environment access only happens in single-threaded code.
+        unsafe { set_var("NO_COLOR", "1") };
     }
 
     let verbose: bool = matches.get_flag("verbose");
@@ -444,8 +444,8 @@ fn main() -> anyhow::Result<()> {
         Some(("dump", sub_matches)) => {
             return dump(sub_matches);
         }
-        Some(("upgrade", sub_matches)) => {
-            return upgrade(sub_matches);
+        Some(("update", sub_matches)) => {
+            return update(sub_matches);
         }
         Some(("terminate", sub_matches)) => {
             return terminate(sub_matches);
@@ -888,7 +888,7 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 #[instrument(skip(args))]
-fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
+fn update(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Upgrading instrument");
     trace!("args: {args:?}");
     eprintln!("\nTektronix TSP Shell\n");
@@ -965,7 +965,7 @@ fn upgrade(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     }
     eprintln!("Flashing instrument firmware completed. Instrument will restart.");
-    info!("Instrument upgrade complete");
+    info!("Instrument update complete");
     Ok(())
 }
 
@@ -1313,7 +1313,7 @@ fn find_subcommands_from_path(
     mut cmd: Command,
 ) -> anyhow::Result<FindSubcommands> {
     let mut lut = HashMap::new();
-    if let Some(ref dir) = path {
+    if let Some(dir) = path {
         let contents: Vec<PathBuf> = dir.read_dir()?.map(|de| de.unwrap().path()).collect();
 
         for path in contents {
