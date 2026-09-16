@@ -48,32 +48,17 @@ pub fn is_visa_installed() -> bool {
     }
     #[cfg(target_os = "linux")]
     {
-        let Some(search_paths) = std::env::var_os("LD_LIBRARY_PATH") else {
+        use std::process::Command;
+
+        let Ok(output) = Command::new("ldconfig").arg("-p").output() else {
             return false;
         };
-        let Ok(search_paths) = search_paths.into_string() else {
-            return false;
-        };
-        for p in search_paths.split(':') {
-            let Ok(mut dir) = Path::new(&p).read_dir() else {
-                return false;
+
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            let Some(line) = line.trim().split_ascii_whitespace().nth(0) else {
+                continue;
             };
-            if dir.any(|e| {
-                let Ok(e) = e else {
-                    return false;
-                };
-                let Ok(f) = e.file_name().into_string() else {
-                    return false;
-                };
-
-                //parse::<PathBuf> is infallible so unwrap is ok here.
-                let path = p.parse::<PathBuf>().unwrap().join(f);
-
-                path.file_stem()
-                    .unwrap()
-                    .to_string_lossy()
-                    .contains("libvisa")
-            }) {
+            if line.contains("visa") {
                 return true;
             }
         }
