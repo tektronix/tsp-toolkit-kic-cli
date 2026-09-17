@@ -5,6 +5,7 @@ use std::{
     fmt::Display,
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
@@ -39,30 +40,19 @@ use visa_rs::{
 /// `parse::<PathBuf>()` is called and unwrapped, so it _shouldn't_ panic.
 ///
 #[must_use]
-pub fn is_visa_installed() -> bool {
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        let search_path =
-            r"C:\Program Files (x86)\IVI Foundation\VISA\WinNT\Lib_x64\msc\visa64.lib";
-        Path::new(search_path).exists()
-    }
-    #[cfg(target_os = "linux")]
+pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
+    #[cfg(not(target_os = "macos"))]
     {
         use std::process::Command;
-
-        let Ok(output) = Command::new("ldconfig").arg("-p").output() else {
-            return false;
-        };
-
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            let Some(line) = line.trim().split_ascii_whitespace().nth(0) else {
-                continue;
-            };
-            if line.contains("visa") {
-                return true;
-            }
-        }
-        false
+        // Test if the `*-visa` version of this application runs, if it does, the
+        // linker was able to find a visa library.
+        // This currently works for Linux and Windows.
+        // This should be updated when we support VISA on macOS
+        visa_exe_path.exists()
+            && Command::new(visa_exe_path)
+                .arg("--version")
+                .status()
+                .is_ok()
     }
     #[cfg(target_os = "macos")]
     {

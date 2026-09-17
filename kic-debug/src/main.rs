@@ -58,23 +58,22 @@ fn main() -> anyhow::Result<()> {
             .map(std::convert::Into::into)
     });
 
-    if kic_lib::is_visa_installed() {
-        #[cfg(target_os = "windows")]
-        let kic_visa_exe: Option<PathBuf> =
-            parent_dir.clone().map(|d| d.join("kic-debug-visa.exe"));
+    #[cfg(target_os = "windows")]
+    let visa_file = "kic-debug-visa.exe";
 
-        #[cfg(target_family = "unix")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-debug-visa"));
+    #[cfg(target_family = "unix")]
+    let visa_file = "kic-debug-visa";
 
-        if let Some(kv) = kic_visa_exe {
-            if kv.exists() {
-                Process::new(kv.clone(), std::env::args().skip(1))
-                    .exec_replace()
-                    .context(format!(
-                        "{} should have been launched because VISA was detected",
-                        kv.display(),
-                    ))?;
-                return Ok(());
+    if let Some(visa_exe) = parent_dir.clone().map(|d| d.join(visa_file)) {
+        if kic_lib::is_visa_installed(&visa_exe) {
+            match Process::new(visa_exe.clone(), std::env::args().skip(1)).exec_replace() {
+                Ok(exit_code) => {
+                    std::process::exit(exit_code);
+                }
+                Err(e) => {
+                    error!("Error executing kic-visa: {e}");
+                    std::process::exit(1);
+                }
             }
         }
     }

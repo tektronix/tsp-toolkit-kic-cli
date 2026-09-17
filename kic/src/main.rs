@@ -263,18 +263,18 @@ fn main() -> anyhow::Result<()> {
             .parent()
             .map(std::convert::Into::into)
     });
-
     #[cfg(not(feature = "visa"))]
-    if kic_lib::is_visa_installed() {
+    {
         #[cfg(target_os = "windows")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
+        let visa_file = "kic-visa.exe";
 
         #[cfg(target_family = "unix")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
+        let visa_file = "kic-visa";
 
-        if let Some(kv) = kic_visa_exe {
-            if kv.exists() {
-                match Process::new(kv.clone(), std::env::args().skip(1)).exec_replace() {
+        if let Some(visa_exe) = parent_dir.clone().map(|d| d.join(visa_file)) {
+            #[cfg(not(feature = "visa"))]
+            if kic_lib::is_visa_installed(&visa_exe) {
+                match Process::new(visa_exe.clone(), std::env::args().skip(1)).exec_replace() {
                     Ok(exit_code) => {
                         std::process::exit(exit_code);
                     }
