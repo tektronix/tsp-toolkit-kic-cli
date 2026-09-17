@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
                     std::process::exit(exit_code);
                 }
                 Err(e) => {
-                    error!("Error executing kic-visa: {e}");
+                    error!("Error executing kic-debug-visa: {e}");
                     std::process::exit(1);
                 }
             }
