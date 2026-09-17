@@ -124,7 +124,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
         State::NotNeeded => {
             debug!("Login not required");
         }
-    };
+    }
     debug!("Checking instrument language");
     match inst.as_mut().get_language()? {
         CmdLanguage::Scpi => {
@@ -190,23 +190,29 @@ fn add_connection_subcommands(command: impl Into<Command>) -> Command {
 }
 
 fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
-    if let Some(id) = args.get_one::<String>("keyring") {
-        Authentication::Keyring { id: id.to_string() }
-    } else if let Some(password) = args.get_one::<String>("password") {
-        let username = if let Some(username) = args.get_one::<String>("username") {
-            username
-        } else {
-            &String::new()
-        };
-        Authentication::Credential {
-            username: username.to_string(),
-            password: password.to_string(),
-        }
-    } else if check_connection_login_status(conn).is_ok() {
-        Authentication::NoAuth
-    } else {
-        Authentication::Prompt
-    }
+    args.get_one::<String>("keyring").map_or_else(
+        || {
+            args.get_one::<String>("password").map_or_else(
+                || {
+                    if check_connection_login_status(conn).is_ok() {
+                        Authentication::NoAuth
+                    } else {
+                        Authentication::Prompt
+                    }
+                },
+                |password| {
+                    let username = args
+                        .get_one::<String>("username")
+                        .map_or_else(String::new, std::clone::Clone::clone);
+                    Authentication::Credential {
+                        username,
+                        password: password.clone(),
+                    }
+                },
+            )
+        },
+        |id| Authentication::Keyring { id: id.clone() },
+    )
 }
 
 /// Check the connection status of the instrument. This will cause a connect and disconnect

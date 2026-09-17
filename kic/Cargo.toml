@@ -24,3 +24,6 @@ tracing-subscriber = { workspace = true }
 kic-lib = { workspace = true, features = [] }
 windows-sys = { workspace = true }
 regex = { workspace = true }
+
+[lints]
+workspace = true

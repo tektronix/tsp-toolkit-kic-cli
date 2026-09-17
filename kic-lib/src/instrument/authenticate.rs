@@ -74,7 +74,7 @@ impl Authentication {
             Self::PromptPartial { .. } => {
                 unreachable!("All other partial prompt options are used for usernames")
             }
-            Self::Credential { username, .. } => Ok(Some((*username).to_string())),
+            Self::Credential { username, .. } => Ok(Some((*username).clone())),
             Self::Keyring { id } => {
                 let entry = keyring::Entry::new(SERVICE_NAME, id)?;
                 let secret = &entry.get_secret()?;
@@ -118,7 +118,7 @@ impl Authentication {
             Self::PromptPartial { .. } => {
                 unreachable!("All other prompt options are used for passwords")
             }
-            Self::Credential { password, .. } => Ok(Some((*password).to_string())),
+            Self::Credential { password, .. } => Ok(Some((*password).clone())),
             Self::Keyring { id } => {
                 let entry = keyring::Entry::new(SERVICE_NAME, id)?;
                 let secret = &entry.get_secret()?;
@@ -171,7 +171,7 @@ impl Authentication {
                 username.clone().unwrap_or_default(),
                 password.clone().unwrap_or_default(),
             ),
-            Self::Credential { username, password } => (username.to_string(), password.to_string()),
+            Self::Credential { username, password } => (username.clone(), password.clone()),
             Self::Keyring { id } => {
                 let entry = keyring::Entry::new(SERVICE_NAME, id)?;
                 let secret = &entry.get_secret()?;

@@ -56,13 +56,11 @@ impl AsyncStream {
             match send.send(AsyncMessage::End) {
                 Ok(()) => {}
                 Err(_) => {
-                    return Err(InstrumentError::IoError {
-                        source: (std::io::Error::new(
-                            ErrorKind::NotConnected,
-                            "attempted to write asynchronously to socket, but it was not connected"
-                                .to_string(),
-                        )),
-                    });
+                    return Err(InstrumentError::IoError(std::io::Error::new(
+                        ErrorKind::NotConnected,
+                        "attempted to write asynchronously to socket, but it was not connected"
+                            .to_string(),
+                    )));
                 }
             }
         }
