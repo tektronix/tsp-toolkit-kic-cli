@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
+
+#[cfg(debug_assertions)]
 use tracing::{debug, trace};
 
 use crate::{model_category, IoType};
@@ -162,6 +164,7 @@ impl LxiDeviceInfo {
             Err(e) => return Err(Box::new(e).into()),
         };
 
+        #[allow(unused_variables)] // name variable is used for debugging
         for (name, ip) in interfaces {
             if let IpAddr::V4(ip) = ip {
                 for service_name in SERVICE_NAMES {
