@@ -49,7 +49,7 @@ pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
 }
 #[cfg(target_os = "macos")]
 #[must_use]
-pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
+pub fn is_visa_installed(_visa_exe_path: &PathBuf) -> bool {
     false
 }
 
