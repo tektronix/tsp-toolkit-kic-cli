@@ -179,10 +179,10 @@ impl Flash for Instrument {
         std::thread::sleep(Duration::from_secs(180));
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
         Ok(())
@@ -1218,6 +1218,7 @@ mod unit {
 
     // Define a mock interface to be used in the tests above.
     mock! {
+        #[allow(clippy::struct_field_names)] // Clippy yells about generated field names, ignoring
         Interface {}
 
         impl interface::Interface for Interface {}

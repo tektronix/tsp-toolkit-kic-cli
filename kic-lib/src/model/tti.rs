@@ -12,7 +12,6 @@ use crate::{
     instrument::{
         self,
         authenticate::Authentication,
-        clear_output_queue,
         info::InstrumentInfo,
         language::{CmdLanguage, Language},
         Abort, Info, Login, Reset, Script,
@@ -184,13 +183,13 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
-        //visa
         let _ = self.set_nonblocking(false);
         println!(
             "{}",
             "Sending firmware file to instrument. Please wait...".bright_yellow()
         );
+        //This is marked as irrefutable when building without visa
+        #[allow(irrefutable_let_patterns)]
         let spinner = if let Protocol::Raw(_) = self.protocol {
             let pb = ProgressBar::new(1);
             #[allow(clippy::literal_string_with_formatting_args)]
@@ -225,10 +224,10 @@ impl Flash for Instrument {
 
         if let Some(pb) = spinner {
             pb.finish_with_message(
-                "Firmware file transferred successfully. Upgrade running on instrument.",
+                "Firmware file transferred successfully. Update running on instrument.",
             );
         } else {
-            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+            eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
         let _ = self.set_nonblocking(true);
 
@@ -280,6 +279,9 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
+        #[cfg(not(test))]
+        use crate::instrument::clear_output_queue;
+
         trace!("calling tti drop...");
         if self.fw_flash_in_progress {
             trace!("FW flash in progress. Skipping drop steps.");
@@ -1312,6 +1314,7 @@ mod unit {
 
     // Define a mock interface to be used in the tests above.
     mock! {
+        #[allow(clippy::struct_field_names)] //Clippy yells about generated field names
         Interface {}
 
         impl interface::Interface for Interface {}

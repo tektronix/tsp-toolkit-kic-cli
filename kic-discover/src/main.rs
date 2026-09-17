@@ -1,6 +1,7 @@
 use async_std::{path::PathBuf, task::sleep};
 use kic_discover::instrument_discovery::InstrumentDiscovery;
 use kic_discover::DiscoveredPrinter;
+use tokio::task::JoinSet;
 use tracing::{info, instrument, level_filters::LevelFilter, trace};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
 
@@ -74,9 +75,9 @@ pub(crate) struct DiscoverCmd {
 }
 
 fn start_logger(
-    verbose: &bool,
-    log_file: &Option<PathBuf>,
-    log_socket: &Option<SocketAddr>,
+    verbose: bool,
+    log_file: Option<&PathBuf>,
+    log_socket: Option<&SocketAddr>,
 ) -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
     const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
@@ -218,27 +219,26 @@ async fn main() -> anyhow::Result<()> {
                 .map(std::convert::Into::into)
         });
 
-        if kic_lib::is_visa_installed() {
-            #[cfg(target_os = "windows")]
-            let kic_discover_visa_exe: Option<std::path::PathBuf> =
-                parent_dir.clone().map(|d| d.join("kic-discover-visa.exe"));
+        #[cfg(target_os = "windows")]
+        let visa_file = "kic-discover-visa.exe";
 
-            #[cfg(target_family = "unix")]
-            let kic_discover_visa_exe: Option<std::path::PathBuf> =
-                parent_dir.clone().map(|d| d.join("kic-discover-visa"));
+        #[cfg(target_family = "unix")]
+        let visa_file = "kic-discover-visa";
 
-            if let Some(kv) = kic_discover_visa_exe {
-                if kv.exists() {
-                    use anyhow::Context;
-                    use kic_discover::process::Process;
+        if let Some(visa_exe) = parent_dir.map(|d| d.join(visa_file)) {
+            if kic_lib::is_visa_installed(&visa_exe) {
+                use kic_discover::process::Process;
 
-                    Process::new(kv.clone(), std::env::args().skip(1))
-                        .exec_replace()
-                        .context(format!(
-                            "{} should have been launched because VISA was detected",
-                            kv.display(),
-                        ))?;
-                    return Ok(());
+                match Process::new(visa_exe, std::env::args().skip(1)).exec_replace() {
+                    Ok(exit_code) => {
+                        std::process::exit(exit_code);
+                    }
+                    Err(e) => {
+                        use tracing::error;
+
+                        error!("Error executing kic-discover-visa: {e}");
+                        std::process::exit(1);
+                    }
                 }
             }
         }
@@ -270,7 +270,11 @@ async fn main() -> anyhow::Result<()> {
 
     match &sub {
         SubCli::Lan(args) => {
-            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+            start_logger(
+                args.verbose,
+                args.log_file.as_ref(),
+                args.log_socket.as_ref(),
+            )?;
             info!("Discovering LAN instruments");
             #[allow(clippy::mutable_key_type)]
             discover_lan(args.clone(), tx.clone()).await?;
@@ -278,33 +282,48 @@ async fn main() -> anyhow::Result<()> {
         }
         #[cfg(feature = "visa")]
         SubCli::Visa(args) => {
-            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+            start_logger(
+                args.verbose,
+                args.log_file.as_ref(),
+                args.log_socket.as_ref(),
+            )?;
             info!("Discovering VISA instruments");
             #[allow(clippy::mutable_key_type)]
             discover_visa(args.clone(), tx.clone()).await?;
             info!("VISA Discovery complete");
         }
         SubCli::All(args) => {
-            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+            start_logger(
+                args.verbose,
+                args.log_file.as_ref(),
+                args.log_socket.as_ref(),
+            )?;
 
+            let mut join_set: JoinSet<anyhow::Result<()>> = JoinSet::new();
             #[cfg(feature = "visa")]
             {
                 info!("Discovering VISA instruments");
+                let visa_args = args.clone();
+                let visa_tx = tx.clone();
                 #[allow(clippy::mutable_key_type)]
-                discover_visa(args.clone(), tx.clone()).await?;
+                join_set.spawn(async move { discover_visa(visa_args, visa_tx).await });
                 info!("VISA Discovery complete");
             }
 
             info!("Discovering LAN instruments");
+            let lan_args = args.clone();
+            let lan_tx = tx.clone();
             #[allow(clippy::mutable_key_type)]
-            discover_lan(args.clone(), tx.clone()).await?;
+            join_set.spawn(async move { discover_lan(lan_args, lan_tx).await });
             info!("LAN Discovery complete");
+
+            let _ = join_set.join_all().await;
         }
-    };
+    }
 
     if is_exit_timer {
         sleep(Duration::from_secs(5)).await;
-        printer.stop().await;
+        printer.stop();
     }
 
     info!("Discovery complete");
@@ -325,7 +344,7 @@ async fn discover_lan(
     args: DiscoverCmd,
     tx: std::sync::mpsc::Sender<String>,
 ) -> anyhow::Result<()> {
-    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
+    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     discover_instance.lan_discover(tx.clone()).await?;
 
@@ -337,7 +356,7 @@ async fn discover_visa(
     args: DiscoverCmd,
     tx: std::sync::mpsc::Sender<String>,
 ) -> anyhow::Result<()> {
-    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(20) as u64);
+    let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
     discover_instance.visa_discover(tx.clone()).await?;
 
