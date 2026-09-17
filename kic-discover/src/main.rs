@@ -236,7 +236,7 @@ async fn main() -> anyhow::Result<()> {
                     Err(e) => {
                         use tracing::error;
 
-                        error!("Error executing kic-visa: {e}");
+                        error!("Error executing kic-discover-visa: {e}");
                         std::process::exit(1);
                     }
                 }
