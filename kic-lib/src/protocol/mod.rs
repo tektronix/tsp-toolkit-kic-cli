@@ -33,25 +33,24 @@ use visa_rs::{
 /// # Panics
 /// `parse::<PathBuf>()` is called and unwrapped, so it _shouldn't_ panic.
 ///
+#[cfg(not(target_os = "macos"))]
 #[must_use]
 pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
-    #[cfg(not(target_os = "macos"))]
-    {
-        use std::process::Command;
-        // Test if the `*-visa` version of this application runs, if it does, the
-        // linker was able to find a visa library.
-        // This currently works for Linux and Windows.
-        // This should be updated when we support VISA on macOS
-        visa_exe_path.exists()
-            && Command::new(visa_exe_path)
-                .arg("--version")
-                .status()
-                .is_ok()
-    }
-    #[cfg(target_os = "macos")]
-    {
-        false
-    }
+    use std::process::Command;
+    // Test if the `*-visa` version of this application runs, if it does, the
+    // linker was able to find a visa library.
+    // This currently works for Linux and Windows.
+    // This should be updated when we support VISA on macOS
+    visa_exe_path.exists()
+        && Command::new(visa_exe_path)
+            .arg("--version")
+            .status()
+            .is_ok()
+}
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
+    false
 }
 
 #[cfg(feature = "visa")]
