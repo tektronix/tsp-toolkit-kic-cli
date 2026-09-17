@@ -282,7 +282,11 @@ async fn main() -> anyhow::Result<()> {
         }
         #[cfg(feature = "visa")]
         SubCli::Visa(args) => {
-            start_logger(&args.verbose, &args.log_file, &args.log_socket)?;
+            start_logger(
+                args.verbose,
+                args.log_file.as_ref(),
+                args.log_socket.as_ref(),
+            )?;
             info!("Discovering VISA instruments");
             #[allow(clippy::mutable_key_type)]
             discover_visa(args.clone(), tx.clone()).await?;
