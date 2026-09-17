@@ -88,19 +88,18 @@ pub fn clear_output_queue<T: Read + Write + ?Sized>(
     let timestamp = chrono::Utc::now().to_string();
 
     debug!("Sending print({timestamp})");
-    let mut loop_count = 0;
+    let mut loop_count = 0usize;
     loop {
         match rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes()) {
-            Ok(_) => break,
+            Ok(()) => break,
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // The send buffer is full. Try this write again when the buffer might
                 // have cleared out. Keep retrying until success.
-                loop_count += 1;
+                loop_count = loop_count.saturating_add(1);
                 std::thread::sleep(delay_between_attempts);
-                continue;
             }
             Err(e) => return Err(e.into()),
-        };
+        }
     }
     trace!("Write successfully completed after {loop_count} attempts");
 

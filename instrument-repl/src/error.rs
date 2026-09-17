@@ -12,20 +12,20 @@ use crate::{command::Request, instrument::ParsedResponse, state_machine::ReadSta
 #[allow(clippy::module_name_repetitions)]
 pub enum InstrumentReplError {
     /// An Error occurred in the tsp-instrument crate.
-    #[error("instrument error occurred: {source}")]
-    InstrumentError {
+    #[error("instrument error occurred: {0}")]
+    InstrumentError(
         ///The original [`kic_lib::InstrumentError`]
         #[from]
-        source: kic_lib::InstrumentError,
-    },
+        kic_lib::InstrumentError,
+    ),
 
     /// An IO error occurred
-    #[error("IO error occurred: {source}")]
-    IOError {
+    #[error("IO error occurred: {0}")]
+    IOError(
         /// The original `[std::io::Error]`
         #[from]
-        source: std::io::Error,
-    },
+        std::io::Error,
+    ),
 
     /// An error occurred while attempting to parse the data from the instrument.
     #[error("error parsing data from instrument: {data:?}")]
@@ -55,28 +55,28 @@ pub enum InstrumentReplError {
     },
 
     /// An error occurred when Clap tried to parse a command
-    #[error("command parsing error: {source}")]
-    ClapError {
+    #[error("command parsing error: {0}")]
+    ClapError(
         /// The original error
         #[from]
-        source: clap::error::Error,
-    },
+        clap::error::Error,
+    ),
 
     /// There was an issue sending data between threads of the application
-    #[error("internal communication problem: {source}")]
-    InternalCommError {
+    #[error("internal communication problem: {0}")]
+    InternalCommError(
         /// The original error
         #[from]
-        source: SendError<Request>,
-    },
+        SendError<Request>,
+    ),
 
     /// There was an error deserializing a JSON message
-    #[error("deserialization error: {source}")]
-    DeserializationError {
+    #[error("deserialization error: {0}")]
+    DeserializationError(
         ///The original error
         #[from]
-        source: serde_json::Error,
-    },
+        serde_json::Error,
+    ),
 }
 
 pub(crate) type Result<T> = std::result::Result<T, InstrumentReplError>;

@@ -45,7 +45,7 @@ impl Debugger {
             instrument: inst,
             debuggee_file_name: None,
             debuggee_file_path: None,
-            breakpoints: Default::default(),
+            breakpoints: Vec::default(),
         }
     }
 
@@ -63,23 +63,22 @@ impl Debugger {
         script_name
     }
 
-    fn print_flush<D: Display>(string: &D) -> Result<()> {
+    fn print_flush<D: Display>(string: &D) {
         print!("{string}");
         let pr = std::io::stdout().flush();
         match pr {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(e) => {
                 eprintln!("Error: {e:?}");
             }
         }
-        Ok(())
     }
 
     fn println_flush<D: Display>(string: &D) {
         println!("{string}");
         let pr = std::io::stdout().flush();
         match pr {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(e) => {
                 eprintln!("Error {e:?}");
             }
@@ -89,7 +88,7 @@ impl Debugger {
     /// Start debug session
     /// * `file_name` - A String holds file name with extension. x "callStacks.tsp"
     /// * `file_content` - A String holds file content
-    /// * `breakpoints` - A Vector of Breakpoints. Ex [{\"LineNumber\":2,\"Enable\":true,\"Condition\":\"\"}]
+    /// * `breakpoints` - A Vector of Breakpoints. Ex `[{\"LineNumber\":2,\"Enable\":true,\"Condition\":\"\"}]`
     /// # Errors
     /// IO Errors from writing to the instrument may occur
     pub fn start_debugger(
@@ -157,12 +156,12 @@ impl Debugger {
 
     /// Send the `KiSetWatchpoint` command to the on-instrument debugger
     /// * Arguments
-    ///   `watch_point` - A WatchpointInfo struct holds watchpoint information
-    pub fn set_watchpoint(&mut self, watch_point: WatchpointInfo) -> Result<()> {
-        let mut enable_val = 1;
-        if !watch_point.enable {
-            enable_val = 0;
-        }
+    ///   `watch_point` - A [`WatchpointInfo`] struct holds watchpoint information
+    ///
+    /// # Errors
+    /// Writing to the instrument may fail
+    pub fn set_watchpoint(&mut self, watch_point: &WatchpointInfo) -> Result<()> {
+        let enable_val = i32::from(watch_point.enable);
         // watch expressions need to be double-escaped because they will be executed as a string in Lua.
         let expression = watch_point.expression.replace('\"', "\\\"");
         self.instrument
@@ -191,27 +190,30 @@ impl Debugger {
         Ok(())
     }
 
-    /// Convert &str variable_data to VariableInfo struct, parse it and
+    /// Convert &str `variable_data` to [`VariableInfo`] struct, parse it and
     /// call the appropriate kiDebugger variable type setter
     /// * Arguments
-    /// * `var_info` - A VariableInfo struct holds variable information
+    /// * `var_info` - A [`VariableInfo`] struct holds variable information
     ///
-    /// * Example {"StackLevel":2,"ArgumentList":["x", "y", "z"],"Value":"7","Scope":"locals"}
+    /// * Example `{"StackLevel":2,"ArgumentList":["x", "y", "z"],"Value":"7","Scope":"locals"}`
     /// * `var_info` : `{"StackLevel":0,"ArgumentList":["newTab", "tab", "x"],"Value":"7","Scope":"upvalues"}`
     /// * possible values of Scope are "locals", "upvalues", "globals"
-    pub fn set_variable(&mut self, var_info: VariableInfo) -> Result<()> {
+    ///
+    /// # Errors
+    /// Writes to the instrument may fail
+    pub fn set_variable(&mut self, var_info: &VariableInfo) -> Result<()> {
         let mut el: String;
-        let mut index = 0;
-        let mut arg_list: String = "".to_string();
+        let mut index = 0usize;
+        let mut arg_list: String = String::new();
         while index < var_info.argument_list.len() {
-            el = var_info.argument_list[index].to_owned();
+            el = var_info.argument_list[index].clone();
             arg_list = format!("{arg_list},{el}");
-            index += 1;
+            index = index.saturating_add(1);
         }
         arg_list = arg_list.trim_start_matches([',', ' ']).to_string();
 
         let level = var_info.stack_level.to_string();
-        let mut value = var_info.value.to_string();
+        let mut value = var_info.value.clone();
         value = value.replace('\"', "\\\"");
         if var_info.scope_type == "locals" {
             self.instrument.write_all(
@@ -290,7 +292,7 @@ impl Debugger {
         self.instrument.write_all(b"abort\n")?;
         self.instrument.write_all(b"kiDebugger = nil\n")?;
 
-        if let Some(debug_file_name) = self.debuggee_file_name.to_owned() {
+        if let Some(debug_file_name) = self.debuggee_file_name.clone() {
             self.instrument
                 .write_all(format!("{debug_file_name} = nil\n").as_bytes())?;
             self.instrument
@@ -328,6 +330,10 @@ impl Debugger {
     /// # Errors
     /// There are many errors that can be returned from this function, they include but
     /// aren't limited to any errors possible from [`std::io::Read`] or [`std::io::Write`]
+    ///
+    /// # Panics
+    /// If the file name provided cannot be parsed, there is nothing more we can do,
+    /// so we panic.
     #[allow(clippy::too_many_lines)] //This is just going to be a long function
     pub fn start(&mut self) -> Result<()> {
         // let mut prev_state: Option<ReadState> = None;
@@ -340,7 +346,7 @@ impl Debugger {
 
         self.instrument.write_all(b"localnode.prompts = 0\n")?;
 
-        Self::print_flush(&"\nTSP> ".blue())?;
+        Self::print_flush(&"\nTSP> ".blue());
         'user_loop: loop {
             self.instrument.set_nonblocking(true)?;
             thread::sleep(Duration::from_millis(1));
@@ -355,7 +361,7 @@ impl Debugger {
                 .trim_end_matches(char::from(0))
                 .is_empty()
             {
-                Self::print_flush(&String::from_utf8_lossy(&read_buf))?;
+                Self::print_flush(&String::from_utf8_lossy(&read_buf));
             }
 
             match loop_in.try_recv() {
@@ -364,10 +370,10 @@ impl Debugger {
                         self.set_breakpoint(&breakpoint_info)?;
                     }
                     Request::Watchpoint { watchpoint_info } => {
-                        self.set_watchpoint(watchpoint_info)?;
+                        self.set_watchpoint(&watchpoint_info)?;
                     }
                     Request::Variable { vairable_info } => {
-                        self.set_variable(vairable_info)?;
+                        self.set_variable(&vairable_info)?;
                     }
                     Request::StartDebugger {
                         file_path,
@@ -394,12 +400,10 @@ impl Debugger {
                                 self.start_debugger(&script_name, &file_contents, break_points)?;
                             }
                             _ => {
-                                return Err(DebugError::IOError {
-                                    source: Error::new(
-                                        std::io::ErrorKind::NotFound,
-                                        "Error: Could not locate file".to_string(),
-                                    ),
-                                });
+                                return Err(DebugError::IOError(Error::new(
+                                    std::io::ErrorKind::NotFound,
+                                    "Error: Could not locate file".to_string(),
+                                )));
                             }
                         }
                     }
@@ -590,7 +594,7 @@ impl Debugger {
 
         if let Err(e) = matches {
             return Ok(Request::Usage(e.to_string()));
-        };
+        }
 
         let arg_matches = matches;
         let matches = match arg_matches {
@@ -613,8 +617,13 @@ impl Debugger {
                 Some(("restart", _)) => Ok(Request::Restart),
                 Some(("setBreakpoint", flag)) => {
                     let breakpoint_info = flag.get_one::<String>("Breakpoint"); //matches.get_one::<PathBuf>("config")
-                    match breakpoint_info {
-                        Some(bpoint) => {
+                    breakpoint_info.map_or_else(
+                        || {
+                            Ok(Request::GetError(
+                                "Error: Could not find setBreakpoint command argrument".to_string(),
+                            ))
+                        },
+                        |bpoint| {
                             let bp: std::result::Result<Breakpoint, serde_json::Error> =
                                 serde_json::from_str(bpoint.as_str()); // need to do it
                             match bp {
@@ -626,16 +635,18 @@ impl Debugger {
                                     Ok(Request::GetError(e.to_string()))
                                 }
                             }
-                        }
-                        _ => Ok(Request::GetError(
-                            "Error: Could not find setBreakpoint command argrument".to_string(),
-                        )),
-                    }
+                        },
+                    )
                 }
                 Some(("setWatchpoint", flag)) => {
                     let watchpoint_info = flag.get_one::<String>("Watchpoint");
-                    match watchpoint_info {
-                        Some(wpoint) => {
+                    watchpoint_info.map_or_else(
+                        || {
+                            Ok(Request::GetError(
+                                "Error: Could not find setWatchpoint command argrument".to_string(),
+                            ))
+                        },
+                        |wpoint| {
                             let wp: std::result::Result<WatchpointInfo, serde_json::Error> =
                                 serde_json::from_str(wpoint.as_str()); // need to do it
                             match wp {
@@ -644,31 +655,35 @@ impl Debugger {
                                 }),
                                 Err(e) => Ok(Request::GetError(e.to_string())),
                             }
-                        }
-                        _ => Ok(Request::GetError(
-                            "Error: Could not find setWatchpoint command argrument".to_string(),
-                        )),
-                    }
+                        },
+                    )
                 }
                 Some(("setVariable", flag)) => {
                     let variable_info = flag.get_one::<String>("Variable");
-                    match variable_info {
-                        Some(vpoint) => {
+                    variable_info.map_or_else(
+                        || {
+                            Ok(Request::GetError(
+                                "Error: Could not find setVariable command argrument".to_string(),
+                            ))
+                        },
+                        |vpoint| {
                             let vp: std::result::Result<VariableInfo, serde_json::Error> =
                                 serde_json::from_str(vpoint.as_str()); // need to do it
                             match vp {
                                 Ok(vp) => Ok(Request::Variable { vairable_info: vp }),
                                 Err(e) => Ok(Request::GetError(e.to_string())),
                             }
-                        }
-                        _ => Ok(Request::GetError(
-                            "Error: Could not find setVariable command argrument".to_string(),
-                        )),
-                    }
+                        },
+                    )
                 }
                 _ => {
-                    match flag.subcommand() {
-                        Some(sub) => {
+                    flag.subcommand().map_or_else(
+                        || {
+                            Ok(Request::GetError(
+                                "Error: Could not find debug command argrument".to_string(),
+                            ))
+                        },
+                        |sub| {
                             let debug_info = sub.0;
                             let di: std::result::Result<DebugInfo, serde_json::Error> =
                                 serde_json::from_str(debug_info); // need to do it.
@@ -680,12 +695,8 @@ impl Debugger {
                                 }),
                                 Err(e) => Ok(Request::GetError(e.to_string())),
                             }
-                        }
-
-                        _ => Ok(Request::GetError(
-                            "Error: Could not find debug command argrument".to_string(),
-                        )),
-                    }
+                        },
+                    )
                 }
             },
             _ => Ok(Request::Tsp(input.trim().to_string())),

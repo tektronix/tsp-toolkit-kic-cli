@@ -12,7 +12,6 @@ use crate::{
     instrument::{
         self,
         authenticate::Authentication,
-        clear_output_queue,
         info::InstrumentInfo,
         language::{CmdLanguage, Language},
         Abort, Info, Login, Reset, Script,
@@ -280,6 +279,9 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
+        #[cfg(not(test))]
+        use crate::instrument::clear_output_queue;
+
         trace!("calling tti drop...");
         if self.fw_flash_in_progress {
             trace!("FW flash in progress. Skipping drop steps.");
@@ -1312,6 +1314,7 @@ mod unit {
 
     // Define a mock interface to be used in the tests above.
     mock! {
+        #[allow(clippy::struct_field_names)] //Clippy yells about generated field names
         Interface {}
 
         impl interface::Interface for Interface {}

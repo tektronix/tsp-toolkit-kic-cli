@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::Utc;
 use clap::{command, value_parser, Arg, ArgMatches, Command};
 use colored::Colorize;
@@ -9,7 +8,6 @@ use kic_lib::{
     ConnectionInfo,
 };
 use std::io::{stdin, ErrorKind};
-use std::path::PathBuf;
 use std::process::exit;
 use std::thread;
 use std::time::Duration;
@@ -64,9 +62,9 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_family = "unix")]
     let visa_file = "kic-debug-visa";
 
-    if let Some(visa_exe) = parent_dir.clone().map(|d| d.join(visa_file)) {
+    if let Some(visa_exe) = parent_dir.map(|d| d.join(visa_file)) {
         if kic_lib::is_visa_installed(&visa_exe) {
-            match Process::new(visa_exe.clone(), std::env::args().skip(1)).exec_replace() {
+            match Process::new(visa_exe, std::env::args().skip(1)).exec_replace() {
                 Ok(exit_code) => {
                     std::process::exit(exit_code);
                 }
@@ -156,7 +154,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
         State::NotNeeded => {
             debug!("Login not required");
         }
-    };
+    }
     debug!("Checking instrument language");
     match inst.as_mut().get_language()? {
         CmdLanguage::Scpi => {
@@ -222,23 +220,29 @@ fn add_connection_subcommands(command: impl Into<Command>) -> Command {
 }
 
 fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
-    if let Some(id) = args.get_one::<String>("keyring") {
-        Authentication::Keyring { id: id.to_string() }
-    } else if let Some(password) = args.get_one::<String>("password") {
-        let username = if let Some(username) = args.get_one::<String>("username") {
-            username
-        } else {
-            &String::new()
-        };
-        Authentication::Credential {
-            username: username.to_string(),
-            password: password.to_string(),
-        }
-    } else if check_connection_login_status(conn).is_ok() {
-        Authentication::NoAuth
-    } else {
-        Authentication::Prompt
-    }
+    args.get_one::<String>("keyring").map_or_else(
+        || {
+            args.get_one::<String>("password").map_or_else(
+                || {
+                    if check_connection_login_status(conn).is_ok() {
+                        Authentication::NoAuth
+                    } else {
+                        Authentication::Prompt
+                    }
+                },
+                |password| {
+                    let username = args
+                        .get_one::<String>("username")
+                        .map_or_else(String::new, std::clone::Clone::clone);
+                    Authentication::Credential {
+                        username,
+                        password: password.clone(),
+                    }
+                },
+            )
+        },
+        |id| Authentication::Keyring { id: id.clone() },
+    )
 }
 
 /// Check the connection status of the instrument. This will cause a connect and disconnect

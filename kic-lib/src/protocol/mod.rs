@@ -10,12 +10,6 @@ use std::{
     time::Duration,
 };
 
-#[cfg(not(target_os = "macos"))]
-use std::path::Path;
-
-#[cfg(target_os = "linux")]
-use std::path::PathBuf;
-
 use crate::{InstrumentError, Interface};
 
 #[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
@@ -73,7 +67,7 @@ pub mod raw;
 struct NoCertificateVerification(CryptoProvider);
 
 impl NoCertificateVerification {
-    fn new(provider: CryptoProvider) -> Self {
+    const fn new(provider: CryptoProvider) -> Self {
         Self(provider)
     }
 }
@@ -272,7 +266,7 @@ impl Write for Protocol {
             String::from_utf8_lossy(buf)
         );
 
-        let mut attempts = 0;
+        let mut attempts = 0u16;
         loop {
             let res = match self {
                 Self::Raw(r) => r.write(buf),
@@ -288,7 +282,7 @@ impl Write for Protocol {
                 }
 
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    attempts += 1;
+                    attempts = attempts.saturating_add(1);
 
                     if attempts == 1 {
                         trace!("write would-block: entering retry loop");
@@ -354,7 +348,7 @@ impl Write for Protocol {
                         ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:10.cyan/blue}] {bytes}/{total_bytes} (ETA: {eta}) {msg}")
                             .unwrap()
                             .with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| {
-                                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+                                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap();
                             }),
                     );
                     pb.set_message("Loading to instrument...");
@@ -380,7 +374,7 @@ impl Write for Protocol {
             }
 
             // Count bytes to ensure entire chunk is written
-            let mut offset = 0;
+            let mut offset = 0usize;
             let chunk = &buf[start..=end];
 
             while offset < chunk.len() {
@@ -392,7 +386,7 @@ impl Write for Protocol {
                         ));
                     }
                     Ok(n) => {
-                        offset += n;
+                        offset = offset.saturating_add(n);
                     }
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                         std::thread::sleep(Duration::from_millis(10));
@@ -403,7 +397,7 @@ impl Write for Protocol {
 
             // progress only advances after full chunk written
             if let Some(p) = pb.as_ref() {
-                p.set_position((end + 1).try_into().unwrap_or_default());
+                p.set_position((end.saturating_add(1)).try_into().unwrap_or_default());
             }
             start = end.saturating_add(1);
             end = if start.saturating_add(step) < buf.len() {
@@ -426,7 +420,7 @@ impl Write for Protocol {
                             "failed to write final chunk",
                         ));
                     }
-                    Ok(n) => offset += n,
+                    Ok(n) => offset = offset.saturating_add(n),
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                         std::thread::sleep(Duration::from_millis(10));
                     }

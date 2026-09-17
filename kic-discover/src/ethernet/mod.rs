@@ -61,7 +61,7 @@ impl LxiDeviceInfo {
                 if let Some(xmlstr) = Self::query_lxi_xml(addr).await {
                     if let Some(instr) = Self::parse_lxi_xml(&xmlstr, addr) {
                         if let Ok(out_str) = serde_json::to_string(&instr) {
-                            tx.send(out_str.to_string())?;
+                            tx.send(out_str)?;
                         }
                     }
                 }
@@ -85,6 +85,7 @@ impl LxiDeviceInfo {
     pub fn parse_lxi_xml(xml_data: &str, instr_addr: IpAddr) -> Option<Self> {
         const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
         if let Ok(root) = xml_data.parse::<Element>() {
+            #[allow(clippy::or_fun_call)] // Clippy is unhappy with either option for unwrap here
             if root.is("LXIDevice", DEVICE_NS) {
                 let manufacturer = root
                     .get_child("Manufacturer", DEVICE_NS)

@@ -17,10 +17,14 @@ impl Process {
         }
     }
 
+    /// # Errors
+    /// The process could fail to start
     pub fn exec_replace(self) -> anyhow::Result<i32> {
         imp::exec_replace(&self)
     }
 
+    /// # Errors
+    /// The process could fail to start
     #[cfg_attr(unix, allow(dead_code))]
     pub fn exec(&self) -> anyhow::Result<i32> {
         let exit = std::process::Command::new(&self.path)
@@ -65,7 +69,7 @@ mod imp {
     use super::Process;
     use std::os::unix::process::CommandExt;
 
-    pub(super) fn exec_replace(process: &Process) -> anyhow::Result<()> {
+    pub(super) fn exec_replace(process: &Process) -> anyhow::Result<i32> {
         let mut command = std::process::Command::new(&process.path);
         command.args(&process.args);
         Err(command.exec().into()) // Exec replaces the current application's program memory, therefore execution will
