@@ -1218,6 +1218,7 @@ mod unit {
 
     // Define a mock interface to be used in the tests above.
     mock! {
+        #[allow(clippy::struct_field_names)] // Clippy yells about generated field names, ignoring
         Interface {}
 
         impl interface::Interface for Interface {}

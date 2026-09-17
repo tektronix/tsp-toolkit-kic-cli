@@ -49,18 +49,14 @@ pub enum ConnectionInfo {
 impl Display for ConnectionInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::Lan { tls_addr, addr } => {
-                if let Some(tls) = tls_addr {
-                    tls.to_string()
-                } else {
-                    addr.to_string()
-                }
-            }
+            Self::Lan { tls_addr, addr } => tls_addr
+                .as_ref()
+                .map_or_else(|| addr.to_string(), std::string::ToString::to_string),
             Self::Vxi11 { string, .. }
             | Self::HiSlip { string, .. }
             | Self::VisaSocket { string, .. }
             | Self::Gpib { string }
-            | Self::Usb { string, .. } => string.to_string(),
+            | Self::Usb { string, .. } => string.clone(),
         };
 
         write!(f, "{s}")
@@ -216,7 +212,7 @@ impl ConnectionInfo {
         std::thread::sleep(Duration::from_millis(100));
         trace!("Writing `*IDN?`");
         inst.write_all(b"*IDN?\n")?;
-        let mut iterations = 0;
+        let mut iterations = 0usize;
         // Sometimes there might be other things in the instrument output queue, keep
         // reading until we have a valid IDN string
         // Try no more than 10 times
@@ -229,8 +225,7 @@ impl ConnectionInfo {
                 Ok(info) => return Ok(info),
                 Err(e) if iterations >= 10 => return Err(e),
                 _ => {
-                    iterations += 1;
-                    continue;
+                    iterations = iterations.saturating_add(1);
                 }
             }
         }
@@ -256,15 +251,6 @@ impl ConnectionInfo {
         // number via a different route (i.e. `*IDN?` or from the resource string)
         // should return directly from the associated match arm.
         let xml = match self {
-            Self::Lan { addr, .. } => {
-                // We don't know whether the instrument serves `https` or not, but if
-                // it does it will redirect, so just use `http`
-                client
-                    .get(format!("http://{}/lxi/identification", addr.ip()))
-                    .timeout(Duration::from_secs(2))
-                    .send()?
-                    .text()?
-            }
             Self::Vxi11 { addr, .. } => {
                 // If the instrument is using VXI-11, we can be reasonably sure it
                 // doesn't serve `https`, so this won't redirect.
@@ -283,7 +269,7 @@ impl ConnectionInfo {
                     .send()?
                     .text()?
             }
-            Self::VisaSocket { addr, .. } => {
+            Self::Lan { addr, .. } | Self::VisaSocket { addr, .. } => {
                 // We don't know whether the instrument serves `https` or not, but if
                 // it does it will redirect, so just use `http`
                 client

@@ -18,6 +18,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.23.0]
 
+### Fixed
+- Fix issue with fetching nodes config from a large system of instruments that produces a configuration longer than 1013 bytes
+- Fixed issue with `*-visa` executables on Linux being marked non-executable
+
 ### Changed
 - Rename 'Upgrade' firmware to 'Update' firmware.
 - Run LAN and VISA discovery in parallel

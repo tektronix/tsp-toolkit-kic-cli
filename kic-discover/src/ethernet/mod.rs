@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
+
+#[cfg(debug_assertions)]
 use tracing::{debug, trace};
 
 use crate::{model_category, IoType};
@@ -61,7 +63,7 @@ impl LxiDeviceInfo {
                 if let Some(xmlstr) = Self::query_lxi_xml(addr).await {
                     if let Some(instr) = Self::parse_lxi_xml(&xmlstr, addr) {
                         if let Ok(out_str) = serde_json::to_string(&instr) {
-                            tx.send(out_str.to_string())?;
+                            tx.send(out_str)?;
                         }
                     }
                 }
@@ -85,6 +87,7 @@ impl LxiDeviceInfo {
     pub fn parse_lxi_xml(xml_data: &str, instr_addr: IpAddr) -> Option<Self> {
         const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
         if let Ok(root) = xml_data.parse::<Element>() {
+            #[allow(clippy::or_fun_call)] // Clippy is unhappy with either option for unwrap here
             if root.is("LXIDevice", DEVICE_NS) {
                 let manufacturer = root
                     .get_child("Manufacturer", DEVICE_NS)
@@ -161,6 +164,7 @@ impl LxiDeviceInfo {
             Err(e) => return Err(Box::new(e).into()),
         };
 
+        #[allow(unused_variables)] // name variable is used for debugging
         for (name, ip) in interfaces {
             if let IpAddr::V4(ip) = ip {
                 for service_name in SERVICE_NAMES {

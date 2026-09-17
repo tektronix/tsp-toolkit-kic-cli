@@ -268,11 +268,11 @@ impl Flash for Instrument {
         trace!("Writing firmware image ({} bytes)", image.len());
         self.write_all(image)?;
 
-        let mut loop_count = 0;
+        let mut loop_count = 0usize;
         loop {
-            loop_count += 1;
+            loop_count = loop_count.saturating_add(1);
             match self.write_all(b"endflash\n") {
-                Ok(_) => {
+                Ok(()) => {
                     trace!(
                         "Successfully wrote 'endflash' after {} attempts",
                         loop_count
@@ -284,7 +284,6 @@ impl Flash for Instrument {
                         trace!("'endflash' WouldBlock, entering retry loop");
                     }
                     std::thread::sleep(Duration::from_millis(10));
-                    continue;
                 }
                 Err(e) => {
                     trace!("Error writing 'endflash': {e:?}");
@@ -1511,6 +1510,7 @@ mod unit {
 
     // Define a mock interface to be used in the tests above.
     mock! {
+        #[allow(clippy::struct_field_names)] // Clippy yells about generated fields
         Interface {}
 
         impl interface::Interface for Interface {}
