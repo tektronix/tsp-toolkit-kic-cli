@@ -283,6 +283,6 @@ prep-package:
 [group("package")]
 [group("rust")]
 pre-package-rust triple=native-triple: prep-package
-    cp target/{{ triple }}/release/kic-* ./bin
+    cp target/{{ triple }}/release/kic* ./bin
     -rm bin/*.pdb
     -rm bin/*.d
