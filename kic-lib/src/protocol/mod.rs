@@ -44,8 +44,8 @@ pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
     visa_exe_path.exists()
         && Command::new(visa_exe_path)
             .arg("--version")
-            .status()
-            .is_ok()
+            .output()
+            .is_ok_and(|x| x.status.success())
 }
 #[cfg(target_os = "macos")]
 #[must_use]
