@@ -779,21 +779,17 @@ impl Repl {
         trace!("{input_line}");
         let path = PathBuf::from(file_path.clone());
         let Some(path) = path.parent() else {
-            return Err(InstrumentReplError::IOError {
-                source: std::io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "given path did not have a containing folder",
-                ),
-            });
+            return Err(InstrumentReplError::IOError(std::io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "given path did not have a containing folder",
+            )));
         };
 
         if path.is_file() {
-            return Err(InstrumentReplError::IOError {
-                source: std::io::Error::new(
-                    io::ErrorKind::NotADirectory,
-                    "the parent folder is already a file",
-                ),
-            });
+            return Err(InstrumentReplError::IOError(std::io::Error::new(
+                io::ErrorKind::NotADirectory,
+                "the parent folder is already a file",
+            )));
         }
 
         // If the path doesn't already exist, recursively create it.

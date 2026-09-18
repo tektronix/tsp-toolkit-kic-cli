@@ -83,13 +83,14 @@ fn add_connection_subcommands(
     );
 
     for arg in additional_args {
-        command = command.arg(arg.clone());
+        command = command.arg(arg);
     }
 
     command
 }
 
 #[must_use]
+#[allow(clippy::too_many_lines)] // This function is long because we are adding a ton of args
 fn cmds() -> Command {
     command!()
         .propagate_version(true)
@@ -263,6 +264,14 @@ fn cmds() -> Command {
         })
 }
 
+#[cfg(debug_assertions)]
+const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
+#[cfg(not(debug_assertions))]
+const LOGFILE_LEVEL: LevelFilter = LevelFilter::DEBUG;
+
+const STDERR_LEVEL: LevelFilter = LevelFilter::INFO;
+
+#[allow(clippy::too_many_lines)] // This function could be broken down, but it isn't critical right now.
 fn main() -> anyhow::Result<()> {
     let parent_dir: Option<PathBuf> = std::env::current_exe().map_or(None, |path| {
         path.canonicalize()
@@ -270,18 +279,18 @@ fn main() -> anyhow::Result<()> {
             .parent()
             .map(std::convert::Into::into)
     });
-
     #[cfg(not(feature = "visa"))]
-    if kic_lib::is_visa_installed() {
+    {
         #[cfg(target_os = "windows")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa.exe"));
+        let visa_file = "kic-visa.exe";
 
         #[cfg(target_family = "unix")]
-        let kic_visa_exe: Option<PathBuf> = parent_dir.clone().map(|d| d.join("kic-visa"));
+        let visa_file = "kic-visa";
 
-        if let Some(kv) = kic_visa_exe {
-            if kv.exists() {
-                match Process::new(kv.clone(), std::env::args().skip(1)).exec_replace() {
+        if let Some(visa_exe) = parent_dir.clone().map(|d| d.join(visa_file)) {
+            #[cfg(not(feature = "visa"))]
+            if kic_lib::is_visa_installed(&visa_exe) {
+                match Process::new(visa_exe, std::env::args().skip(1)).exec_replace() {
                     Ok(exit_code) => {
                         std::process::exit(exit_code);
                     }
@@ -296,7 +305,8 @@ fn main() -> anyhow::Result<()> {
 
     let cmd = cmds();
 
-    let Ok((external_cmd_lut, mut cmd)) = find_subcommands_from_path(&parent_dir, cmd) else {
+    let Ok((external_cmd_lut, mut cmd)) = find_subcommands_from_path(parent_dir.as_ref(), cmd)
+    else {
         return Err(anyhow::Error::msg(
             "Unable to search directory for possible subcommands.",
         ));
@@ -312,13 +322,6 @@ fn main() -> anyhow::Result<()> {
     let verbose: bool = matches.get_flag("verbose");
     let log_file: Option<&PathBuf> = matches.get_one("log-file");
     let log_socket: Option<&SocketAddr> = matches.get_one("log-socket");
-
-    #[cfg(debug_assertions)]
-    const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
-    #[cfg(not(debug_assertions))]
-    const LOGFILE_LEVEL: LevelFilter = LevelFilter::DEBUG;
-
-    const STDERR_LEVEL: LevelFilter = LevelFilter::INFO;
 
     match (verbose, log_file, log_socket) {
         (true, Some(l), Some(s)) => {
@@ -488,12 +491,12 @@ fn main() -> anyhow::Result<()> {
                     .collect();
 
                 if verbose {
-                    args.push("--verbose".to_string())
+                    args.push("--verbose".to_string());
                 }
 
                 if let Some(log_file) = log_file {
                     args.push("--log-file".to_string());
-                    args.push(log_file.to_str().unwrap().to_string())
+                    args.push(log_file.to_str().unwrap().to_string());
                 }
 
                 if let Some(log_socket) = log_socket {
@@ -584,11 +587,10 @@ fn check_login(args: &ArgMatches) -> anyhow::Result<()> {
                 trace!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
                 println!("PROTECTED: USERNAME,PASSWORD{keyring_str}");
                 exit(3);
-            } else {
-                trace!("PROTECTED: PASSWORD{keyring_str}");
-                println!("PROTECTED: PASSWORD{keyring_str}");
-                exit(4);
             }
+            trace!("PROTECTED: PASSWORD{keyring_str}");
+            println!("PROTECTED: PASSWORD{keyring_str}");
+            exit(4);
         }
         Err(e) => Err(e.into()),
     }
@@ -644,7 +646,7 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
         State::NotNeeded => {
             debug!("Login not required");
         }
-    };
+    }
     debug!("Checking instrument language");
     match inst.as_mut().get_language()? {
         kic_lib::instrument::CmdLanguage::Scpi => {
@@ -680,26 +682,36 @@ fn get_instrument_access(inst: &mut Box<dyn Instrument>) -> anyhow::Result<()> {
 
 #[instrument(skip(conn, args))]
 fn auth_type(conn: &ConnectionInfo, args: &ArgMatches) -> Authentication {
-    if let Some(id) = args.get_one::<String>("keyring") {
-        trace!("keyring authentication selected");
-        Authentication::Keyring { id: id.to_string() }
-    } else if let Some(password) = args.get_one::<String>("password") {
-        trace!("password authentication selected");
-        let username = if let Some(username) = args.get_one::<String>("username") {
-            trace!("username provided");
-            username
-        } else {
-            &String::new()
-        };
-        Authentication::Credential {
-            username: username.to_string(),
-            password: password.to_string(),
-        }
-    } else if check_connection_login_status(conn).is_ok() {
-        Authentication::NoAuth
-    } else {
-        Authentication::Prompt
-    }
+    args.get_one::<String>("keyring").map_or_else(
+        || {
+            args.get_one::<String>("password").map_or_else(
+                || {
+                    if check_connection_login_status(conn).is_ok() {
+                        Authentication::NoAuth
+                    } else {
+                        Authentication::Prompt
+                    }
+                },
+                |password| {
+                    trace!("password authentication selected");
+                    let username =
+                        args.get_one::<String>("username")
+                            .map_or_else(String::new, |username| {
+                                trace!("username provided");
+                                username.clone()
+                            });
+                    Authentication::Credential {
+                        username,
+                        password: password.clone(),
+                    }
+                },
+            )
+        },
+        |id| {
+            trace!("keyring authentication selected");
+            Authentication::Keyring { id: id.clone() }
+        },
+    )
 }
 
 fn pause_exit_on_error() {
@@ -712,6 +724,7 @@ fn pause_exit_on_error() {
 }
 
 #[instrument(skip(args))]
+#[allow(clippy::too_many_lines)]
 fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Connecting to instrument");
     trace!("args: {args:?}");
@@ -1037,6 +1050,7 @@ fn read_tsp_errors(instrument: &mut Box<dyn Instrument>) -> anyhow::Result<Vec<T
     Ok(errors)
 }
 
+#[allow(clippy::too_many_lines)]
 fn script(args: &ArgMatches) -> anyhow::Result<()> {
     info!("Loading script to instrument");
     trace!("args: {args:?}");
@@ -1138,9 +1152,9 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
                 Duration::from_millis(50),
             ) {
                 return Err(e.into());
-            };
+            }
             match instrument.write_script(script_name.as_bytes(), &script_content, save, run) {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(e) => return Err(e.into()),
             }
 
@@ -1158,12 +1172,12 @@ fn script(args: &ArgMatches) -> anyhow::Result<()> {
                         continue;
                     }
                     Err(e) => return Err(e.into()),
-                };
+                }
                 let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
                 let buf = &buf[..first_null];
                 let buf = String::from_utf8_lossy(buf);
                 if !buf.is_empty() {
-                    accumulate = format!("{accumulate}{}", buf);
+                    accumulate = format!("{accumulate}{buf}");
                 }
                 let buf = buf
                     .split("TSP>")
@@ -1377,7 +1391,7 @@ fn ping(args: &ArgMatches) -> anyhow::Result<()> {
 type FindSubcommands = (HashMap<String, (PathBuf, Option<String>)>, Command);
 
 fn find_subcommands_from_path(
-    path: &Option<PathBuf>,
+    path: Option<&PathBuf>,
     mut cmd: Command,
 ) -> anyhow::Result<FindSubcommands> {
     let mut lut = HashMap::new();
