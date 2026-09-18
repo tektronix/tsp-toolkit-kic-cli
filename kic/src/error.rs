@@ -23,6 +23,7 @@ pub enum KicError {
 
     /// The user tried to connect an instrument with a VISA resource string, but no
     /// VISA driver was detected.
+    #[cfg(not(feature = "visa"))]
     #[error("no VISA driver detected but a connection to a VISA device was requested")]
     NoVisa,
 

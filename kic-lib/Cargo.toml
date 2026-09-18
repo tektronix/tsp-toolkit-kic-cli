@@ -34,3 +34,5 @@ colored = "2"
 mockall = { version = "0.12" }
 assert_matches = "1.5.0"
 
+[lints]
+workspace = true

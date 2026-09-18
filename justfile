@@ -249,7 +249,7 @@ test-rust:
 test-cov-rust $CARGO_TERM_VERBOSE="true":
     -rm -r "{{ env("TEST_DIR", "test-results") }}"
     -mkdir -p '{{ env("TEST_DIR", "test-results") }}'
-    cargo llvm-cov nextest --cobertura --branch > "{{ env("TEST_DIR", "test-results") }}/kic-rust.cobertura.xml"
+    cargo +nightly llvm-cov nextest --cobertura --branch --output-path "{{ env("TEST_DIR", "test-results") }}/kic-rust.cobertura.xml"
 
 ################################################################################
 # SBOM #########################################################################
@@ -283,6 +283,6 @@ prep-package:
 [group("package")]
 [group("rust")]
 pre-package-rust triple=native-triple: prep-package
-    cp target/{{ triple }}/release/kic-* ./bin
+    cp target/{{ triple }}/release/kic* ./bin
     -rm bin/*.pdb
     -rm bin/*.d

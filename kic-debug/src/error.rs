@@ -3,12 +3,12 @@ use thiserror::Error;
 #[allow(clippy::module_name_repetitions)]
 pub enum DebugError {
     /// Unable to deserialize from a json string to an object using serde
-    #[error("Deserialization error occurred: {source}")]
-    DeserializationError {
+    #[error("Deserialization error occurred: {0}")]
+    DeserializationError(
         #[from]
         /// The original `serde_json` error
-        source: serde_json::Error,
-    },
+        serde_json::Error,
+    ),
 
     /// The Debugger license is not accepted.
     #[error("Licensing error occurred: {reason}")]
@@ -26,20 +26,20 @@ pub enum DebugError {
     InstrumentLanguageError,
 
     /// An error coming from `kic_lib`
-    #[error("Instrument Error ocurred: {source}")]
-    InstrumentError {
+    #[error("Instrument Error ocurred: {0}")]
+    InstrumentError(
         #[from]
         /// The original `kic_lib` error
-        source: kic_lib::InstrumentError,
-    },
+        kic_lib::InstrumentError,
+    ),
 
     /// An IO error occurred
-    #[error("IO error occurred: {source}")]
-    IOError {
+    #[error("IO error occurred: {0}")]
+    IOError(
         /// The original `[std::io::Error]`
         #[from]
-        source: std::io::Error,
-    },
+        std::io::Error,
+    ),
 
     /// The interactive command from the user was not correct.
     #[error("command error: {details}")]
@@ -49,12 +49,12 @@ pub enum DebugError {
     },
 
     /// An error occurred when Clap tried to parse a command
-    #[error("command parsing error: {source}")]
-    ClapError {
+    #[error("command parsing error: {0}")]
+    ClapError(
         /// The original error
         #[from]
-        source: clap::error::Error,
-    },
+        clap::error::Error,
+    ),
 
     /// Some other error
     #[error("{0}")]

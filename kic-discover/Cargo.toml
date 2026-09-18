@@ -36,3 +36,5 @@ tracing-subscriber = { workspace = true }
 visa-rs = { version = "0.6.2", optional = true }
 windows-sys = { workspace = true }
 
+[lints]
+workspace = true

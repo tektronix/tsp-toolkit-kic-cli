@@ -1,14 +1,20 @@
 {
     "name": "@tektronix/kic-cli",
-    "version": "0.22.0",
+    "version": "0.23.0",
     "main": "index.js",
     "bin": {
         "windows-kic": "./bin/kic.exe",
+        "windows-kic-visa": "./bin/kic-visa.exe",
         "linux-kic": "./bin/kic",
+        "linux-kic-visa": "./bin/kic-visa",
         "windows-kic-discover": "./bin/kic-discover.exe",
+        "windows-kic-discover-visa": "./bin/kic-discover-visa.exe",
         "linux-kic-discover": "./bin/kic-discover",
+        "linux-kic-discover-visa": "./bin/kic-discover-visa",
         "windows-kic-debug": "./bin/kic-debug.exe",
-        "linux-kic-debug": "./bin/kic-debug"
+        "windows-kic-debug-visa": "./bin/kic-debug-visa.exe",
+        "linux-kic-debug": "./bin/kic-debug",
+        "linux-kic-debug-visa": "./bin/kic-debug-visa"
     },
     "repository": {
         "type": "git",

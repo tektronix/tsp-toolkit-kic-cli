@@ -37,12 +37,12 @@ pub enum InstrumentError {
     },
 
     /// A resource file was unable to be decrypted.
-    #[error("unable to decrypt resource: {source}")]
-    ResourceDecryptError {
+    #[error("unable to decrypt resource: {0}")]
+    ResourceDecryptError(
         ///**TODO:** Change this to the error that is produced when decryption fails
         #[from]
-        source: FromUtf8Error,
-    },
+        FromUtf8Error,
+    ),
 
     /// An error that occurs while trying to retrieve information about an instrument
     /// such as the serial number, model, manufacturer, etc.
@@ -62,13 +62,13 @@ pub enum InstrumentError {
     },
 
     /// Converts a [`std::io::Error`] to a [`TeaspoonInterfaceError`]
-    #[error("IO error: {source}")]
-    IoError {
+    #[error("IO error: {0}")]
+    IoError(
         /// The [`std::io::Error`] from which this [`TeaspoonInterfaceError::IoError`]
         /// was derived.
         #[from]
-        source: std::io::Error,
-    },
+        std::io::Error,
+    ),
 
     /// The provided login details were either incorrect or the instrument is already
     /// claimed and cannot be claimed again.
@@ -79,11 +79,8 @@ pub enum InstrumentError {
     #[error("Another interface has control, logout on that interface.")]
     InterfaceLoginErr,
 
-    #[error("{source}")]
-    ParseIntError {
-        #[from]
-        source: ParseIntError,
-    },
+    #[error("{0}")]
+    ParseIntError(#[from] ParseIntError),
 
     /// The TSP error that was received from the instrument was malformed.
     #[error("unable to parse TSP error from instrument {error}")]
@@ -120,19 +117,16 @@ pub enum InstrumentError {
 
     #[cfg(feature = "visa")]
     /// An error from the visa driver
-    #[error("visa error: {source}")]
-    VisaError {
-        #[from]
-        source: visa_rs::Error,
-    },
+    #[error("visa error: {0}")]
+    VisaError(#[from] visa_rs::Error),
 
     #[cfg(feature = "visa")]
     /// An error from the visa driver
     #[error("visa parse error: {0}")]
     VisaParseError(String),
 
-    #[error("Instrument upgrade failed: {0}")]
-    FwUpgradeFailure(String),
+    #[error("Instrument update failed: {0}")]
+    FwUpdateFailure(String),
 
     #[error("unknown vendor error: {0}")]
     UnknownVendor(String),
