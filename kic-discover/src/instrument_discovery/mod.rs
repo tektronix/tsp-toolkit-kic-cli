@@ -56,7 +56,9 @@ impl From<LxiDeviceInfo> for InstrumentInfo {
         Self {
             orig_idn: format!(
                 "{vendor},MODEL {model},{serial_number},{}",
-                firmware_rev.clone().unwrap_or("UNKNOWN".to_string())
+                firmware_rev
+                    .clone()
+                    .unwrap_or_else(|| "UNKNOWN".to_string())
             ),
             vendor,
             model,

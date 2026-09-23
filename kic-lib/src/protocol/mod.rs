@@ -5,15 +5,10 @@ use std::{
     fmt::Display,
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
-
-#[cfg(not(target_os = "macos"))]
-use std::path::Path;
-
-#[cfg(target_os = "linux")]
-use std::path::PathBuf;
 
 use crate::{InstrumentError, Interface};
 
@@ -38,51 +33,24 @@ use visa_rs::{
 /// # Panics
 /// `parse::<PathBuf>()` is called and unwrapped, so it _shouldn't_ panic.
 ///
+#[cfg(not(target_os = "macos"))]
 #[must_use]
-pub fn is_visa_installed() -> bool {
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        let search_path =
-            r"C:\Program Files (x86)\IVI Foundation\VISA\WinNT\Lib_x64\msc\visa64.lib";
-        Path::new(search_path).exists()
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let Some(search_paths) = std::env::var_os("LD_LIBRARY_PATH") else {
-            return false;
-        };
-        let Ok(search_paths) = search_paths.into_string() else {
-            return false;
-        };
-        for p in search_paths.split(':') {
-            let Ok(mut dir) = Path::new(&p).read_dir() else {
-                return false;
-            };
-            if dir.any(|e| {
-                let Ok(e) = e else {
-                    return false;
-                };
-                let Ok(f) = e.file_name().into_string() else {
-                    return false;
-                };
-
-                //parse::<PathBuf> is infallible so unwrap is ok here.
-                let path = p.parse::<PathBuf>().unwrap().join(f);
-
-                path.file_stem()
-                    .unwrap()
-                    .to_string_lossy()
-                    .contains("libvisa")
-            }) {
-                return true;
-            }
-        }
-        false
-    }
-    #[cfg(target_os = "macos")]
-    {
-        false
-    }
+pub fn is_visa_installed(visa_exe_path: &PathBuf) -> bool {
+    use std::process::Command;
+    // Test if the `*-visa` version of this application runs, if it does, the
+    // linker was able to find a visa library.
+    // This currently works for Linux and Windows.
+    // This should be updated when we support VISA on macOS
+    visa_exe_path.exists()
+        && Command::new(visa_exe_path)
+            .arg("--version")
+            .output()
+            .is_ok_and(|x| x.status.success())
+}
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn is_visa_installed(_visa_exe_path: &PathBuf) -> bool {
+    false
 }
 
 #[cfg(feature = "visa")]
@@ -98,7 +66,7 @@ pub mod raw;
 struct NoCertificateVerification(CryptoProvider);
 
 impl NoCertificateVerification {
-    fn new(provider: CryptoProvider) -> Self {
+    const fn new(provider: CryptoProvider) -> Self {
         Self(provider)
     }
 }
@@ -297,7 +265,7 @@ impl Write for Protocol {
             String::from_utf8_lossy(buf)
         );
 
-        let mut attempts = 0;
+        let mut attempts = 0u16;
         loop {
             let res = match self {
                 Self::Raw(r) => r.write(buf),
@@ -313,7 +281,7 @@ impl Write for Protocol {
                 }
 
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    attempts += 1;
+                    attempts = attempts.saturating_add(1);
 
                     if attempts == 1 {
                         trace!("write would-block: entering retry loop");
@@ -379,7 +347,7 @@ impl Write for Protocol {
                         ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:10.cyan/blue}] {bytes}/{total_bytes} (ETA: {eta}) {msg}")
                             .unwrap()
                             .with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| {
-                                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+                                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap();
                             }),
                     );
                     pb.set_message("Loading to instrument...");
@@ -405,7 +373,7 @@ impl Write for Protocol {
             }
 
             // Count bytes to ensure entire chunk is written
-            let mut offset = 0;
+            let mut offset = 0usize;
             let chunk = &buf[start..=end];
 
             while offset < chunk.len() {
@@ -417,7 +385,7 @@ impl Write for Protocol {
                         ));
                     }
                     Ok(n) => {
-                        offset += n;
+                        offset = offset.saturating_add(n);
                     }
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                         std::thread::sleep(Duration::from_millis(10));
@@ -428,7 +396,7 @@ impl Write for Protocol {
 
             // progress only advances after full chunk written
             if let Some(p) = pb.as_ref() {
-                p.set_position((end + 1).try_into().unwrap_or_default());
+                p.set_position((end.saturating_add(1)).try_into().unwrap_or_default());
             }
             start = end.saturating_add(1);
             end = if start.saturating_add(step) < buf.len() {
@@ -451,7 +419,7 @@ impl Write for Protocol {
                             "failed to write final chunk",
                         ));
                     }
-                    Ok(n) => offset += n,
+                    Ok(n) => offset = offset.saturating_add(n),
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                         std::thread::sleep(Duration::from_millis(10));
                     }

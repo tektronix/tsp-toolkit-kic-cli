@@ -19,7 +19,8 @@ pub struct DiscoveredPrinter {
 impl DiscoveredPrinter {
     /// Starts a thread that will print each instrument to stdout one by one as it is
     /// discovered.
-    pub fn start() -> (DiscoveredPrinter, std::sync::mpsc::Sender<String>) {
+    #[must_use]
+    pub fn start() -> (Self, std::sync::mpsc::Sender<String>) {
         let (tx, rx) = std::sync::mpsc::channel::<String>();
         let (cancel_tx, cancel_rx) = std::sync::mpsc::channel::<()>();
         let _jh = std::thread::spawn(move || loop {
@@ -30,14 +31,14 @@ impl DiscoveredPrinter {
             match rx.try_recv() {
                 Ok(x) => println!("{x}"),
                 Err(TryRecvError::Disconnected) => return,
-                _ => continue,
+                _ => {}
             }
         });
 
         (Self { cancel_tx }, tx)
     }
 
-    pub async fn stop(&self) {
+    pub fn stop(&self) {
         let _ = self.cancel_tx.send(());
     }
 }

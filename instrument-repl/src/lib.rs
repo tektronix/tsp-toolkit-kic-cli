@@ -1,4 +1,3 @@
-#![feature(stmt_expr_attributes)]
 #![deny(
     clippy::undocumented_unsafe_blocks,
     clippy::pedantic,
