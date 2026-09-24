@@ -14,7 +14,10 @@ use clap::{
     arg, builder::PathBufValueParser, command, value_parser, Arg, ArgAction, ArgMatches, Command,
 };
 use colored::Colorize;
-use instrument_repl::repl::{self};
+use instrument_repl::{
+    repl::{self},
+    TspError,
+};
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -30,6 +33,10 @@ use std::{
 };
 use tracing::{debug, error, info, instrument, level_filters::LevelFilter, trace, warn};
 use tracing_subscriber::{layer::SubscriberExt, Layer, Registry};
+
+// The standalone update command needs the same normalized TSP error API as the REPL
+// before it can query errors after a firmware transfer.
+const KIC_COMMON_TSP: &str = include_str!("../../instrument-repl/src/resources/kic_common.tsp");
 
 use kic_lib::{
     instrument::{authenticate::Authentication, read_until, Instrument, State},
@@ -944,6 +951,10 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
     info!("IDN: {info}");
     eprintln!("{info}");
 
+    // Load the common error-queue adapter because standalone `kic update` does not
+    // enter the REPL, where this script is normally loaded during startup.
+    instrument.write_script(b"_kic_common", KIC_COMMON_TSP.as_bytes(), false, true)?;
+
     let slot: Option<u16> = args.get_one::<u16>("slot").copied();
     let Some(file) = args.get_one::<PathBuf>("file").cloned() else {
         let e = KicError::ArgParseError {
@@ -972,14 +983,71 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     }
 
+    // Capture the queue before flashing so pre-existing instrument errors are not
+    // confused with errors produced by the firmware update.
+    match read_tsp_errors(&mut instrument) {
+        Ok(errors) if !errors.is_empty() => {
+            eprintln!(
+                "{}",
+                "Errors from device before sending firmware:".bright_yellow()
+            );
+            for error in errors {
+                eprintln!("{}", format!("TSP Error: {error}").red());
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!("Unable to check TSP errors before firmware update: {e}");
+        }
+    }
+
     eprintln!("Flashing instrument firmware. Please do NOT power off or disconnect.");
     if let Err(e) = instrument.flash_firmware(&image, slot) {
         error!("Error upgrading instrument: {e}");
         return Err(e.into());
     }
+
+    // Check the normalized TSP error queue after the transfer. A rebooting mainframe
+    // may close the connection before answering, so this diagnostic check is best-effort.
+    match read_tsp_errors(&mut instrument) {
+        Ok(errors) if !errors.is_empty() => {
+            eprintln!(
+                "{}",
+                "Errors detected after attempting to flash FW:".bright_yellow()
+            );
+            for error in errors {
+                eprintln!("{}", format!("TSP Error: {error}").red());
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!("Unable to check TSP errors after firmware update: {e}");
+        }
+    }
     eprintln!("Flashing instrument firmware completed. Instrument will restart.");
     info!("Instrument update complete");
     Ok(())
+}
+
+// Query and parse the same sentinel-delimited error response used by the REPL so
+// standalone firmware updates report instrument diagnostics consistently.
+fn read_tsp_errors(instrument: &mut Box<dyn Instrument>) -> anyhow::Result<Vec<TspError>> {
+    instrument.write_all(b"print(_KIC.error_message())\n")?;
+    let response = read_until(
+        instrument,
+        &[">DONE".to_string()],
+        1000,
+        Duration::from_millis(1),
+    )?;
+    let mut errors = Vec::new();
+    for line in response.lines() {
+        if let Some(error) = line.strip_prefix("ERM>") {
+            if !matches!(error, "START" | "DONE") {
+                errors.push(serde_json::from_str(error.trim())?);
+            }
+        }
+    }
+    Ok(errors)
 }
 
 #[allow(clippy::too_many_lines)]
