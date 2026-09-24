@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.24.0]
+
+### Added
+- Report TSP errors before and after the standalone kic executable firmware update
+
 ## [0.23.0]
 
 ### Fixed
