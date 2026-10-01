@@ -1007,29 +1007,35 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     }
 
-    if info.model.is_mp() {
-        // MP5103 mainframes and modules remain available for post-update diagnostics.
-        match read_tsp_errors(&mut instrument) {
-            Ok(errors) if !errors.is_empty() => {
-                eprintln!(
-                    "{}",
-                    "Errors detected after attempting to flash FW:".bright_yellow()
-                );
-                for error in errors {
-                    eprintln!("{}", format!("TSP Error: {error}").red());
-                }
-            }
-            Ok(_) => {}
-            Err(e) => {
-                warn!("Unable to check TSP errors after firmware update: {e}");
-            }
-        }
-    }
+    report_post_flash_errors(&mut instrument, info.model.is_mp());
     eprintln!(
         "Firmware file download complete.\nClose the terminal and reconnect after the instrument has restarted."
     );
     info!("Instrument update complete");
     Ok(())
+}
+
+fn report_post_flash_errors(instrument: &mut Box<dyn Instrument>, is_mp: bool) {
+    if !is_mp {
+        return;
+    }
+
+    // MP5103 mainframes and modules remain available for post-update diagnostics.
+    match read_tsp_errors(instrument) {
+        Ok(errors) if !errors.is_empty() => {
+            eprintln!(
+                "{}",
+                "Errors detected after attempting to flash FW:".bright_yellow()
+            );
+            for error in errors {
+                eprintln!("{}", format!("TSP Error: {error}").red());
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!("Unable to check TSP errors after firmware update: {e}");
+        }
+    }
 }
 
 // Query and parse the same sentinel-delimited error response used by the REPL so
