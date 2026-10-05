@@ -18,6 +18,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.24.0]
 
+### Changed 
+- Improved error message format when saving buffers to a file with an invalid buffer name.
+
 ### Added
 - Report TSP errors before and after the standalone kic executable firmware update
 
