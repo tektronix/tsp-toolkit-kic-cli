@@ -841,7 +841,7 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     info!("IDN: {info}");
     eprintln!("{info}");
 
-    let mut repl = repl::Repl::new(instrument);
+    let mut repl = repl::Repl::new(instrument, info.model.is_mp());
 
     info!("Starting instrument REPL");
     if let Err(e) = repl.start(should_clear_error_queue) {
@@ -1007,9 +1007,21 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
         return Err(e.into());
     }
 
-    // Check the normalized TSP error queue after the transfer. A rebooting mainframe
-    // may close the connection before answering, so this diagnostic check is best-effort.
-    match read_tsp_errors(&mut instrument) {
+    report_post_flash_errors(&mut instrument, info.model.is_mp());
+    eprintln!(
+        "Firmware file download complete.\nClose the terminal and reconnect after the instrument has restarted."
+    );
+    info!("Instrument update complete");
+    Ok(())
+}
+
+fn report_post_flash_errors(instrument: &mut Box<dyn Instrument>, is_mp: bool) {
+    if !is_mp {
+        return;
+    }
+
+    // MP5103 mainframes and modules remain available for post-update diagnostics.
+    match read_tsp_errors(instrument) {
         Ok(errors) if !errors.is_empty() => {
             eprintln!(
                 "{}",
@@ -1024,9 +1036,6 @@ fn update(args: &ArgMatches) -> anyhow::Result<()> {
             warn!("Unable to check TSP errors after firmware update: {e}");
         }
     }
-    eprintln!("Flashing instrument firmware completed. Instrument will restart.");
-    info!("Instrument update complete");
-    Ok(())
 }
 
 // Query and parse the same sentinel-delimited error response used by the REPL so

@@ -35,6 +35,7 @@ use crate::{
 
 pub struct Repl {
     inst: Box<dyn Instrument>,
+    is_mp: bool,
     command: Command,
     lang_cong_file_path: String,
     node_data_buffer: Vec<u8>,
@@ -97,9 +98,10 @@ pub fn clear_output_queue(
 
 impl Repl {
     #[must_use]
-    pub fn new(inst: Box<dyn Instrument>) -> Self {
+    pub fn new(inst: Box<dyn Instrument>, is_mp: bool) -> Self {
         Self {
             inst,
+            is_mp,
             command: Self::cli(),
             lang_cong_file_path: String::new(),
             node_data_buffer: Vec::new(),
@@ -557,6 +559,13 @@ impl Repl {
                             }
                             match self.inst.flash_firmware(contents.as_ref(), slot) {
                                 Ok(()) => {
+                                    if !self.is_mp {
+                                        Self::println_flush(
+                                            &"Firmware file download complete.\nClose the terminal and reconnect after the instrument has restarted.".bright_yellow(),
+                                        )?;
+                                        break 'user_loop;
+                                    }
+
                                     let (errors, _) = self.get_errors()?;
 
                                     if !errors.is_empty() {
