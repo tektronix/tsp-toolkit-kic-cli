@@ -285,6 +285,15 @@ impl Repl {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
                 last_read = Instant::now();
                 let read_size = match self.inst.read(&mut read_buf) {
+                    Ok(read_size) if read_size == 0 => {
+                        warn!("Read zero bytes from connection, connection was gracefully closed by instrument");
+                        eprintln!(
+                            "{}",
+                            "Connection was gracefully closed by instrument. Press Enter to exit."
+                                .yellow()
+                        );
+                        break 'user_loop;
+                    }
                     Ok(read_size) => read_size,
                     Err(e) if e.kind() == ErrorKind::WouldBlock => 0,
                     Err(e) if e.kind() == ErrorKind::ConnectionReset => {
