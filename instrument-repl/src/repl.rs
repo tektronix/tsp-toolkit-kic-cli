@@ -35,6 +35,7 @@ use crate::{
 
 pub struct Repl {
     inst: Box<dyn Instrument>,
+    is_mp: bool,
     command: Command,
     lang_cong_file_path: String,
     node_data_buffer: Vec<u8>,
@@ -97,9 +98,10 @@ pub fn clear_output_queue(
 
 impl Repl {
     #[must_use]
-    pub fn new(inst: Box<dyn Instrument>) -> Self {
+    pub fn new(inst: Box<dyn Instrument>, is_mp: bool) -> Self {
         Self {
             inst,
+            is_mp,
             command: Self::cli(),
             lang_cong_file_path: String::new(),
             node_data_buffer: Vec::new(),
@@ -283,7 +285,19 @@ impl Repl {
                 let mut read_buf: Vec<u8> = vec![0; 1024];
                 last_read = Instant::now();
                 let read_size = match self.inst.read(&mut read_buf) {
-                    Ok(read_size) => read_size,
+                    Ok(read_size) => {
+                        if read_size == 0 {
+                            warn!("Read zero bytes from connection, connection was gracefully closed by instrument");
+                            eprintln!(
+                            "{}",
+                            "Connection was gracefully closed by instrument. Press Enter to exit."
+                                .yellow()
+                        );
+                            break 'user_loop;
+                        }
+
+                        read_size
+                    }
                     Err(e) if e.kind() == ErrorKind::WouldBlock => 0,
                     Err(e) if e.kind() == ErrorKind::ConnectionReset => {
                         error!("Error reading: CONNECTION RESET {e:?}");
@@ -557,6 +571,13 @@ impl Repl {
                             }
                             match self.inst.flash_firmware(contents.as_ref(), slot) {
                                 Ok(()) => {
+                                    if !self.is_mp {
+                                        Self::println_flush(
+                                            &"Firmware file download complete.\nClose the terminal and reconnect after the instrument has restarted.".bright_yellow(),
+                                        )?;
+                                        break 'user_loop;
+                                    }
+
                                     let (errors, _) = self.get_errors()?;
 
                                     if !errors.is_empty() {
