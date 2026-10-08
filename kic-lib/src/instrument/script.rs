@@ -44,8 +44,7 @@ where
         };
         // Truncate name otherwise we risk a Fatal Error (NS-2201)
         let name =
-            String::from_utf8_lossy(name.as_slice().chunks(31).next().unwrap_or(b"user_script"))
-                .to_string();
+            String::from_utf8_lossy(name.chunks(31).next().unwrap_or(b"user_script")).to_string();
         let mut script = script.reader(); //String::from_utf8_lossy(script.as_ref()).to_string();
         self.write_all(b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")?;
         self.flush()?;
