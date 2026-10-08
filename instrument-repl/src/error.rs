@@ -77,6 +77,10 @@ pub enum InstrumentReplError {
         #[from]
         serde_json::Error,
     ),
+
+    /// There was an error parsing a JSONC settings file.
+    #[error("configuration parsing error: {0}")]
+    ConfigurationParseError(#[from] jsonc_parser::errors::ParseError),
 }
 
 pub(crate) type Result<T> = std::result::Result<T, InstrumentReplError>;

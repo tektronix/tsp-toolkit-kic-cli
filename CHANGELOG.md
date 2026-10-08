@@ -31,6 +31,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.23.0]
 
 ### Fixed
+- Allow `.nodes` to update VS Code JSONC settings with comments and trailing commas without removing existing comments.
 - Fix issue with fetching nodes config from a large system of instruments that produces a configuration longer than 1013 bytes
 - Fixed issue with `*-visa` executables on Linux being marked non-executable
 

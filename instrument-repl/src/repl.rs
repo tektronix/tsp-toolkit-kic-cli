@@ -9,6 +9,10 @@
 use chrono::Utc;
 use clap::{arg, value_parser, Arg, ArgAction, Command};
 use colored::Colorize;
+use jsonc_parser::{
+    cst::{CstInputValue, CstRootNode},
+    ParseOptions,
+};
 use regex::Regex;
 use std::{
     fmt::Display,
@@ -806,48 +810,81 @@ impl Repl {
             fs::create_dir_all(path)?;
         }
 
-        if let Ok(mut file) = File::open(&file_path) {
-            // Read the existing file content
-            let mut existing_content = String::new();
-            file.read_to_string(&mut existing_content)?;
+        let updated_json_string = match File::open(&file_path) {
+            Ok(mut file) => {
+                // Read the existing file content
+                let mut existing_content = String::new();
+                file.read_to_string(&mut existing_content)?;
 
-            // Parse the existing JSON content
-            let mut json_value: serde_json::Value = serde_json::from_str(&existing_content)?;
-
-            // Convert the Lua string to JSON
-            let new_json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
-
-            // Check if the key "tsp.tspLinkSystemConfigurations" exists
-            if let Some(configurations) = json_value
-                .get_mut("tsp.tspLinkSystemConfigurations")
-                .and_then(|configs| configs.as_array_mut())
-            {
-                // Add the new object to the existing list
-                configurations.push(new_json_value);
-            } else {
-                // Create the key and initialize it with a list containing the new object
-                json_value["tsp.tspLinkSystemConfigurations"] =
-                    serde_json::Value::Array(vec![new_json_value]);
+                Self::append_node_configuration(&existing_content, input_line)?
             }
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                // If the file doesn't exist, create it and initialize the JSON structure
+                let new_json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
+                let json_structure = serde_json::json!({
+                    "tsp.tspLinkSystemConfigurations":[new_json_value]
+                });
 
-            // Convert the updated JSON value to a pretty-printed string
-            let updated_json_string = serde_json::to_string_pretty(&json_value)?;
-
-            // Write the updated JSON back to the file
-            let mut file = File::create(file_path)?;
-            file.write_all(updated_json_string.as_bytes())?;
-        } else {
-            // If the file doesn't exist, create it and initialize the JSON structure
-            let new_json_value: serde_json::Value = serde_json::from_str(input_line.trim())?;
-            let json_structure = serde_json::json!({
-                "tsp.tspLinkSystemConfigurations":[new_json_value]
-            });
-
-            let json_string = serde_json::to_string_pretty(&json_structure)?;
-            let mut file = File::create(file_path)?;
-            file.write_all(json_string.as_bytes())?;
-        }
+                serde_json::to_string_pretty(&json_structure)?
+            }
+            Err(e) => return Err(e.into()),
+        };
+        let mut file = File::create(file_path)?;
+        file.write_all(updated_json_string.as_bytes())?;
         Ok(())
+    }
+
+    fn append_node_configuration(existing_content: &str, input_line: &str) -> Result<String> {
+        const KEY: &str = "tsp.tspLinkSystemConfigurations";
+
+        let root = CstRootNode::parse(
+            existing_content,
+            &ParseOptions {
+                allow_comments: true,
+                allow_trailing_commas: true,
+                allow_loose_object_property_names: false,
+                allow_missing_commas: false,
+                allow_single_quoted_strings: false,
+                allow_hexadecimal_numbers: false,
+                allow_unary_plus_numbers: false,
+                allow_bare_decimal_point_numbers: false,
+                allow_non_finite_numbers: false,
+                allow_extended_string_escapes: false,
+            },
+        )?;
+        let object = root.object_value().ok_or_else(|| {
+            InstrumentReplError::Other("configuration must be a JSON object".to_string())
+        })?;
+        let new_value = Self::configuration_input_value(serde_json::from_str(input_line.trim())?);
+        if let Some(configurations) = object.array_value(KEY) {
+            configurations.append(new_value);
+        } else if let Some(property) = object.get(KEY) {
+            property.set_value(CstInputValue::Array(vec![new_value]));
+        } else {
+            object.append(KEY, CstInputValue::Array(vec![new_value]));
+        }
+        Ok(root.to_string())
+    }
+
+    fn configuration_input_value(value: serde_json::Value) -> CstInputValue {
+        match value {
+            serde_json::Value::Null => CstInputValue::Null,
+            serde_json::Value::Bool(value) => CstInputValue::Bool(value),
+            serde_json::Value::Number(value) => CstInputValue::Number(value.to_string()),
+            serde_json::Value::String(value) => CstInputValue::String(value),
+            serde_json::Value::Array(values) => CstInputValue::Array(
+                values
+                    .into_iter()
+                    .map(Self::configuration_input_value)
+                    .collect(),
+            ),
+            serde_json::Value::Object(values) => CstInputValue::Object(
+                values
+                    .into_iter()
+                    .map(|(key, value)| (key, Self::configuration_input_value(value)))
+                    .collect(),
+            ),
+        }
     }
 
     fn set_lang_config_path(&mut self, file_path: String) {
@@ -1436,6 +1473,146 @@ enum Action {
 mod node_data_tests {
     use super::{Action, Repl};
     use crate::{instrument::ParsedResponse, state_machine::ReadState};
+
+    #[test]
+    fn node_configuration_preserves_jsonc_settings() {
+        let settings = r#"{
+    "search.exclude": {
+        "coverage": true,
+        "node_modules": true,
+        "out": true,
+    },
+    // Turn off tsc task auto detection
+    "typescript.tsc.autoDetect": "off",
+    /* Library paths */
+    "Lua.workspace.library": ["c:\\Users\\rjha\\libraries",],
+    "url": "https://example.com/*not a comment*/",
+}"#;
+        let updated = Repl::append_node_configuration(settings, r#"{"node":"unit"}"#)
+            .expect("valid JSONC settings");
+        assert!(updated.contains(r#""out": true,"#));
+        assert!(updated.contains("// Turn off tsc task auto detection"));
+        assert!(updated.contains("/* Library paths */"));
+        assert!(updated.contains(r#""Lua.workspace.library": ["c:\\Users\\rjha\\libraries",]"#));
+        assert!(updated.contains(r#""url": "https://example.com/*not a comment*/""#));
+        let root = super::CstRootNode::parse(&updated, &super::ParseOptions::default())
+            .expect("updated settings are valid JSONC");
+        let configurations = root
+            .object_value()
+            .expect("object")
+            .array_value("tsp.tspLinkSystemConfigurations")
+            .expect("configurations");
+        assert_eq!(configurations.to_string().matches(r#""node""#).count(), 1);
+    }
+
+    #[test]
+    fn node_configuration_appends_to_existing_array() {
+        let settings = r#"{
+    "tsp.tspLinkSystemConfigurations": [
+        // Keep the first configuration
+        {"node": "first"},
+    ],
+    "unrelated": true
+}"#;
+        let updated = Repl::append_node_configuration(settings, r#"{"node":"second"}"#)
+            .expect("valid JSONC settings");
+        assert!(updated.contains("// Keep the first configuration"));
+        let root = super::CstRootNode::parse(&updated, &super::ParseOptions::default())
+            .expect("updated settings");
+        let object = root.object_value().expect("object");
+        let configurations = object
+            .array_value("tsp.tspLinkSystemConfigurations")
+            .expect("configurations");
+        let values: Vec<serde_json::Value> = configurations
+            .children_exclude_trivia_and_tokens()
+            .iter()
+            .map(|node| node.to_serde_value().expect("node JSON"))
+            .collect();
+        assert_eq!(
+            values,
+            vec![
+                serde_json::json!({"node": "first"}),
+                serde_json::json!({"node": "second"})
+            ]
+        );
+        assert!(updated.contains(r#""unrelated": true"#));
+    }
+
+    #[test]
+    fn node_configuration_preserves_strict_json_behavior() {
+        for settings in ["{}", r#"{"tsp.tspLinkSystemConfigurations": null}"#] {
+            let updated = Repl::append_node_configuration(settings, r#"{"node":"unit"}"#)
+                .expect("valid settings");
+            let value: serde_json::Value = serde_json::from_str(&updated).expect("strict JSON");
+            assert_eq!(
+                value["tsp.tspLinkSystemConfigurations"],
+                serde_json::json!([{"node": "unit"}])
+            );
+        }
+    }
+
+    #[test]
+    fn node_configuration_rejects_invalid_settings_and_node_data() {
+        for settings in [
+            r#"{"broken": }"#,
+            r#"{"first": 1 "second": 2}"#,
+            "{unquoted: true}",
+            r#"{"single": 'quoted'}"#,
+            r#"{"broken": /* unclosed comment}"#,
+            "[]",
+            "null",
+            "",
+        ] {
+            assert!(
+                Repl::append_node_configuration(settings, r#"{"node":"unit"}"#).is_err(),
+                "must reject {settings}"
+            );
+        }
+        assert!(Repl::append_node_configuration("{}", r#"{"node": "unit",}"#).is_err());
+    }
+
+    #[test]
+    fn node_configuration_file_updates_and_errors() {
+        let directory = std::env::temp_dir().join(format!(
+            "kic-node-settings-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("current time")
+                .as_nanos()
+        ));
+        let path = directory.join("settings.json");
+        let file_path = path.to_str().expect("UTF-8 test path").to_string();
+        Repl::write_json_data(file_path.clone(), r#"{"node":"first"}"#)
+            .expect("create settings in new directory");
+        let created: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).expect("settings"))
+                .expect("strict JSON");
+        assert_eq!(
+            created["tsp.tspLinkSystemConfigurations"],
+            serde_json::json!([{"node": "first"}])
+        );
+
+        let settings = "{\r\n    // Keep this comment\r\n    \"out\": true,\r\n}\r\n";
+        std::fs::write(&path, settings).expect("JSONC settings");
+        Repl::write_json_data(file_path.clone(), r#"{"node":"second"}"#)
+            .expect("update JSONC settings");
+        let updated = std::fs::read_to_string(&path).expect("settings");
+        assert!(updated.contains("// Keep this comment\r\n"));
+        assert!(updated.contains("\"out\": true,"));
+        assert!(updated.contains("tsp.tspLinkSystemConfigurations"));
+
+        let invalid = r#"{"out": }"#;
+        std::fs::write(&path, invalid).expect("invalid settings");
+        assert!(Repl::write_json_data(file_path.clone(), r#"{"node":"third"}"#).is_err());
+        assert_eq!(std::fs::read_to_string(&path).expect("settings"), invalid);
+        std::fs::write(&path, settings).expect("valid settings");
+        assert!(Repl::write_json_data(file_path, "invalid node data").is_err());
+        assert_eq!(std::fs::read_to_string(&path).expect("settings"), settings);
+
+        std::fs::remove_file(&path).expect("remove test settings");
+        std::fs::remove_dir(&directory).expect("remove test directory");
+    }
 
     #[test]
     fn node_data_is_accumulated_until_node_end() {

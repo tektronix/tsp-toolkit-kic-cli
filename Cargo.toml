@@ -26,6 +26,7 @@ colored = "2.1.0"
 exitcode = "1.1.2"
 instrument-repl = { path = "instrument-repl" }
 jsonrpsee = { version = "0.22.3", features = ["tokio", "tracing", "server"] }
+jsonc-parser = { version = "0.34.0", features = ["cst", "serde_json"] }
 local-ip-address = "0.6.1"
 mdns = { git = "https://github.com/jaime-sense/mdns", rev = "498cf7cceaf7e2683a2e352b7e8a15dfc1c29037" } # until https://github.com/dylanmckay/mdns/pull/27 is closed
 minidom = "0.15.2"

@@ -13,6 +13,7 @@ colored = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+jsonc-parser = { workspace = true }
 shlex = { workspace = true }
 tracing = { workspace = true }
 kic-lib = { workspace = true }
