@@ -1746,6 +1746,7 @@ version = "0.24.0"
 dependencies = [
  "anyhow",
  "assert_matches",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "colored",

@@ -11,6 +11,7 @@ pub mod error;
 pub mod instrument;
 pub mod interface;
 pub mod model;
+pub mod trace;
 
 #[cfg(test)]
 pub(crate) mod test_util;
