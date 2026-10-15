@@ -27,7 +27,7 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
     process::exit,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -40,7 +40,10 @@ const KIC_COMMON_TSP: &str = include_str!("../../instrument-repl/src/resources/k
 
 use kic_lib::{
     instrument::{authenticate::Authentication, read_until, Instrument, State},
-    model::connect_to,
+    model::connect_to_with_trace,
+    trace::{
+        TraceContext, TraceDestinations, TraceDispatcher, TraceSession, MAX_TRACE_QUEUE_CAPACITY,
+    },
     ConnectionInfo,
 };
 
@@ -113,6 +116,30 @@ fn cmds() -> Command {
             .help("Log to the given socket (in IPv4 or IPv6 format with port number). Can be used in conjunction with `--log-file` and `--verbose`.")
             .global(true)
             .value_parser(clap::value_parser!(SocketAddr)),
+        )
+        .arg(
+            Arg::new("trace-file")
+                .long("trace-file")
+                .required(false)
+                .help("Write instrument I/O trace events to the given JSON Lines file.")
+                .global(true)
+                .value_parser(PathBufValueParser::new()),
+        )
+        .arg(
+            Arg::new("trace-socket")
+                .long("trace-socket")
+                .required(false)
+                .help("Send instrument I/O trace events to the given JSON Lines socket.")
+                .global(true)
+                .value_parser(clap::value_parser!(SocketAddr)),
+        )
+        .arg(
+            Arg::new("trace-session-id")
+                .long("trace-session-id")
+                .required(false)
+                .help("Correlate instrument I/O trace events with the given session ID.")
+                .global(true)
+                .value_parser(value_parser!(String)),
         )
         .arg(
             Arg::new("verbose")
@@ -322,6 +349,9 @@ fn main() -> anyhow::Result<()> {
     let verbose: bool = matches.get_flag("verbose");
     let log_file: Option<&PathBuf> = matches.get_one("log-file");
     let log_socket: Option<&SocketAddr> = matches.get_one("log-socket");
+    let trace_file: Option<&PathBuf> = matches.get_one("trace-file");
+    let trace_socket: Option<&SocketAddr> = matches.get_one("trace-socket");
+    let trace_session_id: Option<&String> = matches.get_one("trace-session-id");
 
     match (verbose, log_file, log_socket) {
         (true, Some(l), Some(s)) => {
@@ -434,6 +464,28 @@ fn main() -> anyhow::Result<()> {
         (false, None, None) => {}
     }
 
+    let trace_context = if matches.subcommand_name() == Some("connect")
+        && (trace_file.is_some() || trace_socket.is_some())
+    {
+        let mut destinations = TraceDestinations::new();
+        if let Some(path) = trace_file {
+            destinations.add_file(path)?;
+        }
+        if let Some(address) = trace_socket {
+            destinations.add_socket(address)?;
+        }
+        let dispatcher = Arc::new(TraceDispatcher::new(
+            MAX_TRACE_QUEUE_CAPACITY,
+            destinations.into_handler(),
+        )?);
+        Some(TraceContext::new(
+            TraceSession::new(trace_session_id.map(String::as_str)),
+            dispatcher,
+        ))
+    } else {
+        None
+    };
+
     info!("Application started");
     trace!(
         "Application starting with the following args: {:?}",
@@ -446,7 +498,7 @@ fn main() -> anyhow::Result<()> {
             return Ok(());
         }
         Some(("connect", sub_matches)) => {
-            return connect(sub_matches);
+            return connect(sub_matches, trace_context);
         }
         Some(("reset", sub_matches)) => {
             return reset(sub_matches);
@@ -502,6 +554,21 @@ fn main() -> anyhow::Result<()> {
                 if let Some(log_socket) = log_socket {
                     args.push("--log-socket".to_string());
                     args.push(log_socket.to_string());
+                }
+
+                if let Some(trace_file) = trace_file {
+                    args.push("--trace-file".to_string());
+                    args.push(trace_file.to_str().unwrap().to_string());
+                }
+
+                if let Some(trace_socket) = trace_socket {
+                    args.push("--trace-socket".to_string());
+                    args.push(trace_socket.to_string());
+                }
+
+                if let Some(trace_session_id) = trace_session_id {
+                    args.push("--trace-session-id".to_string());
+                    args.push(trace_session_id.clone());
                 }
 
                 debug!("Replacing this executable with '{path:?}' args: {args:?}");
@@ -624,8 +691,17 @@ fn connect_async_instrument(
     t: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, KicError> {
+    connect_async_instrument_with_trace(t, auth, None)
+}
+
+#[instrument(skip(t, auth, trace))]
+fn connect_async_instrument_with_trace(
+    t: &ConnectionInfo,
+    auth: Authentication,
+    trace: Option<TraceContext>,
+) -> Result<Box<dyn Instrument>, KicError> {
     trace!("Connecting to async instrument");
-    let instrument: Box<dyn Instrument> = connect_to(t, auth)?;
+    let instrument: Box<dyn Instrument> = connect_to_with_trace(t, auth, trace)?;
     info!("Successfully connected to async instrument");
     Ok(instrument)
 }
@@ -723,9 +799,9 @@ fn pause_exit_on_error() {
     let _ = std::io::stdin().read_line(&mut buf);
 }
 
-#[instrument(skip(args))]
+#[instrument(skip(args, trace))]
 #[allow(clippy::too_many_lines)]
-fn connect(args: &ArgMatches) -> anyhow::Result<()> {
+fn connect(args: &ArgMatches, trace: Option<TraceContext>) -> anyhow::Result<()> {
     info!("Connecting to instrument");
     trace!("args: {args:?}");
 
@@ -781,21 +857,22 @@ fn connect(args: &ArgMatches) -> anyhow::Result<()> {
     let auth = auth_type(conn, args);
 
     trace!("Initial instrument connection");
-    let mut instrument: Box<dyn Instrument> = match connect_async_instrument(conn, auth) {
-        Ok(i) => i,
-        Err(e) => {
-            error!("Error connecting to async instrument: {e}");
-            eprintln!(
-                "{}",
-                format!(
+    let mut instrument: Box<dyn Instrument> =
+        match connect_async_instrument_with_trace(conn, auth, trace) {
+            Ok(i) => i,
+            Err(e) => {
+                error!("Error connecting to async instrument: {e}");
+                eprintln!(
+                    "{}",
+                    format!(
                     "\nError connecting to async instrument: {e}\n\nUnrecoverable error. Closing."
                 )
-                .red()
-            );
-            pause_exit_on_error();
-            return Err(e.into());
-        }
-    };
+                    .red()
+                );
+                pause_exit_on_error();
+                return Err(e.into());
+            }
+        };
 
     trace!("Configuring instrument");
     if let Err(e) = get_instrument_access(&mut instrument) {

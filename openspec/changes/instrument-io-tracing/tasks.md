@@ -21,10 +21,12 @@
 - [x] 3.4 Record physical reads and writes performed by `AsyncStream` without duplicating events at higher layers.
 - [ ] 3.5 Keep tracing limited to the interactive `connect` transport and verify ping, check-login, discovery, and pre-terminal setup traffic are excluded.
 
+> Deferred until CLI trace construction and forwarding are implemented in Tasks 4.1 and 4.2; this boundary check must be validated against the complete command flow.
+
 ### 4. Redaction and CLI Configuration
 
-- [ ] 4.1 Add dedicated global CLI options for trace file, trace socket, and session ID without changing the meaning of existing diagnostic logging options.
-- [ ] 4.2 Construct the trace socket destination before interactive command dispatch and preserve trace options through supported CLI forwarding.
+- [x] 4.1 Add dedicated global CLI options for trace file, trace socket, and session ID without changing the meaning of existing diagnostic logging options.
+- [x] 4.2 Construct the trace socket destination before interactive command dispatch and preserve trace options through supported CLI forwarding.
 - [ ] 4.3 Redact passwords, tokens, and equivalent authentication secrets before trace events enter the queue, preserving safe metadata such as direction and original byte length.
 - [ ] 4.4 Keep trace JSON out of normal stdout and stderr and preserve existing behavior when no trace destination is configured.
 

@@ -18,6 +18,7 @@ use crate::{
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
     protocol::Protocol,
+    trace::TraceContext,
     Flash, InstrumentError,
 };
 
@@ -50,7 +51,15 @@ impl Instrument {
     /// [`ConnectionInfo::get_info()`].
     #[tracing::instrument(skip(conn, auth))]
     pub fn connect(conn: &ConnectionInfo, auth: Authentication) -> Result<Self, InstrumentError> {
-        let protocol = Protocol::connect(conn)?;
+        Self::connect_with_trace(conn, auth, None)
+    }
+
+    pub fn connect_with_trace(
+        conn: &ConnectionInfo,
+        auth: Authentication,
+        trace: Option<TraceContext>,
+    ) -> Result<Self, InstrumentError> {
+        let protocol = Protocol::connect_with_trace(conn, trace)?;
 
         Ok(Self {
             info: None,

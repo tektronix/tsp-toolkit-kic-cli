@@ -6,6 +6,7 @@ use crate::{
     instrument::{authenticate::Authentication, Instrument},
     interface::connection_addr::ConnectionInfo,
     protocol::Protocol,
+    trace::TraceContext,
     InstrumentError,
 };
 
@@ -35,20 +36,33 @@ pub fn connect_to(
     conn: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, InstrumentError> {
+    connect_to_with_trace(conn, auth, None)
+}
+
+/// Connect to an instrument with optional application-level I/O tracing.
+pub fn connect_to_with_trace(
+    conn: &ConnectionInfo,
+    auth: Authentication,
+    trace: Option<TraceContext>,
+) -> Result<Box<dyn Instrument>, InstrumentError> {
     trace!("Connecting to {conn}");
     let model: Model = conn.get_model()?;
 
     Ok(if model.is_2600() {
-        Box::new(ki2600::Instrument::connect(conn, auth)?)
+        Box::new(ki2600::Instrument::connect_with_trace(conn, auth, trace)?)
     } else if model.is_3700_70x() {
-        Box::new(ki3700::Instrument::connect(conn, auth)?)
+        Box::new(ki3700::Instrument::connect_with_trace(conn, auth, trace)?)
     } else if model.is_tti() {
-        Box::new(tti::Instrument::connect(conn, auth)?)
+        Box::new(tti::Instrument::connect_with_trace(conn, auth, trace)?)
     } else if model.is_mp() {
-        Box::new(versatest::Instrument::connect(conn, auth)?)
+        Box::new(versatest::Instrument::connect_with_trace(
+            conn, auth, trace,
+        )?)
     } else {
         trace!("Unable to determine instrument model, defaulting to MP5000 series connection procedure.");
-        Box::new(versatest::Instrument::connect(conn, auth)?)
+        Box::new(versatest::Instrument::connect_with_trace(
+            conn, auth, trace,
+        )?)
     })
 }
 
