@@ -28,11 +28,11 @@
 - [x] 4.1 Add dedicated global CLI options for trace file, trace socket, and session ID without changing the meaning of existing diagnostic logging options.
 - [x] 4.2 Construct the trace socket destination before interactive command dispatch and preserve trace options through supported CLI forwarding.
 - [x] 4.3 Redact passwords, tokens, and equivalent authentication secrets before trace events enter the queue, preserving safe metadata such as direction and original byte length.
-- [ ] 4.4 Keep trace JSON out of normal stdout and stderr and preserve existing behavior when no trace destination is configured.
+- [x] 4.4 Keep trace JSON out of normal stdout and stderr and preserve existing behavior when no trace destination is configured.
 
 ### 5. Validation and Tests
 
-- [ ] 5.1 Add unit tests for disabled tracing, event serialization, UTF-8/Base64 payloads, session IDs, and exact byte counts.
+- [x] 5.1 Add unit tests for disabled tracing, event serialization, UTF-8/Base64 payloads, session IDs, and exact byte counts.
 - [ ] 5.2 Add transport tests for successful and failed reads/writes, partial operations, raw LAN/TLS paths, VISA paths where available, and AsyncStream worker behavior.
 - [ ] 5.3 Add tests for file and socket delivery, split/coalesced JSON Lines, destination disconnects, queue overflow, and bounded memory behavior.
 - [ ] 5.4 Add security tests proving authentication payloads are redacted before reaching file and socket destinations.

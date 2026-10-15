@@ -128,6 +128,15 @@ mod tests {
     impl Interface for TestInterface {}
 
     #[test]
+    fn disables_tracing_when_using_compatibility_constructor() {
+        let raw = Raw::new(TestInterface {
+            input: Cursor::new(Vec::new()),
+        });
+
+        assert!(raw.trace_context().is_none());
+    }
+
+    #[test]
     fn traces_successful_partial_reads_and_writes() {
         let (event_sender, event_receiver) = mpsc::channel();
         let dispatcher = Arc::new(
