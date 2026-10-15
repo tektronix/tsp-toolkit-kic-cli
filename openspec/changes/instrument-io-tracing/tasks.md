@@ -77,7 +77,10 @@
 
 ### 10. Contract and Integration Checks
 
-- [ ] 10.1 Build the CLI artifact consumed by the extension and verify the exact `--trace-socket` and `--trace-session-id` arguments.
-- [ ] 10.2 Run a fake localhost trace producer/consumer test covering JSONL framing, session correlation, and live OutputChannel formatting.
-- [ ] 10.3 Verify trace is opt-in, stdout/stderr remain unchanged, and trace delivery or listener failures do not terminate instrument communication.
-- [ ] 10.4 Run Rust formatting/lint/tests and extension tests; document environment-dependent VISA checks.
+- [x] 10.1 Build the CLI artifact consumed by the extension and verify the exact `--trace-socket` and `--trace-session-id` arguments.
+- [x] 10.2 Run a fake localhost trace producer/consumer test covering JSONL framing, session correlation, and live OutputChannel formatting.
+- [x] 10.3 Verify trace is opt-in, stdout/stderr remain unchanged, and trace delivery or listener failures do not terminate instrument communication.
+- [x] 10.4 Run Rust formatting/lint/tests and extension tests; document environment-dependent VISA checks.
+
+> Final validation: Rust formatting passes; `kic` unit tests pass (3 tests); `kic-lib` unit tests pass (55 tests); and the extension compile, lint, and test pipeline passes (64 tests).
+>

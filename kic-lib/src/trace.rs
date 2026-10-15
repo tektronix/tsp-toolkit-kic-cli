@@ -438,9 +438,9 @@ mod tests {
     use std::time::Duration;
 
     use super::{
-        TraceContext, TraceDestinations, TraceDirection, TraceDispatcher, TraceEvent, TracePayload,
-        TracePayloadEncoding, TraceProtocol, TraceSession, MAX_TRACE_DATA_BYTES,
-        MAX_TRACE_PAYLOAD_BYTES,
+        TraceContext, TraceDestinations, TraceDiagnostics, TraceDirection, TraceDispatcher,
+        TraceEvent, TracePayload, TracePayloadEncoding, TraceProtocol, TraceSession,
+        MAX_TRACE_DATA_BYTES, MAX_TRACE_PAYLOAD_BYTES,
     };
 
     fn test_event(data: &str) -> TraceEvent {
@@ -661,6 +661,45 @@ mod tests {
         let content = fs::read_to_string(&path).expect("file destination should remain usable");
         fs::remove_file(path).expect("temporary trace file should be removable");
         assert!(content.contains("\"data\":\"after-disconnect\""));
+    }
+
+    #[test]
+    fn reports_socket_failure_without_failing_file_delivery() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = listener.local_addr().expect("listener should have address");
+        let receiver = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("socket client should connect");
+            stream
+                .shutdown(std::net::Shutdown::Both)
+                .expect("socket should shut down");
+        });
+
+        let path = std::env::temp_dir().join(format!(
+            "instrument-trace-handler-{}.jsonl",
+            TraceSession::new(None).id()
+        ));
+        let mut destinations = TraceDestinations::new();
+        destinations
+            .add_file(&path)
+            .expect("file destination should open");
+        destinations
+            .add_socket(address)
+            .expect("socket destination should connect");
+        receiver.join().expect("socket receiver should finish");
+
+        let diagnostics = Arc::new(TraceDiagnostics::default());
+        let handler = destinations.into_handler_with_diagnostics(Arc::clone(&diagnostics));
+        for _ in 0..16 {
+            handler(test_event("handler-event"));
+            if diagnostics.destination_failure_count() > 0 {
+                break;
+            }
+        }
+
+        let content = fs::read_to_string(&path).expect("file destination should remain usable");
+        fs::remove_file(path).expect("temporary trace file should be removable");
+        assert!(diagnostics.destination_failure_count() > 0);
+        assert!(content.contains("\"data\":\"handler-event\""));
     }
 
     #[test]
