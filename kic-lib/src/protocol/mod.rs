@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{InstrumentError, Interface};
+use crate::{trace::TraceContext, InstrumentError, Interface};
 
 #[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
@@ -130,8 +130,11 @@ impl Protocol {
         Self::Raw(Raw::new(interface))
     }
 
-    #[tracing::instrument]
-    fn try_tls_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
+    #[tracing::instrument(skip(trace))]
+    fn try_tls_lan_connection(
+        addr: &SocketAddr,
+        trace: Option<TraceContext>,
+    ) -> Result<Self, InstrumentError> {
         trace!("Trying TLS connection");
         let mut sock = TcpStream::connect_timeout(addr, Duration::from_millis(500))?;
         sock.set_write_timeout(Some(Duration::from_millis(1000)))?;
@@ -151,15 +154,21 @@ impl Protocol {
         trace!("comp_read: {comp_read}, comp_write: {comp_write}");
 
         sock.set_nonblocking(true)?;
-        Ok(Self::Raw(Raw::new(rustls::StreamOwned::new(conn, sock))))
+        Ok(Self::Raw(Raw::new_with_trace(
+            rustls::StreamOwned::new(conn, sock),
+            trace,
+        )))
     }
 
-    fn try_lan_connection(addr: &SocketAddr) -> Result<Self, InstrumentError> {
+    fn try_lan_connection(
+        addr: &SocketAddr,
+        trace: Option<TraceContext>,
+    ) -> Result<Self, InstrumentError> {
         let stream = TcpStream::connect(addr)?;
         stream.set_nonblocking(true)?;
         stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
         stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
-        Ok(Self::Raw(Raw::new(stream)))
+        Ok(Self::Raw(Raw::new_with_trace(stream, trace)))
     }
 
     /// Connects to the appropriate interface given a connection
@@ -168,12 +177,21 @@ impl Protocol {
     /// The errors that can occur are from each of the connection types: [`TcpStream`]
     /// and [`Visa`]
     pub fn connect(info: &ConnectionInfo) -> Result<Self, InstrumentError> {
+        Self::connect_with_trace(info, None)
+    }
+
+    /// Connect with optional application-level I/O tracing state.
+    #[tracing::instrument(skip(info, trace))]
+    pub fn connect_with_trace(
+        info: &ConnectionInfo,
+        trace: Option<TraceContext>,
+    ) -> Result<Self, InstrumentError> {
         #[allow(unused_variables)]
         match info {
             ConnectionInfo::Lan { tls_addr, addr } => {
                 // Attempt to connect with a tls addr (normally port 5026) if available
                 if let Some(tls) = tls_addr {
-                    match Self::try_tls_lan_connection(tls) {
+                    match Self::try_tls_lan_connection(tls, trace.clone()) {
                         Ok(tls_stream) => {
                             trace!("TLS connection succeeded");
                             Ok(tls_stream)
@@ -183,12 +201,12 @@ impl Protocol {
                                 "TLS connection failed: {e}, falling back to non-TLS connection"
                             );
                             // If TLS fails, use TcpStream
-                            Ok(Self::try_lan_connection(addr)?)
+                            Ok(Self::try_lan_connection(addr, trace)?)
                         }
                     }
                 } else {
                     trace!("No TLS address supplied, connecting without TLS");
-                    Ok(Self::try_lan_connection(addr)?)
+                    Ok(Self::try_lan_connection(addr, trace)?)
                 }
             }
             ConnectionInfo::Vxi11 { string, .. }
@@ -200,7 +218,7 @@ impl Protocol {
                 {
                     use crate::interface::NonBlock;
 
-                    let mut visa = Visa::new(string)?;
+                    let mut visa = Visa::new_with_trace(string, trace)?;
                     visa.set_nonblocking(true)?;
                     Ok(Self::Visa(visa))
                 }

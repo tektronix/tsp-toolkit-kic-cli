@@ -5,12 +5,15 @@ use std::{
 
 use visa_rs::{flags::AccessMode, AsResourceManager, VisaString, TIMEOUT_INFINITE};
 
-use crate::{interface::NonBlock, protocol::stb::Stb, InstrumentError, Interface};
+use crate::{
+    interface::NonBlock, protocol::stb::Stb, trace::TraceContext, InstrumentError, Interface,
+};
 
 pub struct Visa {
     _rm: visa_rs::DefaultRM,
     inst: visa_rs::Instrument,
     nonblocking: bool,
+    pub(crate) trace: Option<TraceContext>,
 }
 
 impl Visa {
@@ -20,6 +23,13 @@ impl Visa {
     /// Errors can occur when creating the [`DefaultRM`], creating the [`VisaString`],
     /// and opening the [`visa_rs::Instrument`]
     pub fn new(resource_string: &str) -> Result<Self, InstrumentError> {
+        Self::new_with_trace(resource_string, None)
+    }
+
+    pub(crate) fn new_with_trace(
+        resource_string: &str,
+        trace: Option<TraceContext>,
+    ) -> Result<Self, InstrumentError> {
         let rm = visa_rs::DefaultRM::new()?;
         let Some(resource_string) = VisaString::from_string(resource_string.to_string()) else {
             return Err(InstrumentError::VisaParseError(format!(
@@ -32,7 +42,13 @@ impl Visa {
             _rm: rm,
             inst,
             nonblocking: true,
+            trace,
         })
+    }
+
+    #[must_use]
+    pub fn trace_context(&self) -> Option<&TraceContext> {
+        self.trace.as_ref()
     }
 }
 

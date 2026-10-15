@@ -68,6 +68,36 @@ impl TraceSession {
     }
 }
 
+/// Optional tracing state attached to one instrument connection.
+#[derive(Clone)]
+pub struct TraceContext {
+    session: TraceSession,
+    dispatcher: Arc<TraceDispatcher>,
+}
+
+impl TraceContext {
+    /// Create tracing state for a connection.
+    #[must_use]
+    pub fn new(session: TraceSession, dispatcher: Arc<TraceDispatcher>) -> Self {
+        Self {
+            session,
+            dispatcher,
+        }
+    }
+
+    /// Return the session identity associated with emitted events.
+    #[must_use]
+    pub fn session(&self) -> &TraceSession {
+        &self.session
+    }
+
+    /// Return the asynchronous event dispatcher for this connection.
+    #[must_use]
+    pub fn dispatcher(&self) -> &Arc<TraceDispatcher> {
+        &self.dispatcher
+    }
+}
+
 fn generate_session_id() -> String {
     let elapsed = SystemTime::now()
         .duration_since(UNIX_EPOCH)
