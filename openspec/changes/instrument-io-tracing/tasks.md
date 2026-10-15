@@ -84,3 +84,4 @@
 
 > Final validation: Rust formatting passes; `kic` unit tests pass (3 tests); `kic-lib` unit tests pass (55 tests); and the extension compile, lint, and test pipeline passes (64 tests).
 >
+> Strict Clippy with `-D warnings` remains blocked by pre-existing workspace diagnostics, including 37 `kic-lib` diagnostics. The configured `rustdoc::missing_doc_code_examples` lint is unstable on the installed toolchain, so the aggregate `cargo test -p kic -p kic-lib` command's doctest phase is environment-blocked even though all unit tests pass. Live VISA hardware validation was unavailable; deterministic VISA parsing and feature compilation remain the available checks.
