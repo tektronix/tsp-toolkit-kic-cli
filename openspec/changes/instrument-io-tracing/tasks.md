@@ -19,15 +19,15 @@
 - [x] 3.2 Record successful raw LAN and TLS reads and writes at the underlying transport boundary using only the successful byte range.
 - [x] 3.3 Record successful VISA reads and writes at the VISA wrapper boundary using the same event contract.
 - [x] 3.4 Record physical reads and writes performed by `AsyncStream` without duplicating events at higher layers.
-- [ ] 3.5 Keep tracing limited to the interactive `connect` transport and verify ping, check-login, discovery, and pre-terminal setup traffic are excluded.
+- [x] 3.5 Keep tracing limited to the interactive `connect` transport and verify ping, check-login, discovery, and pre-terminal setup traffic are excluded.
 
-> Deferred until CLI trace construction and forwarding are implemented in Tasks 4.1 and 4.2; this boundary check must be validated against the complete command flow.
+> Verified after CLI trace construction and forwarding: local trace context is created only for interactive `connect`; non-connect handlers and setup paths retain the no-trace connection flow.
 
 ### 4. Redaction and CLI Configuration
 
 - [x] 4.1 Add dedicated global CLI options for trace file, trace socket, and session ID without changing the meaning of existing diagnostic logging options.
 - [x] 4.2 Construct the trace socket destination before interactive command dispatch and preserve trace options through supported CLI forwarding.
-- [ ] 4.3 Redact passwords, tokens, and equivalent authentication secrets before trace events enter the queue, preserving safe metadata such as direction and original byte length.
+- [x] 4.3 Redact passwords, tokens, and equivalent authentication secrets before trace events enter the queue, preserving safe metadata such as direction and original byte length.
 - [ ] 4.4 Keep trace JSON out of normal stdout and stderr and preserve existing behavior when no trace destination is configured.
 
 ### 5. Validation and Tests

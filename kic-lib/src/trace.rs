@@ -17,6 +17,7 @@ pub const MAX_TRACE_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const MAX_TRACE_DATA_BYTES: usize = ((MAX_TRACE_PAYLOAD_BYTES + 2) / 3) * 4;
 /// Maximum number of events retained by a trace queue.
 pub const MAX_TRACE_QUEUE_CAPACITY: usize = 1024;
+const REDACTED_TRACE_DATA: &str = "[REDACTED]";
 
 /// Direction of a successful physical instrument I/O operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -104,7 +105,7 @@ impl TraceContext {
         address: Option<&str>,
         bytes: &[u8],
     ) {
-        let payload = TracePayload::from_bytes(bytes);
+        let payload = TracePayload::for_trace(direction, bytes);
         let event = TraceEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             session_id: self.session.id().to_owned(),
@@ -141,6 +142,18 @@ pub struct TracePayload {
 }
 
 impl TracePayload {
+    fn for_trace(direction: TraceDirection, bytes: &[u8]) -> Self {
+        if direction == TraceDirection::Write && is_authentication_payload(bytes) {
+            return Self {
+                byte_length: bytes.len(),
+                encoding: TracePayloadEncoding::Utf8,
+                data: REDACTED_TRACE_DATA.to_owned(),
+            };
+        }
+
+        Self::from_bytes(bytes)
+    }
+
     /// Encode bytes as UTF-8 when possible and Base64 otherwise.
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
@@ -158,6 +171,18 @@ impl TracePayload {
             },
         }
     }
+}
+
+fn is_authentication_payload(bytes: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let text = text.trim_end_matches(['\r', '\n']);
+
+    ["password ", "login "].iter().any(|prefix| {
+        text.strip_prefix(prefix)
+            .is_some_and(|value| !value.is_empty())
+    })
 }
 
 /// A session-correlated physical instrument I/O event.
@@ -410,9 +435,10 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::mpsc;
     use std::sync::{Arc, Barrier, Mutex};
+    use std::time::Duration;
 
     use super::{
-        TraceDestinations, TraceDirection, TraceDispatcher, TraceEvent, TracePayload,
+        TraceContext, TraceDestinations, TraceDirection, TraceDispatcher, TraceEvent, TracePayload,
         TracePayloadEncoding, TraceProtocol, TraceSession, MAX_TRACE_DATA_BYTES,
         MAX_TRACE_PAYLOAD_BYTES,
     };
@@ -591,6 +617,72 @@ mod tests {
         assert_eq!(payload.byte_length, 2);
         assert_eq!(payload.encoding, TracePayloadEncoding::Utf8);
         assert_eq!(payload.data, "µ");
+    }
+
+    #[test]
+    fn redacts_authentication_writes_before_queueing() {
+        let (event_sender, event_receiver) = mpsc::channel();
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(1, move |event| {
+                event_sender
+                    .send(event)
+                    .expect("test receiver should be alive");
+            })
+            .expect("trace worker should start"),
+        );
+        let context = TraceContext::new(TraceSession::new(Some("redaction-test")), dispatcher);
+        let password_write = b"login user secret-token\n";
+
+        context.record(
+            TraceDirection::Write,
+            TraceProtocol::Lan,
+            None,
+            password_write,
+        );
+
+        let event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("redacted event should be delivered");
+        assert_eq!(event.byte_length, password_write.len());
+        assert_eq!(event.encoding, TracePayloadEncoding::Utf8);
+        assert_eq!(event.data, "[REDACTED]");
+        assert!(!event.data.contains("secret-token"));
+    }
+
+    #[test]
+    fn does_not_redact_reads_or_non_authentication_writes() {
+        let (event_sender, event_receiver) = mpsc::channel();
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(2, move |event| {
+                event_sender
+                    .send(event)
+                    .expect("test receiver should be alive");
+            })
+            .expect("trace worker should start"),
+        );
+        let context = TraceContext::new(TraceSession::new(Some("redaction-boundary")), dispatcher);
+
+        context.record(
+            TraceDirection::Read,
+            TraceProtocol::Lan,
+            None,
+            b"login user secret-token\n",
+        );
+        context.record(
+            TraceDirection::Write,
+            TraceProtocol::Lan,
+            None,
+            b"print('status')\n",
+        );
+
+        let read_event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("read event should be delivered");
+        let write_event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("write event should be delivered");
+        assert_eq!(read_event.data, "login user secret-token\n");
+        assert_eq!(write_event.data, "print('status')\n");
     }
 
     #[test]
