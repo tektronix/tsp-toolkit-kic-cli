@@ -11,7 +11,7 @@
 - [x] 2.1 Implement a bounded, thread-safe event queue and background destination worker that does not block instrument I/O indefinitely.
 - [x] 2.2 Implement file delivery as newline-delimited JSON and socket delivery as the same newline-delimited event stream.
 - [x] 2.3 Implement independent destination failure handling, queue-overflow accounting, and rate-limited diagnostic reporting without returning trace failures as instrument I/O errors.
-- [ ] 2.4 Bound event payload or queued memory usage so a large transfer cannot create unbounded trace memory consumption.
+- [x] 2.4 Bound event payload or queued memory usage so a large transfer cannot create unbounded trace memory consumption.
 
 ### 3. Transport Instrumentation
 

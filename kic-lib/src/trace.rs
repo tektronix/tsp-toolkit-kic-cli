@@ -11,6 +11,13 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 
+/// Maximum number of source payload bytes retained in a trace event.
+pub const MAX_TRACE_PAYLOAD_BYTES: usize = 64 * 1024;
+/// Maximum encoded payload size accepted by the trace queue.
+pub const MAX_TRACE_DATA_BYTES: usize = ((MAX_TRACE_PAYLOAD_BYTES + 2) / 3) * 4;
+/// Maximum number of events retained by a trace queue.
+pub const MAX_TRACE_QUEUE_CAPACITY: usize = 1024;
+
 /// Direction of a successful physical instrument I/O operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -86,7 +93,8 @@ impl TracePayload {
     /// Encode bytes as UTF-8 when possible and Base64 otherwise.
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        match std::str::from_utf8(bytes) {
+        let bounded_bytes = &bytes[..bytes.len().min(MAX_TRACE_PAYLOAD_BYTES)];
+        match std::str::from_utf8(bounded_bytes) {
             Ok(text) => Self {
                 byte_length: bytes.len(),
                 encoding: TracePayloadEncoding::Utf8,
@@ -95,7 +103,7 @@ impl TracePayload {
             Err(_) => Self {
                 byte_length: bytes.len(),
                 encoding: TracePayloadEncoding::Base64,
-                data: base64::engine::general_purpose::STANDARD.encode(bytes),
+                data: base64::engine::general_purpose::STANDARD.encode(bounded_bytes),
             },
         }
     }
@@ -151,7 +159,7 @@ impl TraceDispatcher {
             capacity > 0,
             "trace queue capacity must be greater than zero"
         );
-        let (sender, receiver) = mpsc::sync_channel(capacity);
+        let (sender, receiver) = mpsc::sync_channel(capacity.min(MAX_TRACE_QUEUE_CAPACITY));
         let worker = std::thread::Builder::new()
             .name("instrument-trace".to_owned())
             .spawn(move || run_trace_worker(receiver, Box::new(handler)))?;
@@ -165,6 +173,11 @@ impl TraceDispatcher {
 
     /// Enqueue an event without waiting for the worker or its handler.
     pub fn try_enqueue(&self, event: TraceEvent) -> Result<(), TraceEvent> {
+        if event.data.len() > MAX_TRACE_DATA_BYTES {
+            self.diagnostics.record_dropped_event();
+            return Err(event);
+        }
+
         let Some(sender) = &self.sender else {
             return Err(event);
         };
@@ -349,7 +362,8 @@ mod tests {
 
     use super::{
         TraceDestinations, TraceDirection, TraceDispatcher, TraceEvent, TracePayload,
-        TracePayloadEncoding, TraceProtocol, TraceSession,
+        TracePayloadEncoding, TraceProtocol, TraceSession, MAX_TRACE_DATA_BYTES,
+        MAX_TRACE_PAYLOAD_BYTES,
     };
 
     fn test_event(data: &str) -> TraceEvent {
@@ -423,6 +437,30 @@ mod tests {
         assert_eq!(dispatcher.diagnostics().dropped_event_count(), 1);
 
         release_worker.wait();
+    }
+
+    #[test]
+    fn bounds_payload_data_but_preserves_original_byte_length() {
+        let bytes = vec![0xff; MAX_TRACE_PAYLOAD_BYTES + 1];
+        let payload = TracePayload::from_bytes(&bytes);
+
+        assert_eq!(payload.byte_length, bytes.len());
+        assert_eq!(payload.encoding, TracePayloadEncoding::Base64);
+        assert!(payload.data.len() <= MAX_TRACE_DATA_BYTES);
+    }
+
+    #[test]
+    fn rejects_events_with_oversized_encoded_data() {
+        let dispatcher = TraceDispatcher::new(1, |_event| {}).expect("trace worker should start");
+        let mut event = test_event("small");
+        event.data = "x".repeat(MAX_TRACE_DATA_BYTES + 1);
+
+        let rejected = dispatcher
+            .try_enqueue(event)
+            .expect_err("oversized event should be rejected");
+
+        assert_eq!(rejected.data.len(), MAX_TRACE_DATA_BYTES + 1);
+        assert_eq!(dispatcher.diagnostics().dropped_event_count(), 1);
     }
 
     #[test]
