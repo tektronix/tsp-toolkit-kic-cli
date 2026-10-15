@@ -10,7 +10,10 @@ use std::{
     time::Duration,
 };
 
-use crate::{trace::TraceContext, InstrumentError, Interface};
+use crate::{
+    trace::{TraceContext, TraceProtocol},
+    InstrumentError, Interface,
+};
 
 #[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
@@ -157,6 +160,8 @@ impl Protocol {
         Ok(Self::Raw(Raw::new_with_trace(
             rustls::StreamOwned::new(conn, sock),
             trace,
+            TraceProtocol::Tls,
+            Some(addr.to_string()),
         )))
     }
 
@@ -168,7 +173,12 @@ impl Protocol {
         stream.set_nonblocking(true)?;
         stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
         stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
-        Ok(Self::Raw(Raw::new_with_trace(stream, trace)))
+        Ok(Self::Raw(Raw::new_with_trace(
+            stream,
+            trace,
+            TraceProtocol::Lan,
+            Some(addr.to_string()),
+        )))
     }
 
     /// Connects to the appropriate interface given a connection

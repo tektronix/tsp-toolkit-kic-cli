@@ -96,6 +96,27 @@ impl TraceContext {
     pub fn dispatcher(&self) -> &Arc<TraceDispatcher> {
         &self.dispatcher
     }
+
+    pub(crate) fn record(
+        &self,
+        direction: TraceDirection,
+        protocol: TraceProtocol,
+        address: Option<&str>,
+        bytes: &[u8],
+    ) {
+        let payload = TracePayload::from_bytes(bytes);
+        let event = TraceEvent {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            session_id: self.session.id().to_owned(),
+            direction,
+            protocol,
+            address: address.map(ToOwned::to_owned),
+            byte_length: payload.byte_length,
+            encoding: payload.encoding,
+            data: payload.data,
+        };
+        let _ = self.dispatcher.try_enqueue(event);
+    }
 }
 
 fn generate_session_id() -> String {
