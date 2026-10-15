@@ -909,7 +909,7 @@ fn dump(args: &ArgMatches) -> anyhow::Result<()> {
 
 #[instrument(skip(args))]
 fn update(args: &ArgMatches) -> anyhow::Result<()> {
-    info!("Upgrading instrument");
+    info!("Updating instrument");
     trace!("args: {args:?}");
     eprintln!("\nTektronix TSP Shell\n");
 
