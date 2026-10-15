@@ -296,7 +296,7 @@ impl Interface for AsyncStream {}
 mod tests {
     use std::{
         io::{Error, ErrorKind, Read, Write},
-        sync::{mpsc, Arc},
+        sync::{mpsc, Arc, Mutex},
         time::Duration,
     };
 
@@ -308,11 +308,25 @@ mod tests {
 
     use super::AsyncStream;
 
-    struct TestInterface;
+    struct TestInterface {
+        reads: Mutex<mpsc::Receiver<Vec<u8>>>,
+    }
 
     impl Read for TestInterface {
-        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
-            Err(Error::new(ErrorKind::WouldBlock, "no data"))
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self
+                .reads
+                .lock()
+                .expect("test read receiver should not be poisoned")
+                .try_recv()
+            {
+                Ok(data) => {
+                    buf[..data.len()].copy_from_slice(&data);
+                    Ok(data.len())
+                }
+                Err(mpsc::TryRecvError::Empty) => Err(Error::new(ErrorKind::WouldBlock, "no data")),
+                Err(mpsc::TryRecvError::Disconnected) => Ok(0),
+            }
         }
     }
 
@@ -335,7 +349,7 @@ mod tests {
     impl Interface for TestInterface {}
 
     #[test]
-    fn traces_physical_worker_write_once() {
+    fn traces_physical_worker_read_and_write() {
         let (event_sender, event_receiver) = mpsc::channel();
         let dispatcher = Arc::new(
             TraceDispatcher::new(4, move |event| {
@@ -346,7 +360,10 @@ mod tests {
             .expect("trace dispatcher should start"),
         );
         let context = TraceContext::new(TraceSession::new(Some("async-test")), dispatcher);
-        let socket: Arc<dyn Interface + Send + Sync> = Arc::new(TestInterface);
+        let (read_sender, read_receiver) = mpsc::channel();
+        let socket: Arc<dyn Interface + Send + Sync> = Arc::new(TestInterface {
+            reads: Mutex::new(read_receiver),
+        });
         let mut stream = AsyncStream::try_from_with_trace(
             socket,
             Some(context),
@@ -359,12 +376,47 @@ mod tests {
             stream.write(b"abcd").expect("queued write should succeed"),
             4
         );
-        let event = event_receiver
+        read_sender
+            .send(b"response".to_vec())
+            .expect("test read sender should be alive");
+
+        let write_event = event_receiver
             .recv_timeout(Duration::from_secs(1))
             .expect("physical write event should be delivered");
-        assert_eq!(event.direction, TraceDirection::Write);
-        assert_eq!(event.byte_length, 2);
-        assert_eq!(event.data, "ab");
-        assert_eq!(event.session_id, "async-test");
+        assert_eq!(write_event.direction, TraceDirection::Write);
+        assert_eq!(write_event.byte_length, 2);
+        assert_eq!(write_event.data, "ab");
+        assert_eq!(write_event.session_id, "async-test");
+
+        let second_write_event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("second physical write event should be delivered");
+        assert_eq!(second_write_event.direction, TraceDirection::Write);
+        assert_eq!(second_write_event.byte_length, 2);
+        assert_eq!(second_write_event.data, "cd");
+
+        let mut buffer = [0; 8];
+        let read_size = (0..100)
+            .find_map(|_| {
+                let result = match stream.read(&mut buffer) {
+                    Ok(0) => None,
+                    Ok(size) => Some(size),
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => None,
+                    Err(error) => panic!("unexpected async read error: {error}"),
+                };
+                if result.is_none() {
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                result
+            })
+            .expect("physical read should reach the async stream");
+        assert_eq!(read_size, 8);
+
+        let read_event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("physical read event should be delivered");
+        assert_eq!(read_event.direction, TraceDirection::Read);
+        assert_eq!(read_event.byte_length, 8);
+        assert_eq!(read_event.data, "response");
     }
 }

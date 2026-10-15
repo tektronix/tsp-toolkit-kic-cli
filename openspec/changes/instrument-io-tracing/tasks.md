@@ -33,7 +33,9 @@
 ### 5. Validation and Tests
 
 - [x] 5.1 Add unit tests for disabled tracing, event serialization, UTF-8/Base64 payloads, session IDs, and exact byte counts.
-- [ ] 5.2 Add transport tests for successful and failed reads/writes, partial operations, raw LAN/TLS paths, VISA paths where available, and AsyncStream worker behavior.
+- [x] 5.2 Add transport tests for successful and failed reads/writes, partial operations, raw LAN/TLS paths, VISA paths where available, and AsyncStream worker behavior.
+
+> Deterministic raw and AsyncStream boundary tests cover successful partial I/O, failed operations, and physical worker reads/writes. Live LAN/TLS endpoint and VISA hardware validation remain environment-dependent.
 - [ ] 5.3 Add tests for file and socket delivery, split/coalesced JSON Lines, destination disconnects, queue overflow, and bounded memory behavior.
 - [ ] 5.4 Add security tests proving authentication payloads are redacted before reaching file and socket destinations.
 - [ ] 5.5 Add CLI tests covering interactive trace options, normal stdout/stderr isolation, and session ID propagation.

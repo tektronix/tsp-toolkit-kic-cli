@@ -103,6 +103,38 @@ mod tests {
         input: Cursor<Vec<u8>>,
     }
 
+    struct FailingInterface;
+
+    impl NonBlock for FailingInterface {
+        fn set_nonblocking(&mut self, _enable: bool) -> crate::error::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Read for FailingInterface {
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                "test read failure",
+            ))
+        }
+    }
+
+    impl Write for FailingInterface {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "test write failure",
+            ))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Interface for FailingInterface {}
+
     impl NonBlock for TestInterface {
         fn set_nonblocking(&mut self, _enable: bool) -> crate::error::Result<()> {
             Ok(())
@@ -177,6 +209,33 @@ mod tests {
         assert_eq!(write_event.direction, TraceDirection::Write);
         assert_eq!(write_event.byte_length, 2);
         assert_eq!(write_event.data, "re");
+    }
+
+    #[test]
+    fn does_not_trace_failed_reads_or_writes() {
+        let (event_sender, event_receiver) = mpsc::channel();
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(2, move |event| {
+                event_sender
+                    .send(event)
+                    .expect("test receiver should be alive");
+            })
+            .expect("trace dispatcher should start"),
+        );
+        let context = TraceContext::new(TraceSession::new(Some("raw-failure-test")), dispatcher);
+        let mut raw = Raw::new_with_trace(
+            FailingInterface,
+            Some(context),
+            TraceProtocol::Lan,
+            Some("127.0.0.1:5025".to_owned()),
+        );
+
+        let mut read_buffer = [0; 4];
+        assert!(raw.read(&mut read_buffer).is_err());
+        assert!(raw.write(b"request").is_err());
+        assert!(event_receiver
+            .recv_timeout(Duration::from_millis(100))
+            .is_err());
     }
 }
 
