@@ -13,7 +13,10 @@ use tracing::error;
 
 use crate::error::{InstrumentError, Result};
 
-use crate::interface::{Interface, NonBlock};
+use crate::{
+    interface::{Interface, NonBlock},
+    trace::{TraceContext, TraceDirection, TraceProtocol},
+};
 
 //create an Async version of the interface
 pub struct AsyncStream {
@@ -72,8 +75,20 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
     type Error = InstrumentError;
 
     fn try_from(
-        mut socket: Arc<dyn Interface + Send + Sync>,
+        socket: Arc<dyn Interface + Send + Sync>,
     ) -> std::result::Result<Self, Self::Error> {
+        Self::try_from_with_trace(socket, None, None, None)
+    }
+}
+
+impl AsyncStream {
+    /// Create an asynchronous stream with optional physical I/O tracing.
+    pub fn try_from_with_trace(
+        mut socket: Arc<dyn Interface + Send + Sync>,
+        trace: Option<TraceContext>,
+        protocol: Option<TraceProtocol>,
+        address: Option<String>,
+    ) -> std::result::Result<Self, InstrumentError> {
         let (write_to, read_into) = mpsc::channel();
         let (write_out, read_from) = mpsc::channel();
         let builder =
@@ -108,6 +123,14 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                                         break;
                                     }
                                     Ok(n) => {
+                                        if let (Some(trace), Some(protocol)) = (&trace, protocol) {
+                                            trace.record(
+                                                TraceDirection::Write,
+                                                protocol,
+                                                address.as_deref(),
+                                                &chunk[bytes_sent..bytes_sent + n],
+                                            );
+                                        }
                                         // Successfully sent some data
                                         bytes_sent = bytes_sent.saturating_add(n);
                                     }
@@ -145,6 +168,9 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                     }
 
                     let buf = &buf[..size];
+                    if let (Some(trace), Some(protocol)) = (&trace, protocol) {
+                        trace.record(TraceDirection::Read, protocol, address.as_deref(), buf);
+                    }
                     // This `send()` sends this to a receiver that will be activated next time a self.read() is called.
                     if size > 0 && write_out.send(buf.to_vec()).is_err() {
                         return Err(std::io::Error::new(
@@ -265,3 +291,80 @@ impl TryFrom<AsyncStream> for Arc<dyn Interface + Send + Sync> {
 }
 
 impl Interface for AsyncStream {}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{Error, ErrorKind, Read, Write},
+        sync::{mpsc, Arc},
+        time::Duration,
+    };
+
+    use crate::{
+        interface::NonBlock,
+        trace::{TraceContext, TraceDirection, TraceDispatcher, TraceProtocol, TraceSession},
+        Interface,
+    };
+
+    use super::AsyncStream;
+
+    struct TestInterface;
+
+    impl Read for TestInterface {
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            Err(Error::new(ErrorKind::WouldBlock, "no data"))
+        }
+    }
+
+    impl Write for TestInterface {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len().min(2))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl NonBlock for TestInterface {
+        fn set_nonblocking(&mut self, _enable: bool) -> crate::error::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Interface for TestInterface {}
+
+    #[test]
+    fn traces_physical_worker_write_once() {
+        let (event_sender, event_receiver) = mpsc::channel();
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(4, move |event| {
+                event_sender
+                    .send(event)
+                    .expect("test receiver should be alive");
+            })
+            .expect("trace dispatcher should start"),
+        );
+        let context = TraceContext::new(TraceSession::new(Some("async-test")), dispatcher);
+        let socket: Arc<dyn Interface + Send + Sync> = Arc::new(TestInterface);
+        let mut stream = AsyncStream::try_from_with_trace(
+            socket,
+            Some(context),
+            Some(TraceProtocol::Lan),
+            Some("127.0.0.1:5025".to_owned()),
+        )
+        .expect("async stream should start");
+
+        assert_eq!(
+            stream.write(b"abcd").expect("queued write should succeed"),
+            4
+        );
+        let event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("physical write event should be delivered");
+        assert_eq!(event.direction, TraceDirection::Write);
+        assert_eq!(event.byte_length, 2);
+        assert_eq!(event.data, "ab");
+        assert_eq!(event.session_id, "async-test");
+    }
+}
