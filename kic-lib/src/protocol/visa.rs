@@ -6,7 +6,10 @@ use std::{
 use visa_rs::{flags::AccessMode, AsResourceManager, VisaString, TIMEOUT_INFINITE};
 
 use crate::{
-    interface::NonBlock, protocol::stb::Stb, trace::TraceContext, InstrumentError, Interface,
+    interface::NonBlock,
+    protocol::stb::Stb,
+    trace::{TraceContext, TraceDirection, TraceProtocol},
+    InstrumentError, Interface,
 };
 
 pub struct Visa {
@@ -14,6 +17,7 @@ pub struct Visa {
     inst: visa_rs::Instrument,
     nonblocking: bool,
     pub(crate) trace: Option<TraceContext>,
+    trace_address: Option<String>,
 }
 
 impl Visa {
@@ -30,6 +34,7 @@ impl Visa {
         resource_string: &str,
         trace: Option<TraceContext>,
     ) -> Result<Self, InstrumentError> {
+        let trace_address = resource_string.to_owned();
         let rm = visa_rs::DefaultRM::new()?;
         let Some(resource_string) = VisaString::from_string(resource_string.to_string()) else {
             return Err(InstrumentError::VisaParseError(format!(
@@ -43,6 +48,7 @@ impl Visa {
             inst,
             nonblocking: true,
             trace,
+            trace_address: Some(trace_address),
         })
     }
 
@@ -61,7 +67,16 @@ impl NonBlock for Visa {
 
 impl Write for Visa {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.inst.write(buf)
+        let result = self.inst.write(buf);
+        if let (Ok(bytes_written), Some(trace)) = (&result, &self.trace) {
+            trace.record(
+                TraceDirection::Write,
+                TraceProtocol::Visa,
+                self.trace_address.as_deref(),
+                &buf[..*bytes_written],
+            );
+        }
+        result
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -91,7 +106,16 @@ impl Read for Visa {
                 ));
             }
         }
-        self.inst.read(buf)
+        let result = self.inst.read(buf);
+        if let (Ok(bytes_read), Some(trace)) = (&result, &self.trace) {
+            trace.record(
+                TraceDirection::Read,
+                TraceProtocol::Visa,
+                self.trace_address.as_deref(),
+                &buf[..*bytes_read],
+            );
+        }
+        result
     }
 }
 

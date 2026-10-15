@@ -17,7 +17,7 @@
 
 - [x] 3.1 Add optional trace context to the normal `kic-lib` connection construction while preserving the no-trace path and existing public behavior.
 - [x] 3.2 Record successful raw LAN and TLS reads and writes at the underlying transport boundary using only the successful byte range.
-- [ ] 3.3 Record successful VISA reads and writes at the VISA wrapper boundary using the same event contract.
+- [x] 3.3 Record successful VISA reads and writes at the VISA wrapper boundary using the same event contract.
 - [ ] 3.4 Record physical reads and writes performed by `AsyncStream` without duplicating events at higher layers.
 - [ ] 3.5 Keep tracing limited to the interactive `connect` transport and verify ping, check-login, discovery, and pre-terminal setup traffic are excluded.
 
