@@ -594,6 +594,76 @@ mod tests {
     }
 
     #[test]
+    fn preserves_individual_json_lines_when_events_are_coalesced() {
+        let first = test_event("first");
+        let second = test_event("second");
+        let stream = format!(
+            "{}{}",
+            first.to_json_line().expect("first event should serialize"),
+            second
+                .to_json_line()
+                .expect("second event should serialize")
+        );
+
+        let records: Vec<serde_json::Value> = stream
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("each JSON line should parse"))
+            .collect();
+
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0]["data"], "first");
+        assert_eq!(records[1]["data"], "second");
+    }
+
+    #[test]
+    fn isolates_a_disconnected_socket_from_file_delivery() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = listener.local_addr().expect("listener should have address");
+        let (accepted_sender, accepted_receiver) = mpsc::channel();
+        let receiver = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("socket client should connect");
+            accepted_sender
+                .send(())
+                .expect("test should receive socket acceptance");
+            stream
+                .shutdown(std::net::Shutdown::Both)
+                .expect("socket should shut down");
+        });
+
+        let path = std::env::temp_dir().join(format!(
+            "instrument-trace-disconnect-{}.jsonl",
+            TraceSession::new(None).id()
+        ));
+        let mut destinations = TraceDestinations::new();
+        destinations
+            .add_file(&path)
+            .expect("file destination should open");
+        destinations
+            .add_socket(address)
+            .expect("socket destination should connect");
+        accepted_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("socket should be accepted");
+        receiver.join().expect("socket receiver should finish");
+
+        let mut socket_failed = false;
+        for _ in 0..16 {
+            let results = destinations.write_event(&test_event("after-disconnect"));
+            assert_eq!(results.len(), 2);
+            assert!(results[0].is_ok());
+            if results[1].is_err() {
+                socket_failed = true;
+                break;
+            }
+        }
+        assert!(socket_failed, "disconnected socket should eventually fail");
+
+        let content = fs::read_to_string(&path).expect("file destination should remain usable");
+        fs::remove_file(path).expect("temporary trace file should be removable");
+        assert!(content.contains("\"data\":\"after-disconnect\""));
+    }
+
+    #[test]
     fn preserves_caller_session_id() {
         let session = TraceSession::new(Some("extension-session"));
 
@@ -647,6 +717,59 @@ mod tests {
         assert_eq!(event.encoding, TracePayloadEncoding::Utf8);
         assert_eq!(event.data, "[REDACTED]");
         assert!(!event.data.contains("secret-token"));
+    }
+
+    #[test]
+    fn redacts_authentication_writes_at_file_and_socket_destinations() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = listener.local_addr().expect("listener should have address");
+        let socket_receiver = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("socket client should connect");
+            let mut content = String::new();
+            stream
+                .read_to_string(&mut content)
+                .expect("socket data should be readable");
+            content
+        });
+
+        let path = std::env::temp_dir().join(format!(
+            "instrument-trace-redaction-{}.jsonl",
+            TraceSession::new(None).id()
+        ));
+        let mut destinations = TraceDestinations::new();
+        destinations
+            .add_file(&path)
+            .expect("file destination should open");
+        destinations
+            .add_socket(address)
+            .expect("socket destination should connect");
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(1, destinations.into_handler())
+                .expect("trace worker should start"),
+        );
+        let context =
+            TraceContext::new(TraceSession::new(Some("destination-redaction")), dispatcher);
+        let password_write = b"login user secret-token\n";
+
+        context.record(
+            TraceDirection::Write,
+            TraceProtocol::Lan,
+            Some("192.0.2.1:5025"),
+            password_write,
+        );
+        drop(context);
+
+        let file_content = fs::read_to_string(&path).expect("trace file should be readable");
+        fs::remove_file(path).expect("temporary trace file should be removable");
+        let socket_content = socket_receiver
+            .join()
+            .expect("socket receiver should finish");
+
+        for content in [file_content, socket_content] {
+            assert!(content.contains("\"data\":\"[REDACTED]\""));
+            assert!(content.contains(&format!("\"byte_length\":{}", password_write.len())));
+            assert!(!content.contains("secret-token"));
+        }
     }
 
     #[test]

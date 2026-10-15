@@ -291,6 +291,34 @@ fn cmds() -> Command {
         })
 }
 
+fn create_trace_context(matches: &ArgMatches) -> anyhow::Result<Option<TraceContext>> {
+    let trace_file: Option<&PathBuf> = matches.get_one("trace-file");
+    let trace_socket: Option<&SocketAddr> = matches.get_one("trace-socket");
+    let trace_session_id: Option<&String> = matches.get_one("trace-session-id");
+
+    if matches.subcommand_name() != Some("connect")
+        || (trace_file.is_none() && trace_socket.is_none())
+    {
+        return Ok(None);
+    }
+
+    let mut destinations = TraceDestinations::new();
+    if let Some(path) = trace_file {
+        destinations.add_file(path)?;
+    }
+    if let Some(address) = trace_socket {
+        destinations.add_socket(address)?;
+    }
+    let dispatcher = Arc::new(TraceDispatcher::new(
+        MAX_TRACE_QUEUE_CAPACITY,
+        destinations.into_handler(),
+    )?);
+    Ok(Some(TraceContext::new(
+        TraceSession::new(trace_session_id.map(String::as_str)),
+        dispatcher,
+    )))
+}
+
 #[cfg(debug_assertions)]
 const LOGFILE_LEVEL: LevelFilter = LevelFilter::TRACE;
 #[cfg(not(debug_assertions))]
@@ -464,27 +492,7 @@ fn main() -> anyhow::Result<()> {
         (false, None, None) => {}
     }
 
-    let trace_context = if matches.subcommand_name() == Some("connect")
-        && (trace_file.is_some() || trace_socket.is_some())
-    {
-        let mut destinations = TraceDestinations::new();
-        if let Some(path) = trace_file {
-            destinations.add_file(path)?;
-        }
-        if let Some(address) = trace_socket {
-            destinations.add_socket(address)?;
-        }
-        let dispatcher = Arc::new(TraceDispatcher::new(
-            MAX_TRACE_QUEUE_CAPACITY,
-            destinations.into_handler(),
-        )?);
-        Some(TraceContext::new(
-            TraceSession::new(trace_session_id.map(String::as_str)),
-            dispatcher,
-        ))
-    } else {
-        None
-    };
+    let trace_context = create_trace_context(&matches)?;
 
     info!("Application started");
     trace!(
@@ -1519,4 +1527,80 @@ fn find_subcommands_from_path(
     }
 
     Ok((lut, cmd))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cmds, create_trace_context};
+    use std::fs;
+
+    #[test]
+    fn parses_interactive_trace_options() {
+        let matches = cmds()
+            .try_get_matches_from([
+                "kic",
+                "--trace-file",
+                "trace.jsonl",
+                "--trace-socket",
+                "127.0.0.1:9000",
+                "--trace-session-id",
+                "cli-session",
+                "connect",
+                "127.0.0.1",
+            ])
+            .expect("interactive trace options should parse");
+
+        assert_eq!(matches.subcommand_name(), Some("connect"));
+        assert_eq!(
+            matches
+                .get_one::<String>("trace-session-id")
+                .map(String::as_str),
+            Some("cli-session")
+        );
+    }
+
+    #[test]
+    fn propagates_session_id_into_interactive_trace_context() {
+        let path = std::env::temp_dir().join(format!("kic-cli-trace-{}.jsonl", std::process::id()));
+        let matches = cmds()
+            .try_get_matches_from([
+                "kic",
+                "--trace-file",
+                path.to_str().expect("temporary path should be valid UTF-8"),
+                "--trace-session-id",
+                "cli-session",
+                "connect",
+                "127.0.0.1",
+            ])
+            .expect("interactive trace options should parse");
+
+        let context = create_trace_context(&matches)
+            .expect("trace context should be created")
+            .expect("interactive trace destination should enable tracing");
+        assert_eq!(context.session().id(), "cli-session");
+        drop(context);
+        fs::remove_file(path).expect("temporary trace file should be removable");
+    }
+
+    #[test]
+    fn does_not_create_trace_context_for_non_interactive_commands() {
+        let path = std::env::temp_dir().join(format!(
+            "kic-cli-trace-disabled-{}.jsonl",
+            std::process::id()
+        ));
+        let matches = cmds()
+            .try_get_matches_from([
+                "kic",
+                "--trace-file",
+                path.to_str().expect("temporary path should be valid UTF-8"),
+                "ping",
+                "127.0.0.1",
+            ])
+            .expect("trace options should parse for ping");
+
+        assert!(create_trace_context(&matches)
+            .expect("trace-context selection should succeed")
+            .is_none());
+        assert!(!path.exists());
+    }
 }

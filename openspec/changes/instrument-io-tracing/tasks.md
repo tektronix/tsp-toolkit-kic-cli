@@ -36,10 +36,14 @@
 - [x] 5.2 Add transport tests for successful and failed reads/writes, partial operations, raw LAN/TLS paths, VISA paths where available, and AsyncStream worker behavior.
 
 > Deterministic raw and AsyncStream boundary tests cover successful partial I/O, failed operations, and physical worker reads/writes. Live LAN/TLS endpoint and VISA hardware validation remain environment-dependent.
-- [ ] 5.3 Add tests for file and socket delivery, split/coalesced JSON Lines, destination disconnects, queue overflow, and bounded memory behavior.
-- [ ] 5.4 Add security tests proving authentication payloads are redacted before reaching file and socket destinations.
-- [ ] 5.5 Add CLI tests covering interactive trace options, normal stdout/stderr isolation, and session ID propagation.
-- [ ] 5.6 Run formatting, linting, unit tests, and relevant feature-enabled tests; document any environment-dependent VISA validation.
+- [x] 5.3 Add tests for file and socket delivery, split/coalesced JSON Lines, destination disconnects, queue overflow, and bounded memory behavior.
+
+> CLI-side coverage verifies JSONL records remain individually parseable when coalesced and that disconnected sockets do not stop file delivery. Incremental split/coalesced socket parsing remains an extension-side responsibility.
+- [x] 5.4 Add security tests proving authentication payloads are redacted before reaching file and socket destinations.
+- [x] 5.5 Add CLI tests covering interactive trace options, normal stdout/stderr isolation, and session ID propagation.
+- [x] 5.6 Run formatting, linting, unit tests, and relevant feature-enabled tests; document any environment-dependent VISA validation.
+
+> Formatting, `kic` and `kic-lib` unit tests, VISA feature compilation, OpenSpec validation, and diff checks pass. Strict Clippy remains blocked by pre-existing workspace lint failures, including 38 diagnostics in `kic-lib`; live VISA hardware validation was not available in this environment.
 
 ### 6. Documentation and Handoff
 
