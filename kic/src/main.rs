@@ -313,7 +313,7 @@ fn create_trace_context(matches: &ArgMatches) -> anyhow::Result<Option<TraceCont
         MAX_TRACE_QUEUE_CAPACITY,
         destinations.into_handler(),
     )?);
-    Ok(Some(TraceContext::new(
+    Ok(Some(TraceContext::new_disabled(
         TraceSession::new(trace_session_id.map(String::as_str)),
         dispatcher,
     )))
@@ -866,7 +866,7 @@ fn connect(args: &ArgMatches, trace: Option<TraceContext>) -> anyhow::Result<()>
 
     trace!("Initial instrument connection");
     let mut instrument: Box<dyn Instrument> =
-        match connect_async_instrument_with_trace(conn, auth, trace) {
+        match connect_async_instrument_with_trace(conn, auth, trace.clone()) {
             Ok(i) => i,
             Err(e) => {
                 error!("Error connecting to async instrument: {e}");
@@ -877,6 +877,7 @@ fn connect(args: &ArgMatches, trace: Option<TraceContext>) -> anyhow::Result<()>
                 )
                     .red()
                 );
+
                 pause_exit_on_error();
                 return Err(e.into());
             }
@@ -925,6 +926,10 @@ fn connect(args: &ArgMatches, trace: Option<TraceContext>) -> anyhow::Result<()>
     };
     info!("IDN: {info}");
     eprintln!("{info}");
+
+    if let Some(trace) = &trace {
+        trace.enable();
+    }
 
     let mut repl = repl::Repl::new(instrument, info.model.is_mp());
 

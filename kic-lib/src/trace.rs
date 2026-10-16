@@ -3,7 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -74,6 +74,7 @@ impl TraceSession {
 pub struct TraceContext {
     session: TraceSession,
     dispatcher: Arc<TraceDispatcher>,
+    enabled: Arc<AtomicBool>,
 }
 
 impl TraceContext {
@@ -83,7 +84,23 @@ impl TraceContext {
         Self {
             session,
             dispatcher,
+            enabled: Arc::new(AtomicBool::new(true)),
         }
+    }
+
+    /// Create tracing state that ignores setup I/O until explicitly enabled.
+    #[must_use]
+    pub fn new_disabled(session: TraceSession, dispatcher: Arc<TraceDispatcher>) -> Self {
+        Self {
+            session,
+            dispatcher,
+            enabled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Enable event delivery after interactive connection setup is complete.
+    pub fn enable(&self) {
+        self.enabled.store(true, Ordering::Release);
     }
 
     /// Return the session identity associated with emitted events.
@@ -105,6 +122,10 @@ impl TraceContext {
         address: Option<&str>,
         bytes: &[u8],
     ) {
+        if !self.enabled.load(Ordering::Acquire) {
+            return;
+        }
+
         let payload = TracePayload::for_trace(direction, bytes);
         let event = TraceEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
@@ -454,6 +475,42 @@ mod tests {
             encoding: TracePayloadEncoding::Utf8,
             data: data.to_owned(),
         }
+    }
+
+    #[test]
+    fn disabled_context_suppresses_events_until_enabled() {
+        let (event_sender, event_receiver) = mpsc::channel();
+        let dispatcher = Arc::new(
+            TraceDispatcher::new(1, move |event| {
+                event_sender
+                    .send(event)
+                    .expect("test receiver should be alive");
+            })
+            .expect("trace worker should start"),
+        );
+        let context =
+            TraceContext::new_disabled(TraceSession::new(Some("setup-session")), dispatcher);
+
+        context.record(
+            TraceDirection::Write,
+            TraceProtocol::Lan,
+            Some("192.0.2.1:5025"),
+            b"setup",
+        );
+        assert!(event_receiver.try_recv().is_err());
+
+        context.enable();
+        context.record(
+            TraceDirection::Write,
+            TraceProtocol::Lan,
+            Some("192.0.2.1:5025"),
+            b"interactive",
+        );
+
+        let event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("enabled context should deliver events");
+        assert_eq!(event.data, "interactive");
     }
 
     #[test]
