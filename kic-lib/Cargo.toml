@@ -29,7 +29,7 @@ windows-native-keyring-store = "1.1.0"
 linux-keyutils-keyring-store = "1.0.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-apple-native-keyring-store = "1.0.2"
+apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
 
 
 [features]

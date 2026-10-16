@@ -84,6 +84,7 @@ checksum = "2b350bfd03649e07aa05c0a81b3e15934374e585c98204a57e20b9d49f49bb9a"
 dependencies = [
  "keyring-core",
  "log",
+ "security-framework",
 ]
 
 [[package]]
