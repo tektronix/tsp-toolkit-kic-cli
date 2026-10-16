@@ -1,11 +1,47 @@
 // Authenticate functionality of the instrument.
 
-#[cfg(test)]
-use keyring::{mock, set_default_credential_builder};
-
 use crate::{model::Model, InstrumentError};
 
+#[cfg(all(target_os = "windows", not(test)))]
+use windows_native_keyring_store::Store;
+
+#[cfg(all(target_os = "linux", not(test)))]
+use linux_keyutils_keyring_store::Store;
+
+#[cfg(all(target_os = "macos", not(test)))]
+use apple_native_keyring_store::Store;
+
 const SERVICE_NAME: &str = "tsp-toolkit";
+
+/// Creates a keyring entry for `user` under [`SERVICE_NAME`] in the system keyring.
+#[cfg(not(test))]
+fn new_entry(user: &str) -> Result<keyring_core::Entry, keyring_core::Error> {
+    static STORE: std::sync::Once = std::sync::Once::new();
+    STORE.call_once(|| match Store::new() {
+        Ok(store) => keyring_core::set_default_store(store),
+        Err(e) => {
+            use tracing::error;
+
+            error!("Unable to initialize credential store: {e}");
+        }
+    });
+    keyring_core::Entry::new(SERVICE_NAME, user)
+}
+
+/// Creates a keyring entry for `user` under [`SERVICE_NAME`] in an in-memory mock store.
+///
+/// Don't use the system credential manager for unit tests. `keyring::Entry::new` would
+/// install the platform store as the default, so build the entry from `keyring_core` instead.
+#[cfg(test)]
+fn new_entry(user: &str) -> Result<keyring_core::Entry, keyring_core::Error> {
+    static MOCK_STORE: std::sync::Once = std::sync::Once::new();
+    MOCK_STORE.call_once(|| {
+        keyring_core::set_default_store(
+            keyring_core::mock::Store::new().expect("mock store should always be creatable"),
+        );
+    });
+    keyring_core::Entry::new(SERVICE_NAME, user)
+}
 
 /// An enum that provides the expected functionality for authentication into an instrument.
 ///
@@ -76,7 +112,7 @@ impl Authentication {
             }
             Self::Credential { username, .. } => Ok(Some((*username).clone())),
             Self::Keyring { id } => {
-                let entry = keyring::Entry::new(SERVICE_NAME, id)?;
+                let entry = new_entry(id)?;
                 let secret = &entry.get_secret()?;
                 let secret: SecretEntry =
                     serde_json::from_str(String::from_utf8_lossy(secret).as_ref())?;
@@ -120,7 +156,7 @@ impl Authentication {
             }
             Self::Credential { password, .. } => Ok(Some((*password).clone())),
             Self::Keyring { id } => {
-                let entry = keyring::Entry::new(SERVICE_NAME, id)?;
+                let entry = new_entry(id)?;
                 let secret = &entry.get_secret()?;
                 let secret: SecretEntry =
                     serde_json::from_str(String::from_utf8_lossy(secret).as_ref())?;
@@ -140,10 +176,10 @@ impl Authentication {
     pub fn keyring_entry_exists(&self) -> Result<bool, InstrumentError> {
         match self {
             Self::Keyring { id } => {
-                let entry = keyring::Entry::new(SERVICE_NAME, id)?;
+                let entry = new_entry(id)?;
                 match entry.get_secret() {
                     Ok(_) => Ok(true),
-                    Err(keyring::Error::NoEntry) => Ok(false),
+                    Err(keyring_core::Error::NoEntry) => Ok(false),
                     Err(e) => Err(e.into()),
                 }
             }
@@ -157,9 +193,6 @@ impl Authentication {
     /// # Errors
     /// Errors may occur from the interactions with the [`keyring`] crate.
     pub fn save_credential(&self, model: &Model, serial: &str) -> Result<(), InstrumentError> {
-        #[cfg(test)] // Don't use the system credential manager for unit tests.
-        set_default_credential_builder(mock::default_credential_builder());
-
         let name = format!("{model}#{serial}");
         let (username, password) = match self {
             Self::Prompt => {
@@ -173,7 +206,7 @@ impl Authentication {
             ),
             Self::Credential { username, password } => (username.clone(), password.clone()),
             Self::Keyring { id } => {
-                let entry = keyring::Entry::new(SERVICE_NAME, id)?;
+                let entry = new_entry(id)?;
                 let secret = &entry.get_secret()?;
                 let secret: SecretEntry =
                     serde_json::from_str(String::from_utf8_lossy(secret).as_ref())?;
@@ -183,7 +216,7 @@ impl Authentication {
         };
         let secret = SecretEntry { username, password };
 
-        let entry = keyring::Entry::new(SERVICE_NAME, &name)?;
+        let entry = new_entry(&name)?;
 
         entry.set_secret(serde_json::to_string(&secret)?.as_bytes())?;
 
