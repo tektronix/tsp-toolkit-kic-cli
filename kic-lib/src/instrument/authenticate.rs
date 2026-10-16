@@ -9,7 +9,7 @@ use windows_native_keyring_store::Store;
 use linux_keyutils_keyring_store::Store;
 
 #[cfg(all(target_os = "macos", not(test)))]
-use apple_native_keyring_store::Store;
+use apple_native_keyring_store::keychain::Store;
 
 const SERVICE_NAME: &str = "tsp-toolkit";
 
