@@ -9,7 +9,6 @@ repository = { workspace = true }
 [dependencies]
 bytes = { workspace = true }
 colored = { workspace = true }
-phf = { version = "0.11", features = ["macros"] }
 rpassword = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -20,9 +19,18 @@ reqwest = { workspace = true, features = ["blocking"] }
 visa-rs = { version = "0.6.2", optional = true }
 indicatif = "0.18.4"
 roxmltree = { version = "0.20.0", default-features = false, features = ["std"] }
-keyring = { version = "4.2.0", features = ["apple-native-keyring-store", "windows-native-keyring-store", "linux-keyutils-keyring-store"] }
+keyring-core = "1.0.1"
 rustls = { version = "0.23.41" }
-webpki-roots = "1.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1.1.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+linux-keyutils-keyring-store = "1.0.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = "1.0.2"
+
 
 [features]
 visa = ["dep:visa-rs"]
