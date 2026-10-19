@@ -28,6 +28,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Improved firmware update reliability for KI2600, KI3700, and TTI instruments by avoiding transfer timeouts caused by blocking socket writes.
 - Fixed firmware update completion handling so that expected reboot disconnects display clear reconnect instructions
 - Detect when instrument has closed the connection gracefully and gracefully close the program
+- Fixed high resource usage by kic-discover-visa executable
 
 ## [0.23.0]
 
