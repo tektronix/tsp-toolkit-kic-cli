@@ -613,6 +613,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-channel"
+version = "0.5.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98b0cc327b5bc766e7fda9c9260cc0fa81b43a8e240440422dff70788e3f9ef1"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "instrument-repl"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1653,7 +1662,7 @@ dependencies = [
 
 [[package]]
 name = "kic"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1673,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "kic-debug"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1693,7 +1702,7 @@ dependencies = [
 
 [[package]]
 name = "kic-debug-visa"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1713,13 +1722,14 @@ dependencies = [
 
 [[package]]
 name = "kic-discover"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "async-std",
  "async-trait",
  "clap",
  "colored",
+ "crossbeam-channel",
  "futures",
  "futures-util",
  "jsonrpsee",
@@ -1742,7 +1752,7 @@ dependencies = [
 
 [[package]]
 name = "kic-lib"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "assert_matches",
