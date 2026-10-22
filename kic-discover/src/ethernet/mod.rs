@@ -41,7 +41,7 @@ impl LxiDeviceInfo {
     async fn discover_devices(
         service_name: &str,
         interface_ip: Ipv4Addr,
-        tx: std::sync::mpsc::Sender<String>,
+        tx: crossbeam_channel::Sender<String>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // The hostname of the devices we are searching for.
         // Every lxi compliant instrument will respond to this service name.
@@ -153,7 +153,7 @@ impl LxiDeviceInfo {
     ///to gather the network interface IPs to iterate over for our search.
     pub async fn discover(
         timeout: Option<Duration>,
-        tx: std::sync::mpsc::Sender<String>,
+        tx: crossbeam_channel::Sender<String>,
     ) -> anyhow::Result<()> {
         let timeout = timeout.unwrap_or(Duration::new(5, 0));
 
