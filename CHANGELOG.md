@@ -16,6 +16,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.24.1]
+
 ## [0.24.0]
 
 ### Changed
@@ -376,12 +378,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Feature to retrieve TSP-Link network details
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-cli/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.24.1
+[0.24.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.24.0
+[0.23.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.23.0
 [0.22.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.22.0
-[0.21.5]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.1
-[0.21.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.1
-[0.21.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.1
-[0.21.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.1
+[0.21.5]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.5
+[0.21.4]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.4
+[0.21.3]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.3
+[0.21.2]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.2
 [0.21.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.1
 [0.21.0]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.21.0
 [0.20.1]: https://github.com/tektronix/tsp-toolkit-kic-cli/releases/tag/v0.20.1
