@@ -23,6 +23,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - Report TSP errors before and after the standalone kic executable firmware update
+- Linux executables now run on distributions with glibc 2.34 or newer, such as RHEL 9
 
 ### Fixed
 - Improved firmware update reliability for KI2600, KI3700, and TTI instruments by avoiding transfer timeouts caused by blocking socket writes.
