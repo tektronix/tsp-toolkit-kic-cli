@@ -20,6 +20,9 @@ const DISCOVER_EXECUTABLE = path.join(PATH, DISCOVER_NAME)
 const DEBUG_NAME = `kic-debug${EXTENSION}`
 const DEBUG_EXECUTABLE = path.join(PATH, DEBUG_NAME)
 
+const VISA_NAME = `kic-visa${EXTENSION}`
+const VISA_EXECUTABLE = path.join(PATH, VISA_NAME)
+
 
 
 module.exports = {
@@ -28,4 +31,5 @@ module.exports = {
     EXECUTABLE,
     DISCOVER_EXECUTABLE,
     DEBUG_EXECUTABLE,
+    VISA_EXECUTABLE,
 }
