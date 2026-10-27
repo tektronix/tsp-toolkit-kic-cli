@@ -474,7 +474,7 @@ impl Reset for Instrument {
         let _ = read_until(
             self,
             &["TSP>".to_string(), "TSP?".to_string()],
-            2,
+            10,
             Duration::from_millis(5),
         );
         let _ = self.write_all(b"abort\n");
@@ -482,7 +482,7 @@ impl Reset for Instrument {
         let _ = read_until(
             self,
             &["TSP>".to_string(), "TSP?".to_string()],
-            2,
+            10,
             Duration::from_millis(5),
         );
         Ok(())
