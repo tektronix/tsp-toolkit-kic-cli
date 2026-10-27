@@ -30,6 +30,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Fixed firmware update completion handling so that expected reboot disconnects display clear reconnect instructions
 - Detect when instrument has closed the connection gracefully and gracefully close the program
 - Fixed high resource usage by kic-discover-visa executable
+- Improved post-reset reliability for MP5000 instruments
 
 ## [0.23.0]
 
