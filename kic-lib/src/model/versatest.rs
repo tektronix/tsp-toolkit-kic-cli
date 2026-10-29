@@ -471,8 +471,20 @@ impl Reset for Instrument {
         trace!("calling versatest reset...");
         let _ = self.write_all(b"*RST\n");
         std::thread::sleep(Duration::from_millis(100));
+        let _ = read_until(
+            self,
+            &["TSP>".to_string(), "TSP?".to_string()],
+            10,
+            Duration::from_millis(5),
+        );
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
+        let _ = read_until(
+            self,
+            &["TSP>".to_string(), "TSP?".to_string()],
+            10,
+            Duration::from_millis(5),
+        );
         Ok(())
     }
 }

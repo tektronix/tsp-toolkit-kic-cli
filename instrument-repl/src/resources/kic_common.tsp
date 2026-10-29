@@ -125,10 +125,10 @@ _KIC["print_buffers_csv"] = function(buffers, fields, delimiter)
     for i, buf in ipairs(buffers) do
         local success, value = pcall(loadstring("return " .. buf.name))
         if success then buf.b = value end
-        print("Buffer '"..buf.name .. "'")
         if buf.b == nil or buf.b.n == nil then
-            print("DOES NOT EXIST")
+            print("Could not find ".. buf.name .. ". Make sure you typed the name correctly, and then try again.")
         else
+            print("Buffer '" .. buf.name .. "'")
             local header = "n"
             for j, f in ipairs(fields) do
                 if buf.b[f] ~= nil or string.find(f, "absolute_timestamps") ~= nil or string.find(f, "relative_timestamps") ~= nil then

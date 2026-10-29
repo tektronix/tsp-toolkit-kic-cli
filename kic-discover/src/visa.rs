@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     ffi::CString,
     net::IpAddr,
     time::{Duration, Instant},
@@ -29,10 +29,11 @@ pub async fn visa_tcpip_info(rsc: String) -> Option<InstrumentInfo> {
 #[tracing::instrument]
 pub async fn visa_discover(
     timeout: Option<Duration>,
-    tx: std::sync::mpsc::Sender<String>,
+    tx: crossbeam_channel::Sender<String>,
 ) -> anyhow::Result<HashSet<InstrumentInfo>> {
     let start = Instant::now();
     let mut discovered_instruments: HashSet<InstrumentInfo> = HashSet::new();
+    let mut discovered_resources: HashMap<String, (Instant, InstrumentInfo)> = HashMap::new();
 
     loop {
         let Ok(rm) = visa_rs::DefaultRM::new() else {
@@ -59,6 +60,11 @@ pub async fn visa_discover(
             if !(s.contains("TCPIP") || s.contains("GPIB") || s.contains("USB"))
                 || s.contains("SOCKET")
                 || s.contains("INTFC")
+                || discovered_resources
+                    .get(&s)
+                    .is_some_and(|(last_checked, _)| {
+                        last_checked.elapsed() < Duration::from_secs(2)
+                    })
             {
                 continue;
             }
@@ -73,30 +79,37 @@ pub async fn visa_discover(
                 tokio::task::spawn_blocking(move || info.ping().ok()).await?;
 
             if let Some(info) = info {
+                let changed = discovered_resources
+                    .get(&s)
+                    .map_or(true, |(_, previous_info)| previous_info != &info);
+                discovered_resources.insert(s.clone(), (Instant::now(), info.clone()));
                 trace!("Got info: {info:?}");
                 if !matches!(info.model, Model::Other(_)) {
-                    if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
-                        io_type: IoType::Visa,
-                        instr_address: i.to_string(),
-                        manufacturer: info.vendor.to_string(),
-                        model: info.model.to_string(),
-                        serial_number: info.serial_number.to_string(),
-                        firmware_revision: info
-                            .firmware_rev
-                            .clone()
-                            .unwrap_or("UNKNOWN".to_string()),
-                        instr_categ: model_category(&info.model.to_string()).to_string(),
-                    }) {
-                        tx.send(out_str.to_string())?;
+                    if changed {
+                        if let Ok(out_str) = serde_json::to_string(&VisaDeviceInfo {
+                            io_type: IoType::Visa,
+                            instr_address: s,
+                            manufacturer: info.vendor.to_string(),
+                            model: info.model.to_string(),
+                            serial_number: info.serial_number.to_string(),
+                            firmware_revision: info
+                                .firmware_rev
+                                .clone()
+                                .unwrap_or("UNKNOWN".to_string()),
+                            instr_categ: model_category(&info.model.to_string()).to_string(),
+                        }) {
+                            tx.send(out_str.to_string())?;
+                        }
                     }
                     discovered_instruments.insert(info.clone());
                 }
             }
         }
-        // Do this once, but break out if timeout isn't set or if the timeout has expired
+        // Continue discovering new instruments without continuously rescanning.
         if timeout.is_none() || (Instant::now() - start) >= timeout.unwrap() {
             break;
         }
+        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 
     Ok(discovered_instruments)
