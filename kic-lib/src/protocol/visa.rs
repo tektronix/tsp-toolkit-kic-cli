@@ -68,6 +68,15 @@ impl NonBlock for Visa {
 impl Write for Visa {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let result = self.inst.write(buf);
+        if let (Err(error), Some(trace)) = (&result, &self.trace) {
+            if error.kind() != std::io::ErrorKind::WouldBlock {
+                trace.record_close(
+                    TraceProtocol::Visa,
+                    self.trace_address.as_deref(),
+                    &format!("write_error:{}", error.kind()),
+                );
+            }
+        }
         if let (Ok(bytes_written), Some(trace)) = (&result, &self.trace) {
             trace.record(
                 TraceDirection::Write,
@@ -92,10 +101,17 @@ impl Read for Visa {
                 Err(e) =>
                 // If device is disconnected or STB read fails
                 {
+                    if let Some(trace) = &self.trace {
+                        trace.record_close(
+                            TraceProtocol::Visa,
+                            self.trace_address.as_deref(),
+                            "read_error:not_connected",
+                        );
+                    }
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::NotConnected,
                         format!("Device disconnected or STB read failed: {e}"),
-                    ))
+                    ));
                 }
             };
 
@@ -107,6 +123,15 @@ impl Read for Visa {
             }
         }
         let result = self.inst.read(buf);
+        if let (Some(trace), Err(error)) = (&self.trace, &result) {
+            if error.kind() != std::io::ErrorKind::WouldBlock {
+                trace.record_close(
+                    TraceProtocol::Visa,
+                    self.trace_address.as_deref(),
+                    &format!("read_error:{}", error.kind()),
+                );
+            }
+        }
         if let (Ok(bytes_read), Some(trace)) = (&result, &self.trace) {
             trace.record(
                 TraceDirection::Read,

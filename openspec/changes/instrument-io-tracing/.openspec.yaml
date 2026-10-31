@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-13
+goal: Stream exact instrument reads and writes to the consuming VS Code
+  extension without affecting instrument communication

@@ -47,31 +47,31 @@
 
 ### 6. Documentation and Handoff
 
-- [ ] 6.1 Document the trace CLI options, JSON Lines event schema, session ID behavior, best-effort delivery semantics, and dropped-event behavior.
-- [ ] 6.2 Document the socket contract for the TSP Toolkit extension, including newline framing and session expectations.
-- [ ] 6.3 Confirm the v1 scope excludes ping, check-login, setup traffic, debugger/discovery tracing, packet capture, logical message reconstruction, filtering, and extension trace-file saving.
+- [x] 6.1 Document the trace CLI options, JSON Lines event schema, session ID behavior, best-effort delivery semantics, and dropped-event behavior.
+- [x] 6.2 Document the socket contract for the TSP Toolkit extension, including newline framing and session expectations.
+- [x] 6.3 Confirm the v1 scope excludes ping, check-login, setup traffic, debugger/discovery tracing, packet capture, logical message reconstruction, filtering, and extension trace-file saving.
 
 ## tsp-toolkit
 
 ### 7. Listener and Event Parser
 
-- [ ] 7.1 Add a localhost trace listener that binds before `createTerminal()` and exposes its address for CLI argument construction.
-- [ ] 7.2 Implement incremental JSON Lines buffering that handles split records, coalesced records, disconnects, and malformed lines without throwing into the connection flow.
-- [ ] 7.3 Validate session ID, direction, protocol, byte length, encoding, and payload fields before display; keep parser limits bounded.
+- [x] 7.1 Add a localhost trace listener that binds before `createTerminal()` and exposes its address for CLI argument construction.
+- [x] 7.2 Implement incremental JSON Lines buffering that handles split records, coalesced records, disconnects, and malformed lines without throwing into the connection flow.
+- [x] 7.3 Validate session ID, direction, protocol, byte length, encoding, and payload fields before display; keep parser limits bounded.
 
 ### 8. Live OutputChannel Integration
 
-- [ ] 8.1 Create or reuse one shared `TSP Instrument I/O Trace` OutputChannel and provide show and clear commands.
-- [ ] 8.2 Format valid events with timestamp, session ID, direction, protocol, address, byte length, and payload for live display.
-- [ ] 8.3 Generate a unique session ID per interactive connection, pass `--trace-socket` and `--trace-session-id`, and start the listener before terminal launch.
-- [ ] 8.4 Close listeners and dispose connection resources when the terminal or connection flow closes; do not affect other connections or extension commands.
-- [ ] 8.5 Do not add extension-side trace-file saving, per-connection OutputChannels, filtering, or setup/ping/check-login tracing in v1.
+- [x] 8.1 Create or reuse one shared `TSP Instrument I/O Trace` OutputChannel and provide show and clear commands.
+- [x] 8.2 Format valid events with timestamp, session ID, direction, protocol, address, byte length, and payload for live display.
+- [x] 8.3 Generate a unique session ID per interactive connection, pass `--trace-socket` and `--trace-session-id`, and start the listener before terminal launch.
+- [x] 8.4 Close listeners and dispose connection resources when the terminal or connection flow closes; do not affect other connections or extension commands.
+- [x] 8.5 Do not add extension-side trace-file saving, per-connection OutputChannels, filtering, or setup/ping/check-login tracing in v1.
 
 ### 9. Extension Tests
 
-- [ ] 9.1 Add parser tests for split and coalesced JSON Lines, UTF-8/Base64 data, invalid records, and bounded input.
-- [ ] 9.2 Add listener lifecycle tests for startup ordering, CLI argument propagation, disconnects, cleanup, and multiple sessions sharing one OutputChannel.
-- [ ] 9.3 Add failure-isolation tests proving trace listener/parser failures do not fail the terminal connection flow.
+- [x] 9.1 Add parser tests for split and coalesced JSON Lines, UTF-8/Base64 data, invalid records, and bounded input.
+- [x] 9.2 Add listener lifecycle tests for startup ordering, CLI argument propagation, disconnects, cleanup, and multiple sessions sharing one OutputChannel.
+- [x] 9.3 Add failure-isolation tests proving trace listener/parser failures do not fail the terminal connection flow.
 
 ## Cross-repository validation
 
@@ -85,3 +85,10 @@
 > Final validation: Rust formatting passes; `kic` unit tests pass (3 tests); `kic-lib` unit tests pass (55 tests); and the extension compile, lint, and test pipeline passes (64 tests).
 >
 > Strict Clippy with `-D warnings` remains blocked by pre-existing workspace diagnostics, including 37 `kic-lib` diagnostics. The configured `rustdoc::missing_doc_code_examples` lint is unstable on the installed toolchain, so the aggregate `cargo test -p kic -p kic-lib` command's doctest phase is environment-blocked even though all unit tests pass. Live VISA hardware validation was unavailable; deterministic VISA parsing and feature compilation remain the available checks.
+
+### 11. Connection Lifecycle Events
+
+- [x] 11.1 Extend the CLI trace contract with a separate `connection_closed` lifecycle event and bounded close reasons.
+- [x] 11.2 Emit one lifecycle event from traced LAN/TLS, VISA, and AsyncStream terminal close/error paths without changing original I/O errors.
+- [x] 11.3 Accept, validate, format, and test lifecycle events in the extension listener and shared OutputChannel.
+- [x] 11.4 Run focused Rust, extension, and cross-repository validation for lifecycle events and document the updated contract.

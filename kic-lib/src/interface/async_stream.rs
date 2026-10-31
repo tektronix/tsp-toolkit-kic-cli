@@ -140,6 +140,13 @@ impl AsyncStream {
                                         std::thread::sleep(Duration::from_millis(1));
                                     }
                                     Err(e) => {
+                                        if let (Some(trace), Some(protocol)) = (&trace, protocol) {
+                                            trace.record_close(
+                                                protocol,
+                                                address.as_deref(),
+                                                &format!("write_error:{}", e.kind()),
+                                            );
+                                        }
                                         // There was an Error sending to the instrument.
                                         // clean up and get out.
                                         return Err(e.into());
@@ -159,6 +166,9 @@ impl AsyncStream {
                 let buf = &mut [0u8; 512];
                 if let Ok(size) = Arc::get_mut(&mut socket).unwrap().read(buf) {
                     if size == 0 {
+                        if let (Some(trace), Some(protocol)) = (&trace, protocol) {
+                            trace.record_close(protocol, address.as_deref(), "eof");
+                        }
                         error!("Connection closed: read 0 bytes");
                         return Err(std::io::Error::new(
                             ErrorKind::ConnectionReset,

@@ -48,6 +48,17 @@ impl Raw {
 impl Read for Raw {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let result = self.interface.read(buf);
+        if let (Some(trace), Some(protocol)) = (&self.trace, self.trace_protocol) {
+            match &result {
+                Ok(0) => trace.record_close(protocol, self.trace_address.as_deref(), "eof"),
+                Err(error) if error.kind() != std::io::ErrorKind::WouldBlock => trace.record_close(
+                    protocol,
+                    self.trace_address.as_deref(),
+                    &format!("read_error:{}", error.kind()),
+                ),
+                _ => {}
+            }
+        }
         if let (Ok(bytes_read), Some(trace), Some(protocol)) =
             (&result, &self.trace, self.trace_protocol)
         {
@@ -65,6 +76,17 @@ impl Read for Raw {
 impl Write for Raw {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let result = self.interface.write(buf);
+        if let (Some(trace), Some(protocol)) = (&self.trace, self.trace_protocol) {
+            if let Err(error) = &result {
+                if error.kind() != std::io::ErrorKind::WouldBlock {
+                    trace.record_close(
+                        protocol,
+                        self.trace_address.as_deref(),
+                        &format!("write_error:{}", error.kind()),
+                    );
+                }
+            }
+        }
         if let (Ok(bytes_written), Some(trace), Some(protocol)) =
             (&result, &self.trace, self.trace_protocol)
         {
@@ -93,7 +115,9 @@ mod tests {
 
     use crate::{
         interface::NonBlock,
-        trace::{TraceContext, TraceDirection, TraceDispatcher, TraceProtocol, TraceSession},
+        trace::{
+            TraceContext, TraceDirection, TraceDispatcher, TraceProtocol, TraceRecord, TraceSession,
+        },
         Interface,
     };
 
@@ -212,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_trace_failed_reads_or_writes() {
+    fn traces_one_close_for_failed_reads_or_writes() {
         let (event_sender, event_receiver) = mpsc::channel();
         let dispatcher = Arc::new(
             TraceDispatcher::new(2, move |event| {
@@ -233,6 +257,16 @@ mod tests {
         let mut read_buffer = [0; 4];
         assert!(raw.read(&mut read_buffer).is_err());
         assert!(raw.write(b"request").is_err());
+        let close_event = event_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("close event should be delivered");
+        match close_event {
+            TraceRecord::ConnectionClosed(close_event) => {
+                assert_eq!(close_event.event, "connection_closed");
+                assert_eq!(close_event.reason, "read_error:connection reset");
+            }
+            TraceRecord::Io(_) => panic!("expected a connection close event"),
+        }
         assert!(event_receiver
             .recv_timeout(Duration::from_millis(100))
             .is_err());

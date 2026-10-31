@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
@@ -75,6 +76,7 @@ pub struct TraceContext {
     session: TraceSession,
     dispatcher: Arc<TraceDispatcher>,
     enabled: Arc<AtomicBool>,
+    closed: Arc<AtomicBool>,
 }
 
 impl TraceContext {
@@ -85,6 +87,7 @@ impl TraceContext {
             session,
             dispatcher,
             enabled: Arc::new(AtomicBool::new(true)),
+            closed: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -95,6 +98,7 @@ impl TraceContext {
             session,
             dispatcher,
             enabled: Arc::new(AtomicBool::new(false)),
+            closed: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -137,7 +141,30 @@ impl TraceContext {
             encoding: payload.encoding,
             data: payload.data,
         };
-        let _ = self.dispatcher.try_enqueue(event);
+        let _ = self.dispatcher.try_enqueue(TraceRecord::Io(event));
+    }
+
+    /// Record a terminal transport close or error without pretending it was payload I/O.
+    pub(crate) fn record_close(
+        &self,
+        protocol: TraceProtocol,
+        address: Option<&str>,
+        reason: &str,
+    ) {
+        if self.closed.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let event = TraceLifecycleEvent {
+            event: "connection_closed",
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            session_id: self.session.id().to_owned(),
+            protocol,
+            address: address.map(ToOwned::to_owned),
+            reason: reason.chars().take(128).collect(),
+        };
+        let _ = self
+            .dispatcher
+            .try_enqueue(TraceRecord::ConnectionClosed(event));
     }
 }
 
@@ -219,6 +246,55 @@ pub struct TraceEvent {
     pub data: String,
 }
 
+/// A trace record describing the end of a traced transport session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TraceLifecycleEvent {
+    pub event: &'static str,
+    pub timestamp: String,
+    pub session_id: String,
+    pub protocol: TraceProtocol,
+    pub address: Option<String>,
+    pub reason: String,
+}
+
+/// A payload I/O event or a transport lifecycle event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TraceRecord {
+    Io(TraceEvent),
+    ConnectionClosed(TraceLifecycleEvent),
+}
+
+impl From<TraceEvent> for TraceRecord {
+    fn from(event: TraceEvent) -> Self {
+        Self::Io(event)
+    }
+}
+
+impl Deref for TraceRecord {
+    type Target = TraceEvent;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Io(event) => event,
+            Self::ConnectionClosed(_) => {
+                panic!("connection lifecycle records have no payload event fields")
+            }
+        }
+    }
+}
+
+impl TraceRecord {
+    /// Serialize this trace record as one JSON Lines record.
+    pub fn to_json_line(&self) -> Result<String, serde_json::Error> {
+        let mut line = match self {
+            Self::Io(event) => serde_json::to_string(event)?,
+            Self::ConnectionClosed(event) => serde_json::to_string(event)?,
+        };
+        line.push('\n');
+        Ok(line)
+    }
+}
+
 impl TraceEvent {
     /// Serialize this event as one JSON Lines record.
     pub fn to_json_line(&self) -> Result<String, serde_json::Error> {
@@ -228,11 +304,11 @@ impl TraceEvent {
     }
 }
 
-type TraceHandler = Box<dyn Fn(TraceEvent) + Send + 'static>;
+type TraceHandler = Box<dyn Fn(TraceRecord) + Send + 'static>;
 
 /// Bounded, asynchronous handoff for trace events.
 pub struct TraceDispatcher {
-    sender: Option<SyncSender<TraceEvent>>,
+    sender: Option<SyncSender<TraceRecord>>,
     worker: Option<JoinHandle<()>>,
     diagnostics: Arc<TraceDiagnostics>,
 }
@@ -241,7 +317,7 @@ impl TraceDispatcher {
     /// Start a worker that receives at most `capacity` pending events.
     pub fn new(
         capacity: usize,
-        handler: impl Fn(TraceEvent) + Send + 'static,
+        handler: impl Fn(TraceRecord) + Send + 'static,
     ) -> std::io::Result<Self> {
         Self::new_with_diagnostics(capacity, handler, Arc::new(TraceDiagnostics::default()))
     }
@@ -249,7 +325,7 @@ impl TraceDispatcher {
     /// Start a dispatcher using caller-owned diagnostics shared with destinations.
     pub fn new_with_diagnostics(
         capacity: usize,
-        handler: impl Fn(TraceEvent) + Send + 'static,
+        handler: impl Fn(TraceRecord) + Send + 'static,
         diagnostics: Arc<TraceDiagnostics>,
     ) -> std::io::Result<Self> {
         assert!(
@@ -269,10 +345,16 @@ impl TraceDispatcher {
     }
 
     /// Enqueue an event without waiting for the worker or its handler.
-    pub fn try_enqueue(&self, event: TraceEvent) -> Result<(), TraceEvent> {
-        if event.data.len() > MAX_TRACE_DATA_BYTES {
-            self.diagnostics.record_dropped_event();
-            return Err(event);
+    pub fn try_enqueue<E>(&self, event: E) -> Result<(), TraceRecord>
+    where
+        E: Into<TraceRecord>,
+    {
+        let event = event.into();
+        if let TraceRecord::Io(io_event) = &event {
+            if io_event.data.len() > MAX_TRACE_DATA_BYTES {
+                self.diagnostics.record_dropped_event();
+                return Err(event);
+            }
         }
 
         let Some(sender) = &self.sender else {
@@ -304,7 +386,7 @@ impl Drop for TraceDispatcher {
     }
 }
 
-fn run_trace_worker(receiver: mpsc::Receiver<TraceEvent>, handler: TraceHandler) {
+fn run_trace_worker(receiver: mpsc::Receiver<TraceRecord>, handler: TraceHandler) {
     while let Ok(event) = receiver.recv() {
         handler(event);
     }
@@ -399,6 +481,10 @@ impl TraceDestinations {
 
     /// Write one JSON Lines record to every configured destination.
     pub fn write_event(&self, event: &TraceEvent) -> Vec<io::Result<()>> {
+        self.write_record(&TraceRecord::Io(event.clone()))
+    }
+
+    fn write_record(&self, event: &TraceRecord) -> Vec<io::Result<()>> {
         let line = match event.to_json_line() {
             Ok(line) => line,
             Err(error) => return vec![Err(io::Error::other(error))],
@@ -414,7 +500,7 @@ impl TraceDestinations {
     }
 
     /// Convert destinations into a dispatcher-compatible event handler.
-    pub fn into_handler(self) -> impl Fn(TraceEvent) + Send + 'static {
+    pub fn into_handler(self) -> impl Fn(TraceRecord) + Send + 'static {
         self.into_handler_with_diagnostics(Arc::new(TraceDiagnostics::default()))
     }
 
@@ -422,9 +508,9 @@ impl TraceDestinations {
     pub fn into_handler_with_diagnostics(
         self,
         diagnostics: Arc<TraceDiagnostics>,
-    ) -> impl Fn(TraceEvent) + Send + 'static {
+    ) -> impl Fn(TraceRecord) + Send + 'static {
         move |event| {
-            for result in self.write_event(&event) {
+            for result in self.write_record(&event) {
                 if let Err(error) = result {
                     diagnostics.record_destination_failure(&error);
                 }
@@ -460,7 +546,7 @@ mod tests {
 
     use super::{
         TraceContext, TraceDestinations, TraceDiagnostics, TraceDirection, TraceDispatcher,
-        TraceEvent, TracePayload, TracePayloadEncoding, TraceProtocol, TraceSession,
+        TraceEvent, TracePayload, TracePayloadEncoding, TraceProtocol, TraceRecord, TraceSession,
         MAX_TRACE_DATA_BYTES, MAX_TRACE_PAYLOAD_BYTES,
     };
 
@@ -747,7 +833,7 @@ mod tests {
         let diagnostics = Arc::new(TraceDiagnostics::default());
         let handler = destinations.into_handler_with_diagnostics(Arc::clone(&diagnostics));
         for _ in 0..16 {
-            handler(test_event("handler-event"));
+            handler(TraceRecord::Io(test_event("handler-event")));
             if diagnostics.destination_failure_count() > 0 {
                 break;
             }
