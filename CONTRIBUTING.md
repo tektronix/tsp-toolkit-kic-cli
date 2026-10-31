@@ -34,6 +34,36 @@ In order to contribute code to this project you must have the following dependen
 3. Run tests to ensure everything is set up properly: `cargo test`
 4. Install dependencies as required
 
+## OpenSpec Workflow
+
+This repository stores implementation proposals and their supporting design,
+specification, and task artifacts under `openspec/changes/<change-name>/`.
+The repository includes OpenSpec prompts under `.github/prompts/`, workflow
+skills under `.github/skills/`, and project defaults in `openspec/config.yaml`.
+These files are versioned so contributors who clone the repository can use the
+same workflow after installing the OpenSpec CLI and the GitHub Copilot tooling
+used by the project.
+
+To work on an existing change:
+
+1. List or select the change under `openspec/changes/`.
+2. Read its `proposal.md`, `design.md`, specification files, and `tasks.md`.
+3. Implement tasks incrementally with explicit approval before each task and
+    before each Git commit.
+4. Validate the change from the repository root:
+
+    ```powershell
+    openspec validate <change-name> --type change --strict
+    ```
+
+5. Keep the artifacts and implementation changes in the same feature branch.
+6. After all tasks and final validation are complete, archive the change only
+    with explicit approval.
+
+For a new change, create a new directory under `openspec/changes/` and keep
+the proposal, design, specifications, and task checklist together. Do not
+reuse an existing change directory for unrelated work.
+
 ## Code Quality
 
 To ensure your code quality meets our standards before opening a pull request, please
