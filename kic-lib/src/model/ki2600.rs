@@ -143,7 +143,6 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        let _ = self.set_nonblocking(false);
         println!(
             "{}",
             "Sending firmware file to instrument. Please wait...".bright_yellow()
@@ -184,7 +183,6 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
-        let _ = self.set_nonblocking(true);
         Ok(())
     }
 }
@@ -1141,12 +1139,6 @@ mod unit {
         let mut seq = Sequence::new();
 
         interface
-            .expect_set_nonblocking()
-            .times(1)
-            .withf(|enable| !*enable)
-            .returning(|_| Ok(()));
-
-        interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
@@ -1178,12 +1170,6 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_set_nonblocking()
-            .times(1)
-            .withf(|enable| *enable)
-            .returning(|_| Ok(()));
 
         interface
             .expect_write()

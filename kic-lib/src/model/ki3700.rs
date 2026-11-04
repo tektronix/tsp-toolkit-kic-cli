@@ -150,8 +150,6 @@ impl Flash for Instrument {
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"prevflash\n")?;
 
-        let _ = self.set_nonblocking(false);
-
         println!(
             "{}",
             "Sending firmware file to instrument. Please wait...".bright_yellow()
@@ -196,7 +194,6 @@ impl Flash for Instrument {
         } else {
             eprintln!("Firmware file transferred successfully. Update running on instrument.");
         }
-        let _ = self.set_nonblocking(true);
         self.fw_flash_in_progress = false;
         Ok(())
     }
@@ -1136,12 +1133,6 @@ mod unit {
         interface.expect_flush().times(..).returning(|| Ok(()));
 
         interface
-            .expect_set_nonblocking()
-            .times(1)
-            .withf(|enable| !*enable)
-            .returning(|_| Ok(()));
-
-        interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
@@ -1173,12 +1164,6 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_set_nonblocking()
-            .times(1)
-            .withf(|enable| *enable)
-            .returning(|_| Ok(()));
 
         interface
             .expect_write()

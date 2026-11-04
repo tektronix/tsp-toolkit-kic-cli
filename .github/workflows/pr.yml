@@ -15,23 +15,19 @@ jobs:
   style:
     name: Style
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Run every step inside the flake's dev shell (see flake.nix)
+        shell: nix develop --command bash --noprofile --norc -eo pipefail {0}
     steps:
-      - name: Install DBUS and pkgconfig (linux only)
-        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components:
-            rustfmt
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: |
-            just
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
       - name: Tool Versions
         run: |
           cargo fmt --version
           just --version
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Check Style
         run: |
           git config --global credential.helper store
@@ -41,21 +37,17 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Run every step inside the flake's dev shell (see flake.nix)
+        shell: nix develop --command bash --noprofile --norc -eo pipefail {0}
     steps:
-      - name: Install DBUS and pkgconfig (linux only)
-        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components:
-            clippy
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: |
-            just
-      - name: Tool Versions
-        run: cargo clippy --version
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+      - name: Tool Versions
+        run: cargo clippy --version
       - name: Lint
         run: |
           git config --global credential.helper store
@@ -65,21 +57,21 @@ jobs:
   sbom:
     name: Generate CycloneDX
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Run every step inside the flake's dev shell (see flake.nix)
+        shell: nix develop --command bash --noprofile --norc -eo pipefail {0}
     steps:
-      - name: Install DBUS and pkgconfig (linux only)
-        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: |
-            just
-            cargo-cyclonedx
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+      # Only writes the @tektronix registry config; node/npm come from the flake
       - uses: actions/setup-node@v4
         with:
           node-version: "24.x"
           registry-url: "https://npm.pkg.github.com"
           scope: "@tektronix"
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Install Tools
         run: |
           npm ci
@@ -200,33 +192,43 @@ jobs:
           - runner: ubuntu-latest
             triple: x86_64-unknown-linux-gnu
             vscode-platform: linux-x64
+            # Build inside the flake's dev shell so the binaries target RHEL 9's glibc
+            shell: nix develop --command bash --noprofile --norc -eo pipefail {0}
           - runner: windows-latest
             triple: x86_64-pc-windows-msvc
             vscode-platform: win32-x64
+            shell: bash
           - runner: macos-latest
             triple: aarch64-apple-darwin
             vscode-platform: darwin-arm64
+            shell: bash
     runs-on: ${{matrix.runner}}
     env:
       RUSTFLAGS: "-L ${{github.workspace}}"
       LIB_VISA_PATH: "${{github.workflow}}"
+    defaults:
+      run:
+        shell: ${{matrix.shell}}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Nix (linux only)
+        if: ${{ runner.os == 'Linux' }}
+        uses: DeterminateSystems/determinate-nix-action@v3
       - name: Install Rust Toolchain
+        if: ${{ runner.os != 'Linux' }}
         uses: dtolnay/rust-toolchain@stable
       - name: Install Other Tools
+        if: ${{ runner.os != 'Linux' }}
         uses: taiki-e/install-action@v2
         with:
           tool: |
             just
-      - name: Install DBUS and pkgconfig (linux only)
-        if: ${{ matrix.runner == 'ubuntu-latest' }}
-        run: sudo apt update && sudo apt install -y libdbus-1-dev pkg-config
       - name: Ensure Correct Target is Installed
+        if: ${{ runner.os != 'Linux' }}
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
         run: rustc --version
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Get Latest VISA Stub Release
         uses: robinraju/release-downloader@v1
         with:
@@ -238,7 +240,6 @@ jobs:
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
           just build-release
-        shell: bash
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
