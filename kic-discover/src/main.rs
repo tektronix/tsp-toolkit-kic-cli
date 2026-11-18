@@ -342,7 +342,7 @@ const fn require_exit_timer(sub: &SubCli) -> bool {
 
 async fn discover_lan(
     args: DiscoverCmd,
-    tx: std::sync::mpsc::Sender<String>,
+    tx: crossbeam_channel::Sender<String>,
 ) -> anyhow::Result<()> {
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);
@@ -354,7 +354,7 @@ async fn discover_lan(
 #[cfg(feature = "visa")]
 async fn discover_visa(
     args: DiscoverCmd,
-    tx: std::sync::mpsc::Sender<String>,
+    tx: crossbeam_channel::Sender<String>,
 ) -> anyhow::Result<()> {
     let dur = Duration::from_secs(args.timeout_secs.unwrap_or(5) as u64);
     let discover_instance = InstrumentDiscovery::new(dur);

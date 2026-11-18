@@ -16,6 +16,22 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.24.0]
+
+### Changed
+- Improved error message format when saving buffers to a file with an invalid buffer name.
+
+### Added
+- Report TSP errors before and after the standalone kic executable firmware update
+- Linux executables now run on distributions with glibc 2.34 or newer, such as RHEL 9
+
+### Fixed
+- Improved firmware update reliability for KI2600, KI3700, and TTI instruments by avoiding transfer timeouts caused by blocking socket writes.
+- Fixed firmware update completion handling so that expected reboot disconnects display clear reconnect instructions
+- Detect when instrument has closed the connection gracefully and gracefully close the program
+- Fixed high resource usage by kic-discover-visa executable
+- Improved post-reset reliability for MP5000 instruments
+
 ## [0.23.0]
 
 ### Fixed

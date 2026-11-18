@@ -27,7 +27,7 @@ impl InstrumentDiscovery {
     ///
     /// # Errors
     /// If [`LxiDeviceInfo::discover`] fails, an error will be returned
-    pub async fn lan_discover(&self, tx: std::sync::mpsc::Sender<String>) -> anyhow::Result<()> {
+    pub async fn lan_discover(&self, tx: crossbeam_channel::Sender<String>) -> anyhow::Result<()> {
         LxiDeviceInfo::discover(self.timeout, tx).await?;
         Ok(())
     }
@@ -35,7 +35,7 @@ impl InstrumentDiscovery {
     #[cfg(feature = "visa")]
     pub async fn visa_discover(
         &self,
-        tx: std::sync::mpsc::Sender<String>,
+        tx: crossbeam_channel::Sender<String>,
     ) -> anyhow::Result<HashSet<InstrumentInfo>> {
         visa_discover(self.timeout, tx.clone()).await
     }

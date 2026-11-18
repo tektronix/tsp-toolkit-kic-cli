@@ -132,7 +132,7 @@ pub enum InstrumentError {
     UnknownVendor(String),
 
     #[error("system keyring error: {0}")]
-    KeyringError(#[from] keyring::Error),
+    KeyringError(#[from] keyring_core::Error),
 
     #[error("serialization or deserialization error: {0}")]
     SerializationError(#[from] serde_json::Error),

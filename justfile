@@ -25,6 +25,16 @@ native-vscode-platform := (vsc-os + "-" + vsc-arch)
 # Linux: linux-x64
 # Windows: win32-x64
 
+# The nix dev shell (see flake.nix) sets KIC_MIN_GLIBC_VERSION and provides cargo-zigbuild.
+# When it is set on Linux, build with zigbuild so the binaries only require that glibc
+# version (RHEL 9's) instead of the host's.
+min-glibc := env("KIC_MIN_GLIBC_VERSION", "")
+use-zigbuild := if os() != "linux" { "" } else if min-glibc == "" { "" } else { "true" }
+cargo-build := if use-zigbuild == "" { "build" } else { "zigbuild" }
+# Appended to `-gnu` triples only; output still lands in target/<triple>/
+glibc-suffix := if use-zigbuild == "" { "" } else { "." + min-glibc }
+
+
 # List all possible targets
 default triple=native-triple:
     @echo "{{ package-name }}"
@@ -184,29 +194,29 @@ build-non-visa triple=native-triple release="": (build-kic triple release) (buil
 [private]
 build-kic-visa triple=native-triple release="":
     -rm target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-visa{{ exe-extension }}
-    cargo build -p kic -F visa --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic -F visa --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
     mv target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic{{ exe-extension }} target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-visa{{ exe-extension }}
 
 [private]
 build-kic triple=native-triple release="":
-    cargo build -p kic --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
 
 [private]
 build-kic-debug triple=native-triple release="":
-    cargo build -p kic-debug --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic-debug --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
 
 [private]
 build-kic-debug-visa triple=native-triple release="":
-    cargo build -p kic-debug-visa --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic-debug-visa --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
 
 [private]
 build-kic-discover triple=native-triple release="":
-    cargo build -p kic-discover --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic-discover --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
 
 [private]
 build-kic-discover-visa triple=native-triple release="":
     -rm target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover-visa{{ exe-extension }}
-    cargo build -p kic-discover -F visa --target {{ triple }} {{ release }}
+    cargo {{ cargo-build }} -p kic-discover -F visa --target {{ triple }}{{ if triple =~ '-gnu$' { glibc-suffix } else { "" } }} {{ release }}
     mv target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover{{ exe-extension }} target/{{ triple }}/{{ if release == "" { "debug" } else { "release" } }}/kic-discover-visa{{ exe-extension }}
 
 ################################################################################
